@@ -29,6 +29,8 @@ importers:
 
   packages/core: {}
 
+  packages/errors: {}
+
   packages/types: {}
 
 packages:

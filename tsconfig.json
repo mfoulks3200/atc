@@ -12,5 +12,5 @@
     "forceConsistentCasingInFileNames": true,
     "composite": true
   },
-  "references": [{ "path": "packages/types" }, { "path": "packages/core" }]
+  "references": [{ "path": "packages/types" }, { "path": "packages/errors" }, { "path": "packages/core" }]
 }
