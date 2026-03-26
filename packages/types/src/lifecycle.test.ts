@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { CraftStatus } from "./enums.js";
-import { TRANSITIONS, TERMINAL_STATES, type CraftTransition } from "./lifecycle.js";
+import { TRANSITIONS, TERMINAL_STATES } from "./lifecycle.js";
 
 describe("TERMINAL_STATES", () => {
   it("contains exactly Landed and ReturnToOrigin", () => {
