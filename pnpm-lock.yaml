@@ -50,6 +50,21 @@ importers:
 
   packages/errors: {}
 
+  packages/tower:
+    dependencies:
+      '@atc/checklist':
+        specifier: workspace:*
+        version: link:../checklist
+      '@atc/core':
+        specifier: workspace:*
+        version: link:../core
+      '@atc/errors':
+        specifier: workspace:*
+        version: link:../errors
+      '@atc/types':
+        specifier: workspace:*
+        version: link:../types
+
   packages/types: {}
 
   packages/validation:
