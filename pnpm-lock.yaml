@@ -27,6 +27,15 @@ importers:
         specifier: ^3.1.1
         version: 3.2.4
 
+  packages/checklist:
+    dependencies:
+      '@atc/errors':
+        specifier: workspace:*
+        version: link:../errors
+      '@atc/types':
+        specifier: workspace:*
+        version: link:../types
+
   packages/core: {}
 
   packages/errors: {}
