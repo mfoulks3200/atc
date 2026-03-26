@@ -25,9 +25,6 @@ export function canHoldControls(seat: SeatType): boolean {
  * @returns `true` if the seat permits the action.
  * @see RULE-SEAT-1 through RULE-SEAT-4, RULE-CTRL-2, RULE-BBOX-3, RULE-EMER-1
  */
-export function canPerformAction(
-  seat: SeatType,
-  action: PilotAction,
-): boolean {
+export function canPerformAction(seat: SeatType, action: PilotAction): boolean {
   return PERMISSIONS[seat][action];
 }

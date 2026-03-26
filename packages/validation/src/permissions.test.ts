@@ -63,14 +63,8 @@ describe("canPerformAction", () => {
 
   describe("cross-checks with canHoldControls", () => {
     it("canPerformAction(seat, 'holdControls') agrees with canHoldControls(seat)", () => {
-      for (const seat of [
-        SeatType.Captain,
-        SeatType.FirstOfficer,
-        SeatType.Jumpseat,
-      ]) {
-        expect(canPerformAction(seat, "holdControls")).toBe(
-          canHoldControls(seat),
-        );
+      for (const seat of [SeatType.Captain, SeatType.FirstOfficer, SeatType.Jumpseat]) {
+        expect(canPerformAction(seat, "holdControls")).toBe(canHoldControls(seat));
       }
     });
   });

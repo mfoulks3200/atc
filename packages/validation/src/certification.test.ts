@@ -31,9 +31,7 @@ describe("isPilotCertified", () => {
   });
 
   it("returns false when pilot has no certifications", () => {
-    expect(isPilotCertified(uncertifiedPilot, "Backend Engineering")).toBe(
-      false,
-    );
+    expect(isPilotCertified(uncertifiedPilot, "Backend Engineering")).toBe(false);
   });
 
   it("returns false for empty category string", () => {
