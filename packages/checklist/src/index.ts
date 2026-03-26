@@ -1,1 +1,5 @@
-// Barrel file — populated as modules are implemented.
+export type {
+  ChecklistItem,
+  ChecklistItemResult,
+  ChecklistResult,
+} from "./types.js";
