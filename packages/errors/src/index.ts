@@ -5,3 +5,7 @@ export { ControlsError } from "./controls.js";
 export { BlackBoxError } from "./black-box.js";
 export { LifecycleError } from "./lifecycle.js";
 export type { LifecycleErrorContext } from "./lifecycle.js";
+export { VectorError } from "./vector.js";
+export { ChecklistError } from "./checklist.js";
+export { EmergencyError } from "./emergency.js";
+export { TowerError } from "./tower.js";
