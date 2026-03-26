@@ -1,9 +1,5 @@
 import { ChecklistError } from "@atc/errors";
-import type {
-  ChecklistItem,
-  ChecklistItemResult,
-  ChecklistResult,
-} from "./types.js";
+import type { ChecklistItem, ChecklistItemResult, ChecklistResult } from "./types.js";
 
 /**
  * Creates a checklist item from a name and an async validation function.
@@ -33,14 +29,9 @@ export function createChecklistItem(
  * @see RULE-LCHK-2 — `passed` is true only if ALL items passed.
  * @see RULE-LCHK-3 — a false result means a go-around is required.
  */
-export async function runChecklist(
-  items: readonly ChecklistItem[],
-): Promise<ChecklistResult> {
+export async function runChecklist(items: readonly ChecklistItem[]): Promise<ChecklistResult> {
   if (items.length === 0) {
-    throw new ChecklistError(
-      "Checklist must contain at least one item",
-      "RULE-LCHK-2",
-    );
+    throw new ChecklistError("Checklist must contain at least one item", "RULE-LCHK-2");
   }
 
   const results: ChecklistItemResult[] = [];

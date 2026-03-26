@@ -83,17 +83,11 @@ describe("runChecklist", () => {
 
     const result = await runChecklist(items);
 
-    expect(result.items.map((i) => i.name)).toEqual([
-      "First",
-      "Second",
-      "Third",
-    ]);
+    expect(result.items.map((i) => i.name)).toEqual(["First", "Second", "Third"]);
   });
 
   it("throws ChecklistError when items array is empty", async () => {
-    await expect(runChecklist([])).rejects.toThrow(
-      "Checklist must contain at least one item",
-    );
+    await expect(runChecklist([])).rejects.toThrow("Checklist must contain at least one item");
   });
 
   it("runs all items even if early ones fail (collects all results)", async () => {
