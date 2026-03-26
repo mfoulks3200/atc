@@ -28,9 +28,7 @@ export class Tower {
    * @see RULE-TOWER-2, RULE-TMRG-1, RULE-TMRG-4
    */
   requestClearance(craft: Craft): ClearanceResult {
-    const allPassed = craft.flightPlan.every(
-      (v) => v.status === VectorStatus.Passed,
-    );
+    const allPassed = craft.flightPlan.every((v) => v.status === VectorStatus.Passed);
 
     if (!allPassed) {
       const unpassed = craft.flightPlan
@@ -56,9 +54,7 @@ export class Tower {
    * @see RULE-TMRG-4
    */
   enqueue(craft: Craft): void {
-    const exists = this.queue.some(
-      (entry) => entry.craft.callsign === craft.callsign,
-    );
+    const exists = this.queue.some((entry) => entry.craft.callsign === craft.callsign);
     if (exists) {
       throw new TowerError(
         `Craft "${craft.callsign}" is already in the merge queue`,
@@ -80,9 +76,7 @@ export class Tower {
    * @returns The removed craft, or undefined if not found.
    */
   dequeue(callsign: string): Craft | undefined {
-    const index = this.queue.findIndex(
-      (entry) => entry.craft.callsign === callsign,
-    );
+    const index = this.queue.findIndex((entry) => entry.craft.callsign === callsign);
     if (index === -1) {
       return undefined;
     }
@@ -123,11 +117,7 @@ export class Tower {
    * @throws EmergencyError if captainId does not match the craft's captain.
    * @see RULE-EMER-1 through RULE-EMER-4, RULE-ORIG-2
    */
-  declareEmergency(
-    craft: Craft,
-    captainId: string,
-    reason: string,
-  ): EmergencyReport {
+  declareEmergency(craft: Craft, captainId: string, reason: string): EmergencyReport {
     if (craft.captain.identifier !== captainId) {
       throw new EmergencyError(
         `Only the captain may declare an emergency. Expected "${craft.captain.identifier}", got "${captainId}"`,

@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-  CraftStatus,
-  VectorStatus,
-  ControlMode,
-  BlackBoxEntryType,
-} from "@atc/types";
+import { CraftStatus, VectorStatus, ControlMode, BlackBoxEntryType } from "@atc/types";
 import type { Craft } from "@atc/types";
 import { Tower, createTower } from "./tower.js";
 
@@ -297,9 +292,7 @@ describe("Tower.declareEmergency", () => {
       callsign: "SOS-2",
       captain: { identifier: "captain-x", certifications: ["Backend Engineering"] },
     });
-    expect(() =>
-      tower.declareEmergency(craft, "not-the-captain", "Reasons"),
-    ).toThrow();
+    expect(() => tower.declareEmergency(craft, "not-the-captain", "Reasons")).toThrow();
   });
 
   it("does not throw when captainId matches the craft captain (RULE-EMER-1)", () => {
@@ -307,9 +300,7 @@ describe("Tower.declareEmergency", () => {
       callsign: "SOS-3",
       captain: { identifier: "captain-y", certifications: ["Backend Engineering"] },
     });
-    expect(() =>
-      tower.declareEmergency(craft, "captain-y", "Reasons"),
-    ).not.toThrow();
+    expect(() => tower.declareEmergency(craft, "captain-y", "Reasons")).not.toThrow();
   });
 
   it("includes an EmergencyDeclaration entry in the report black box (RULE-EMER-2)", () => {

@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  CraftStatus,
-  VectorStatus,
-  ControlMode,
-  BlackBoxEntryType,
-} from "@atc/types";
+import { CraftStatus, VectorStatus, ControlMode, BlackBoxEntryType } from "@atc/types";
 import type { Craft, BlackBoxEntry } from "@atc/types";
 import { createEmergencyReport } from "./emergency.js";
 
