@@ -1,11 +1,16 @@
 {
   "name": "@atc/core",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc --build"
+  },
+  "dependencies": {
+    "@atc/types": "workspace:*",
+    "@atc/errors": "workspace:*",
+    "@atc/validation": "workspace:*"
   }
 }
