@@ -1,10 +1,4 @@
-export {
-  CraftStatus,
-  SeatType,
-  ControlMode,
-  VectorStatus,
-  BlackBoxEntryType,
-} from "./enums.js";
+export { CraftStatus, SeatType, ControlMode, VectorStatus, BlackBoxEntryType } from "./enums.js";
 
 export type {
   BlackBoxEntry,

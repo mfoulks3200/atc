@@ -1,10 +1,4 @@
-import {
-  CraftStatus,
-  SeatType,
-  ControlMode,
-  VectorStatus,
-  BlackBoxEntryType,
-} from "./enums.js";
+import { CraftStatus, SeatType, ControlMode, VectorStatus, BlackBoxEntryType } from "./enums.js";
 
 /**
  * A single entry in a craft's black box log.

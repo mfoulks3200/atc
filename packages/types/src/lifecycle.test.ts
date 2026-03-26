@@ -4,9 +4,7 @@ import { TRANSITIONS, TERMINAL_STATES } from "./lifecycle.js";
 
 describe("TERMINAL_STATES", () => {
   it("contains exactly Landed and ReturnToOrigin", () => {
-    expect(TERMINAL_STATES).toEqual(
-      new Set([CraftStatus.Landed, CraftStatus.ReturnToOrigin])
-    );
+    expect(TERMINAL_STATES).toEqual(new Set([CraftStatus.Landed, CraftStatus.ReturnToOrigin]));
   });
 });
 
@@ -33,35 +31,35 @@ describe("TRANSITIONS", () => {
 
   it("includes Taxiing -> InFlight", () => {
     const t = TRANSITIONS.find(
-      (t) => t.from === CraftStatus.Taxiing && t.to === CraftStatus.InFlight
+      (t) => t.from === CraftStatus.Taxiing && t.to === CraftStatus.InFlight,
     );
     expect(t).toBeDefined();
   });
 
   it("includes InFlight -> InFlight (vector passage)", () => {
     const t = TRANSITIONS.find(
-      (t) => t.from === CraftStatus.InFlight && t.to === CraftStatus.InFlight
+      (t) => t.from === CraftStatus.InFlight && t.to === CraftStatus.InFlight,
     );
     expect(t).toBeDefined();
   });
 
   it("includes InFlight -> LandingChecklist", () => {
     const t = TRANSITIONS.find(
-      (t) => t.from === CraftStatus.InFlight && t.to === CraftStatus.LandingChecklist
+      (t) => t.from === CraftStatus.InFlight && t.to === CraftStatus.LandingChecklist,
     );
     expect(t).toBeDefined();
   });
 
   it("includes GoAround -> Emergency", () => {
     const t = TRANSITIONS.find(
-      (t) => t.from === CraftStatus.GoAround && t.to === CraftStatus.Emergency
+      (t) => t.from === CraftStatus.GoAround && t.to === CraftStatus.Emergency,
     );
     expect(t).toBeDefined();
   });
 
   it("includes Emergency -> ReturnToOrigin", () => {
     const t = TRANSITIONS.find(
-      (t) => t.from === CraftStatus.Emergency && t.to === CraftStatus.ReturnToOrigin
+      (t) => t.from === CraftStatus.Emergency && t.to === CraftStatus.ReturnToOrigin,
     );
     expect(t).toBeDefined();
   });
