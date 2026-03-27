@@ -1,4 +1,5 @@
-import { Link } from "react-router";
+import { useEffect } from "react";
+import { useSetPageHeader } from "@/hooks/page-header-context";
 
 interface Crumb {
   label: string;
@@ -11,34 +12,13 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ crumbs, right }: PageHeaderProps) {
-  return (
-    <div
-      className="flex h-12 items-center justify-between border-b px-5"
-      style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}
-    >
-      <div className="flex items-center gap-1 text-sm">
-        {crumbs.map((crumb, i) => (
-          <span key={i} className="flex items-center gap-1">
-            {i > 0 && (
-              <span className="mx-1" style={{ color: "var(--text-dim)" }}>
-                /
-              </span>
-            )}
-            {crumb.to ? (
-              <Link
-                to={crumb.to}
-                className="no-underline hover:underline"
-                style={{ color: "var(--text-muted)" }}
-              >
-                {crumb.label}
-              </Link>
-            ) : (
-              <span style={{ color: "var(--text-primary)" }}>{crumb.label}</span>
-            )}
-          </span>
-        ))}
-      </div>
-      {right && <div>{right}</div>}
-    </div>
-  );
+  const set = useSetPageHeader();
+  const key = crumbs.map((c) => `${c.label}:${c.to ?? ""}`).join("|");
+
+  useEffect(() => {
+    set({ crumbs, right });
+    return () => set({ crumbs: [] });
+  }, [set, key]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return null;
 }
