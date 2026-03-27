@@ -1,6 +1,9 @@
 import { NavLink, useParams } from "react-router";
 import { useTowerQueue } from "@/hooks/use-api";
 
+import styles from "./sidebar.module.css";
+import { cn } from "@/lib/utils";
+
 export function ProjectSidebar() {
   const { name } = useParams<{ name: string }>();
   const { data: queue } = useTowerQueue(name!);
@@ -12,7 +15,10 @@ export function ProjectSidebar() {
       className="flex w-[220px] shrink-0 flex-col border-r"
       style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}
     >
-      <div className="border-b px-4 py-4" style={{ borderColor: "var(--border)" }}>
+      <div
+        className={cn("border-b px-4 py-4", styles.radar)}
+        style={{ borderColor: "var(--border)" }}
+      >
         <div className="text-lg font-bold tracking-[2px]" style={{ color: "var(--accent-green)" }}>
           ATC
         </div>
@@ -21,7 +27,10 @@ export function ProjectSidebar() {
         </div>
       </div>
       <nav className="px-4 py-3">
-        <div className="mb-2 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
+        <div
+          className="mb-2 text-[9px] uppercase tracking-widest"
+          style={{ color: "var(--text-dim)" }}
+        >
           SYSTEM
         </div>
         <NavLink
@@ -54,7 +63,10 @@ export function ProjectSidebar() {
         </NavLink>
       </nav>
       <nav className="border-t px-4 py-3" style={{ borderColor: "var(--border)" }}>
-        <div className="mb-2 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
+        <div
+          className="mb-2 text-[9px] uppercase tracking-widest"
+          style={{ color: "var(--text-dim)" }}
+        >
           PROJECT: {name?.toUpperCase()}
         </div>
         <NavLink
