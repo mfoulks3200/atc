@@ -1,0 +1,20 @@
+{
+  "name": "@atc/daemon",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build"
+  },
+  "dependencies": {
+    "@atc/types": "workspace:*",
+    "@atc/errors": "workspace:*",
+    "@atc/core": "workspace:*",
+    "@atc/tower": "workspace:*",
+    "@atc/checklist": "workspace:*",
+    "fastify": "^5.3.3",
+    "@fastify/websocket": "^11.2.0"
+  }
+}

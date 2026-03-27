@@ -12,5 +12,5 @@
     "forceConsistentCasingInFileNames": true,
     "composite": true
   },
-  "references": [{ "path": "packages/types" }, { "path": "packages/errors" }, { "path": "packages/core" }, { "path": "packages/validation" }, { "path": "packages/checklist" }, { "path": "packages/tower" }]
+  "references": [{ "path": "packages/types" }, { "path": "packages/errors" }, { "path": "packages/core" }, { "path": "packages/validation" }, { "path": "packages/checklist" }, { "path": "packages/tower" }, { "path": "packages/daemon" }]
 }
