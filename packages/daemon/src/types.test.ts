@@ -410,7 +410,7 @@ describe("WsServerMessage", () => {
   });
 
   it("accepts pong variant", () => {
-    const msg: WsServerMessage = { type: "pong" };
+    const msg: WsServerMessage = { type: "pong", timestamp: new Date().toISOString() };
     expect(msg.type).toBe("pong");
   });
 });

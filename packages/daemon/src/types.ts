@@ -289,7 +289,7 @@ export type WsServerMessage =
   | { type: "connected"; sessionId: string }
   | WsEvent
   | { type: "ping" }
-  | { type: "pong" };
+  | { type: "pong"; timestamp: string };
 
 // ---------------------------------------------------------------------------
 // Usage reporting types
