@@ -6,7 +6,10 @@
       "Bash(pnpm install:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(pnpm add:*)",
+      "Bash(npx tsc:*)",
+      "Skill(commit-commands:commit)"
     ]
   }
 }
