@@ -1,0 +1,40 @@
+@property --radar-rotation {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.radar {
+  background: conic-gradient(
+    from var(--radar-rotation),
+    rgb(from var(--accent-green) r g b / 0.2),
+    transparent
+  );
+  background-position: 435px 290px;
+  background-size: 500px 500px;
+  animation: 20s linear 1s infinite running radarAnimation;
+  height: 75px;
+
+  &::before {
+    content: "";
+    display: block;
+    background: linear-gradient(to top, #000000, #000000, #333333, #333333);
+    background-size: cover;
+    background-size: 100% 3px;
+    width: calc((var(--spacing) * 8) + 100%);
+    height: 75px;
+    margin-bottom: -60px;
+    margin-left: calc(var(--spacing) * -4);
+    margin-top: calc(var(--spacing) * -4);
+    mix-blend-mode: color-dodge;
+  }
+}
+
+@keyframes radarAnimation {
+  from {
+    --radar-rotation: 360deg;
+  }
+  to {
+    --radar-rotation: 0deg;
+  }
+}

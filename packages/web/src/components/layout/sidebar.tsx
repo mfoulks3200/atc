@@ -1,4 +1,6 @@
 import { NavLink } from "react-router";
+import styles from "./sidebar.module.css";
+import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: "◈" },
@@ -13,7 +15,10 @@ export function Sidebar() {
       className="flex w-[220px] shrink-0 flex-col border-r"
       style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}
     >
-      <div className="border-b px-4 py-4" style={{ borderColor: "var(--border)" }}>
+      <div
+        className={cn("border-b px-4 py-4", styles.radar)}
+        style={{ borderColor: "var(--border)" }}
+      >
         <div className="text-lg font-bold tracking-[2px]" style={{ color: "var(--accent-green)" }}>
           ATC
         </div>
@@ -22,7 +27,10 @@ export function Sidebar() {
         </div>
       </div>
       <nav className="px-4 py-3">
-        <div className="mb-2 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
+        <div
+          className="mb-2 text-[9px] uppercase tracking-widest"
+          style={{ color: "var(--text-dim)" }}
+        >
           SYSTEM
         </div>
         {NAV_ITEMS.map((item) => (
