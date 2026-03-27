@@ -236,6 +236,25 @@ export interface CraftState {
 }
 
 // ---------------------------------------------------------------------------
+// Pilot record types
+// ---------------------------------------------------------------------------
+
+/**
+ * A registered pilot within a project.
+ *
+ * @see RULE-PILOT-1 for pilot identity rules.
+ * @see RULE-SEAT-1 through RULE-SEAT-3 for seat assignment rules.
+ */
+export interface PilotRecord {
+  /** Unique pilot identifier. */
+  identifier: string;
+  /** List of certifications held by the pilot (e.g. "captain", "firstOfficer"). */
+  certifications: string[];
+  /** Named MCP server configurations available to this pilot. */
+  mcpServers: Record<string, McpServerConfig>;
+}
+
+// ---------------------------------------------------------------------------
 // WebSocket message types
 // ---------------------------------------------------------------------------
 
