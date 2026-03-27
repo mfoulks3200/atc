@@ -214,7 +214,13 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
   /**
    * Run the landing checklist for a craft.
    *
+   * Transitions the craft to `LandingChecklist` before running, then to
+   * `GoAround` on failure or `ClearedToLand` on success per RULE-LCHK-3.
+   *
+   * Valid entry states: `InFlight`, `GoAround`.
+   *
    * @see RULE-LCHK-1 through RULE-LCHK-4
+   * @see RULE-LCHK-3
    */
   app.post<{ Params: CraftParams }>(
     "/api/v1/projects/:name/crafts/:callsign/checklist",
@@ -225,6 +231,18 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       if (!craft) {
         return reply.code(404).send({ error: `Craft not found: ${callsign}` });
       }
+
+      // RULE-LCHK-3: only valid from InFlight or GoAround
+      const validEntryStates: CraftStatus[] = [CraftStatus.InFlight, CraftStatus.GoAround];
+      if (!validEntryStates.includes(craft.status)) {
+        return reply.code(409).send({
+          error: `Checklist requires InFlight or GoAround status, current status: ${craft.status}`,
+        });
+      }
+
+      // Transition to LandingChecklist before running
+      craft.status = CraftStatus.LandingChecklist;
+      app.craftStore.set(name, craft);
 
       let metadata;
       try {
@@ -244,7 +262,11 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       );
       const result = await runChecklist(metadata.checklist, worktreePath);
 
-      return reply.send(result);
+      // RULE-LCHK-3: failure -> GoAround, success -> ClearedToLand
+      craft.status = result.passed ? CraftStatus.ClearedToLand : CraftStatus.GoAround;
+      app.craftStore.set(name, craft);
+
+      return reply.send({ ...result, status: craft.status });
     },
   );
 
@@ -254,6 +276,8 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * Declare an emergency on a craft.
+   *
+   * Only valid from `GoAround` status (lifecycle transition 7).
    *
    * @see RULE-EMER-1 — only the captain may declare an emergency.
    */
@@ -271,6 +295,13 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       // RULE-EMER-1: only captain can declare emergency
       if (craft.captain !== pilotId) {
         return reply.code(403).send({ error: "Only the captain may declare an emergency" });
+      }
+
+      // Lifecycle transition 7: Emergency only reachable from GoAround
+      if (craft.status !== CraftStatus.GoAround) {
+        return reply.code(400).send({
+          error: `Emergency can only be declared from GoAround status, current status: ${craft.status}`,
+        });
       }
 
       const entry: BlackBoxEntry = {

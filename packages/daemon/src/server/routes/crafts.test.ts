@@ -1,10 +1,25 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "../app.js";
 import { CraftStore } from "../../state/craft-store.js";
 import { AgentStore } from "../../state/agent-store.js";
 import { TowerStore } from "../../state/tower-store.js";
 import type { CraftState } from "../../types.js";
+
+// Mock filesystem-dependent modules so checklist route tests don't need real disk state
+vi.mock("../../config/loader.js", () => ({
+  loadProjectMetadata: vi.fn().mockResolvedValue({
+    name: "test-project",
+    repoPath: "/tmp/fake-repo",
+    checklist: [{ name: "echo ok", command: "echo ok" }],
+  }),
+}));
+
+vi.mock("../../checklist/runner.js", () => ({
+  runChecklist: vi.fn(),
+}));
+
+import { runChecklist } from "../../checklist/runner.js";
 
 describe("craft routes", () => {
   let app: FastifyInstance;
@@ -209,16 +224,127 @@ describe("craft routes", () => {
   });
 
   // -------------------------------------------------------------------------
-  // POST /api/v1/projects/:name/crafts/:callsign/emergency
+  // POST /api/v1/projects/:name/crafts/:callsign/checklist
   // -------------------------------------------------------------------------
 
-  describe("POST /api/v1/projects/:name/crafts/:callsign/emergency", () => {
-    it("declares emergency when captain requests", async () => {
+  describe("POST /api/v1/projects/:name/crafts/:callsign/checklist", () => {
+    /** Helper: seed a craft in InFlight status. */
+    async function seedCraftInFlight(): Promise<void> {
       await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/crafts`,
         payload: validCraftBody,
       });
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/launch`,
+      });
+    }
+
+    it("transitions to ClearedToLand when checklist passes", async () => {
+      await seedCraftInFlight();
+      vi.mocked(runChecklist).mockResolvedValueOnce({ passed: true, items: [] });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.passed).toBe(true);
+      expect(body.status).toBe("ClearedToLand");
+      // Verify store was updated
+      expect(craftStore.get(PROJECT, "alpha-1")!.status).toBe("ClearedToLand");
+    });
+
+    it("transitions to GoAround when checklist fails", async () => {
+      await seedCraftInFlight();
+      vi.mocked(runChecklist).mockResolvedValueOnce({
+        passed: false,
+        items: [{ name: "lint", passed: false, stdout: "", stderr: "error", durationMs: 10 }],
+      });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.passed).toBe(false);
+      expect(body.status).toBe("GoAround");
+      expect(craftStore.get(PROJECT, "alpha-1")!.status).toBe("GoAround");
+    });
+
+    it("also accepts GoAround as a valid entry state (re-attempt)", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts`,
+        payload: validCraftBody,
+      });
+      // Force GoAround directly
+      const craft = craftStore.get(PROJECT, "alpha-1")!;
+      craft.status = "GoAround" as CraftState["status"];
+      craftStore.set(PROJECT, craft);
+
+      vi.mocked(runChecklist).mockResolvedValueOnce({ passed: true, items: [] });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().status).toBe("ClearedToLand");
+    });
+
+    it("returns 409 when craft is not InFlight or GoAround", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts`,
+        payload: validCraftBody,
+      });
+      // Craft is Taxiing — invalid entry state
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+      });
+
+      expect(res.statusCode).toBe(409);
+      expect(res.json().error).toMatch(/InFlight or GoAround/);
+    });
+
+    it("returns 404 for unknown craft", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/ghost/checklist`,
+      });
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // POST /api/v1/projects/:name/crafts/:callsign/emergency
+  // -------------------------------------------------------------------------
+
+  describe("POST /api/v1/projects/:name/crafts/:callsign/emergency", () => {
+    /** Helper: seed a craft directly in GoAround status (bypasses checklist). */
+    async function seedCraftInGoAround(): Promise<void> {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts`,
+        payload: validCraftBody,
+      });
+      // Manually force status to GoAround in the store (lifecycle transition 7 requires it)
+      const craft = craftStore.get(PROJECT, "alpha-1")!;
+      craft.status = "GoAround" as CraftState["status"];
+      craftStore.set(PROJECT, craft);
+    }
+
+    it("declares emergency when captain requests from GoAround", async () => {
+      await seedCraftInGoAround();
 
       const res = await app.inject({
         method: "POST",
@@ -232,12 +358,46 @@ describe("craft routes", () => {
       expect(body.blackBox[0].type).toBe("EmergencyDeclaration");
     });
 
-    it("returns 403 when non-captain tries to declare", async () => {
+    it("returns 400 when craft is not in GoAround", async () => {
       await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/crafts`,
         payload: validCraftBody,
       });
+      // Craft is in Taxiing — not a valid state for emergency declaration
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/emergency`,
+        payload: { pilotId: "pilot-1", reason: "Shouldn't work yet" },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error).toMatch(/GoAround/);
+    });
+
+    it("returns 400 when craft is InFlight (only GoAround allowed)", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts`,
+        payload: validCraftBody,
+      });
+      // Launch into InFlight
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/launch`,
+      });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/emergency`,
+        payload: { pilotId: "pilot-1", reason: "Can't jump to emergency from InFlight" },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error).toMatch(/GoAround/);
+    });
+
+    it("returns 403 when non-captain tries to declare", async () => {
+      await seedCraftInGoAround();
 
       const res = await app.inject({
         method: "POST",
