@@ -58,23 +58,19 @@ describe("runChecklist", () => {
     expect(result.items[0].stderr.trim()).toBe("something went wrong");
   });
 
-  it(
-    "times out a long-running command and sets error containing 'timed out'",
-    async () => {
-      const cwd = await makeTmpDir();
-      const items: ChecklistItemConfig[] = [
-        { name: "slow step", command: "sleep 60", timeout: 1000 },
-      ];
+  it("times out a long-running command and sets error containing 'timed out'", async () => {
+    const cwd = await makeTmpDir();
+    const items: ChecklistItemConfig[] = [
+      { name: "slow step", command: "sleep 60", timeout: 1000 },
+    ];
 
-      const result = await runChecklist(items, cwd);
+    const result = await runChecklist(items, cwd);
 
-      expect(result.passed).toBe(false);
-      expect(result.items).toHaveLength(1);
-      expect(result.items[0].passed).toBe(false);
-      expect(result.items[0].error).toMatch(/timed out/i);
-    },
-    10_000,
-  );
+    expect(result.passed).toBe(false);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].passed).toBe(false);
+    expect(result.items[0].error).toMatch(/timed out/i);
+  }, 10_000);
 
   it("returns passed: true with empty items array when no items provided", async () => {
     const cwd = await makeTmpDir();

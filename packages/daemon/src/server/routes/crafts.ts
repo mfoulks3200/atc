@@ -73,16 +73,8 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
     "/api/v1/projects/:name/crafts",
     async (request, reply) => {
       const { name } = request.params;
-      const {
-        callsign,
-        branch,
-        cargo,
-        category,
-        captain,
-        firstOfficers,
-        jumpseaters,
-        flightPlan,
-      } = request.body;
+      const { callsign, branch, cargo, category, captain, firstOfficers, jumpseaters, flightPlan } =
+        request.body;
 
       const vectors: VectorState[] = flightPlan.map((v) => ({
         name: v.name,
@@ -190,7 +182,9 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       }
 
       if (craft.status !== CraftStatus.Taxiing) {
-        return reply.code(409).send({ error: `Craft is not Taxiing, current status: ${craft.status}` });
+        return reply
+          .code(409)
+          .send({ error: `Craft is not Taxiing, current status: ${craft.status}` });
       }
 
       // RULE-LIFE-3: must have captain, cargo, and flightPlan
@@ -252,14 +246,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(404).send({ error: `Project not found: ${name}` });
       }
 
-      const worktreePath = join(
-        app.profileDir,
-        "projects",
-        name,
-        "crafts",
-        callsign,
-        "worktree",
-      );
+      const worktreePath = join(app.profileDir, "projects", name, "crafts", callsign, "worktree");
       const result = await runChecklist(metadata.checklist, worktreePath);
 
       // RULE-LCHK-3: failure -> GoAround, success -> ClearedToLand

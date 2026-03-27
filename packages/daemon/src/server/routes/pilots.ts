@@ -84,30 +84,24 @@ export async function pilotRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/projects/:name/pilots
   // -------------------------------------------------------------------------
 
-  app.get<{ Params: { name: string } }>(
-    "/api/v1/projects/:name/pilots",
-    async (request, reply) => {
-      const { name } = request.params;
-      const pilots = app.pilotStore.get(name);
-      return reply.send(pilots ? Array.from(pilots.values()) : []);
-    },
-  );
+  app.get<{ Params: { name: string } }>("/api/v1/projects/:name/pilots", async (request, reply) => {
+    const { name } = request.params;
+    const pilots = app.pilotStore.get(name);
+    return reply.send(pilots ? Array.from(pilots.values()) : []);
+  });
 
   // -------------------------------------------------------------------------
   // GET /api/v1/projects/:name/pilots/:id
   // -------------------------------------------------------------------------
 
-  app.get<{ Params: PilotParams }>(
-    "/api/v1/projects/:name/pilots/:id",
-    async (request, reply) => {
-      const { name, id } = request.params;
-      const pilot = app.pilotStore.get(name)?.get(id);
-      if (!pilot) {
-        return reply.code(404).send({ error: `Pilot not found: ${id}` });
-      }
-      return reply.send(pilot);
-    },
-  );
+  app.get<{ Params: PilotParams }>("/api/v1/projects/:name/pilots/:id", async (request, reply) => {
+    const { name, id } = request.params;
+    const pilot = app.pilotStore.get(name)?.get(id);
+    if (!pilot) {
+      return reply.code(404).send({ error: `Pilot not found: ${id}` });
+    }
+    return reply.send(pilot);
+  });
 
   // -------------------------------------------------------------------------
   // PATCH /api/v1/projects/:name/pilots/:id

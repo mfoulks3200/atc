@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { handleWsMessage } from "./handler.js";
-import type { WsClientMessage, WsServerMessage } from "../../types.js";
+import type { WsClientMessage } from "../../types.js";
 import type { ChannelRegistry } from "./channels.js";
 import type { HeartbeatTracker } from "./heartbeat.js";
 

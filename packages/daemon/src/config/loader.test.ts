@@ -33,10 +33,7 @@ afterEach(async () => {
 
 describe("loadGlobalConfig", () => {
   it("loads a valid config.json from atcDir", async () => {
-    await writeFile(
-      join(tmpDir, "config.json"),
-      JSON.stringify({ defaultProfile: "production" }),
-    );
+    await writeFile(join(tmpDir, "config.json"), JSON.stringify({ defaultProfile: "production" }));
     const config = await loadGlobalConfig(tmpDir);
     expect(config.defaultProfile).toBe("production");
   });
@@ -93,10 +90,7 @@ describe("loadProfileConfig", () => {
   it("throws on invalid port type", async () => {
     const profileDir = join(tmpDir, "profiles", "bad");
     await mkdir(profileDir, { recursive: true });
-    await writeFile(
-      join(profileDir, "config.json"),
-      JSON.stringify({ port: "not-a-number" }),
-    );
+    await writeFile(join(profileDir, "config.json"), JSON.stringify({ port: "not-a-number" }));
     await expect(loadProfileConfig(profileDir)).rejects.toThrow(/port/);
   });
 });

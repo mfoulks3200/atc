@@ -54,10 +54,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   app.decorate("towerStore", options.towerStore ?? new TowerStore("/tmp/atc-default"));
   app.decorate("adapterRegistry", options.adapterRegistry ?? new AdapterRegistry());
   app.decorate("channelRegistry", options.channelRegistry ?? new ChannelRegistry());
-  app.decorate(
-    "pilotStore",
-    new Map<string, Map<string, PilotRecord>>(),
-  );
+  app.decorate("pilotStore", new Map<string, Map<string, PilotRecord>>());
 
   void app.register(healthRoutes);
   void app.register(projectRoutes);

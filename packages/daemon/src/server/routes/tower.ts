@@ -39,13 +39,10 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/projects/:name/tower
   // -------------------------------------------------------------------------
 
-  app.get<{ Params: { name: string } }>(
-    "/api/v1/projects/:name/tower",
-    async (request, reply) => {
-      const { name } = request.params;
-      return reply.send(app.towerStore.getQueue(name));
-    },
-  );
+  app.get<{ Params: { name: string } }>("/api/v1/projects/:name/tower", async (request, reply) => {
+    const { name } = request.params;
+    return reply.send(app.towerStore.getQueue(name));
+  });
 
   // -------------------------------------------------------------------------
   // POST /api/v1/projects/:name/tower/clearance

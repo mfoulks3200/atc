@@ -220,22 +220,19 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
    * Runs `git fetch --all` in the project's bare repo directory. Returns 404
    * if the project does not exist.
    */
-  app.post<{ Params: { name: string } }>(
-    "/api/v1/projects/:name/sync",
-    async (request, reply) => {
-      const { name } = request.params;
-      const projectDir = join(app.profileDir, "projects", name);
+  app.post<{ Params: { name: string } }>("/api/v1/projects/:name/sync", async (request, reply) => {
+    const { name } = request.params;
+    const projectDir = join(app.profileDir, "projects", name);
 
-      try {
-        await loadProjectMetadata(projectDir);
-      } catch {
-        return reply.code(404).send({ error: `Project not found: ${name}` });
-      }
+    try {
+      await loadProjectMetadata(projectDir);
+    } catch {
+      return reply.code(404).send({ error: `Project not found: ${name}` });
+    }
 
-      const bareDir = join(projectDir, "repo.git");
-      await fetchBareRepo(bareDir);
+    const bareDir = join(projectDir, "repo.git");
+    await fetchBareRepo(bareDir);
 
-      return reply.send({ synced: true });
-    },
-  );
+    return reply.send({ synced: true });
+  });
 }

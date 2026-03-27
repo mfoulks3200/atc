@@ -8,7 +8,7 @@
  * @see RULE-CRAFT-1 through RULE-CRAFT-8 for craft lifecycle rules.
  */
 
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentUsageReport, CraftState, IntercomMessage } from "../types.js";
 import { atomicWriteJson, readJsonSafe } from "./persistence.js";
