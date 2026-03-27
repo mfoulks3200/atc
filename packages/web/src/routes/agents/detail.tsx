@@ -1,10 +1,11 @@
 import { useParams } from "react-router";
-import { useAgent, useAgentUsage } from "@/hooks/use-api";
+import { useAgent, useAgentUsage, useCraft } from "@/hooks/use-api";
 import { useWsManager } from "@/hooks/ws-context";
 import { useSubscription } from "@/hooks/use-subscription";
 import { PageHeader } from "@/components/base/page-header";
 import { StatusBadge } from "@/components/base/status-badge";
 import { StatCard } from "@/components/base/stat-card";
+import { FlightStrip } from "@/components/base/flight-strip";
 
 export function Component() {
   const { id } = useParams<{ id: string }>();
@@ -12,6 +13,7 @@ export function Component() {
   useSubscription(wsManager, `agent:${id}`);
   const { data: agent } = useAgent(id!);
   const { data: usage } = useAgentUsage(id!);
+  const { data: craft } = useCraft(agent?.projectName ?? "", agent?.callsign ?? "");
 
   if (!agent) {
     return <div className="py-8 text-center text-xs" style={{ color: "var(--text-dim)" }}>Loading...</div>;
@@ -34,6 +36,17 @@ export function Component() {
           {agent.pid && <div className="mt-0.5 text-[10px]" style={{ color: "var(--text-dim)" }}>PID: {agent.pid}</div>}
         </div>
       </div>
+      {craft && (
+        <div className="mt-4">
+          <div
+            className="mb-3 text-[9px] uppercase tracking-widest"
+            style={{ color: "var(--text-dim)" }}
+          >
+            ASSIGNED CRAFT
+          </div>
+          <FlightStrip craft={craft} project={agent.projectName} />
+        </div>
+      )}
       {latestUsage && (
         <div className="mt-4">
           <div className="mb-3 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>LATEST USAGE</div>
