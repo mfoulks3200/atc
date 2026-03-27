@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { useWsManager } from "@/hooks/ws-context";
+import { useSubscription } from "@/hooks/use-subscription";
 import { PageHeader } from "@/components/base/page-header";
 import { EventRow } from "@/components/base/event-row";
 import { FilterPills } from "@/components/base/filter-pills";
@@ -11,6 +13,8 @@ export function Component() {
   const [events, setEvents] = useState<WsEvent[]>([]);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(CATEGORIES));
   const scrollRef = useRef<HTMLDivElement>(null);
+  const wsManager = useWsManager();
+  useSubscription(wsManager, "*");
 
   useEffect(() => {
     const handler = (e: Event) => {

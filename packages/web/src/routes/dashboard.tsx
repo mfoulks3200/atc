@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useStatus, useHealth } from "@/hooks/use-api";
+import { useWsManager } from "@/hooks/ws-context";
+import { useSubscription } from "@/hooks/use-subscription";
 import { StatCard } from "@/components/base/stat-card";
 import { EventRow } from "@/components/base/event-row";
 import { PageHeader } from "@/components/base/page-header";
@@ -11,6 +13,8 @@ export function Component() {
   const { data: status } = useStatus();
   const { data: health } = useHealth();
   const [events, setEvents] = useState<WsEvent[]>([]);
+  const wsManager = useWsManager();
+  useSubscription(wsManager, "*");
 
   useEffect(() => {
     const handler = (e: Event) => {

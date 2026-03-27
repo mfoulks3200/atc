@@ -140,19 +140,6 @@ export class WebSocketManager {
   }
 }
 
-let manager: WebSocketManager | null = null;
-
-/**
- * Returns the singleton WebSocketManager for the given URL.
- * Creates one on first call.
- */
-export function getWebSocketManager(url: string): WebSocketManager {
-  if (!manager) {
-    manager = new WebSocketManager(url);
-  }
-  return manager;
-}
-
 /**
  * React hook that subscribes to connection status changes via useSyncExternalStore.
  */
@@ -178,7 +165,7 @@ export function useWebSocket(url: string): WebSocketManager {
   const managerRef = useRef<WebSocketManager | null>(null);
 
   if (!managerRef.current) {
-    managerRef.current = getWebSocketManager(url);
+    managerRef.current = new WebSocketManager(url);
   }
 
   useEffect(() => {
