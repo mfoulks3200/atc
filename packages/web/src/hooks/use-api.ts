@@ -45,18 +45,14 @@ export function useProject(name: string) {
 export function useCrafts(project: string) {
   return useQuery({
     queryKey: queryKeys.crafts.list(project),
-    queryFn: () =>
-      apiClient.get<CraftState[]>(`/api/v1/projects/${project}/crafts`),
+    queryFn: () => apiClient.get<CraftState[]>(`/api/v1/projects/${project}/crafts`),
   });
 }
 
 export function useCraft(project: string, callsign: string) {
   return useQuery({
     queryKey: queryKeys.crafts.detail(project, callsign),
-    queryFn: () =>
-      apiClient.get<CraftState>(
-        `/api/v1/projects/${project}/crafts/${callsign}`,
-      ),
+    queryFn: () => apiClient.get<CraftState>(`/api/v1/projects/${project}/crafts/${callsign}`),
   });
 }
 
@@ -64,9 +60,7 @@ export function useCraftBlackBox(project: string, callsign: string) {
   return useQuery({
     queryKey: queryKeys.crafts.blackBox(project, callsign),
     queryFn: () =>
-      apiClient.get<BlackBoxEntry[]>(
-        `/api/v1/projects/${project}/crafts/${callsign}/blackbox`,
-      ),
+      apiClient.get<BlackBoxEntry[]>(`/api/v1/projects/${project}/crafts/${callsign}/blackbox`),
   });
 }
 
@@ -74,9 +68,7 @@ export function useCraftIntercom(project: string, callsign: string) {
   return useQuery({
     queryKey: queryKeys.crafts.intercom(project, callsign),
     queryFn: () =>
-      apiClient.get<IntercomMessage[]>(
-        `/api/v1/projects/${project}/crafts/${callsign}/intercom`,
-      ),
+      apiClient.get<IntercomMessage[]>(`/api/v1/projects/${project}/crafts/${callsign}/intercom`),
   });
 }
 
@@ -84,9 +76,7 @@ export function useCraftVectors(project: string, callsign: string) {
   return useQuery({
     queryKey: queryKeys.crafts.vectors(project, callsign),
     queryFn: () =>
-      apiClient.get<VectorState[]>(
-        `/api/v1/projects/${project}/crafts/${callsign}/vectors`,
-      ),
+      apiClient.get<VectorState[]>(`/api/v1/projects/${project}/crafts/${callsign}/vectors`),
   });
 }
 
@@ -107,15 +97,13 @@ export function useAgent(id: string) {
 export function useAgentUsage(id: string) {
   return useQuery({
     queryKey: queryKeys.agents.usage(id),
-    queryFn: () =>
-      apiClient.get<AgentUsageReport[]>(`/api/v1/agents/${id}/usage`),
+    queryFn: () => apiClient.get<AgentUsageReport[]>(`/api/v1/agents/${id}/usage`),
   });
 }
 
 export function useTowerQueue(project: string) {
   return useQuery({
     queryKey: queryKeys.tower.queue(project),
-    queryFn: () =>
-      apiClient.get<string[]>(`/api/v1/projects/${project}/tower`),
+    queryFn: () => apiClient.get<string[]>(`/api/v1/projects/${project}/tower`),
   });
 }

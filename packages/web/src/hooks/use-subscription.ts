@@ -93,10 +93,7 @@ export function mapEventToQueryUpdate(event: WsEvent): QueryUpdate {
  * @param wsManager - The WebSocketManager instance to listen on.
  * @param channel - The channel to subscribe to, or `null` to skip.
  */
-export function useSubscription(
-  wsManager: WebSocketManager,
-  channel: string | null,
-): void {
+export function useSubscription(wsManager: WebSocketManager, channel: string | null): void {
   const queryClient = useQueryClient();
 
   useEffect(() => {

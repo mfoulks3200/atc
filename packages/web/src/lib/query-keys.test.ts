@@ -22,13 +22,22 @@ describe("queryKeys", () => {
 
   it("generates craft sub-resource keys", () => {
     expect(queryKeys.crafts.blackBox("acme", "fix-auth")).toEqual([
-      "crafts", "acme", "fix-auth", "blackbox",
+      "crafts",
+      "acme",
+      "fix-auth",
+      "blackbox",
     ]);
     expect(queryKeys.crafts.intercom("acme", "fix-auth")).toEqual([
-      "crafts", "acme", "fix-auth", "intercom",
+      "crafts",
+      "acme",
+      "fix-auth",
+      "intercom",
     ]);
     expect(queryKeys.crafts.vectors("acme", "fix-auth")).toEqual([
-      "crafts", "acme", "fix-auth", "vectors",
+      "crafts",
+      "acme",
+      "fix-auth",
+      "vectors",
     ]);
   });
 

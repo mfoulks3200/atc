@@ -7,8 +7,7 @@ export const queryKeys = {
   },
   crafts: {
     list: (project: string) => ["crafts", project] as const,
-    detail: (project: string, callsign: string) =>
-      ["crafts", project, callsign] as const,
+    detail: (project: string, callsign: string) => ["crafts", project, callsign] as const,
     blackBox: (project: string, callsign: string) =>
       ["crafts", project, callsign, "blackbox"] as const,
     intercom: (project: string, callsign: string) =>

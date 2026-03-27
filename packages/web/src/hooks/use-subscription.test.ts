@@ -8,7 +8,11 @@ describe("mapEventToQueryUpdate", () => {
       channel: "craft:fix-auth",
       event: "craft.status.changed",
       timestamp: "2026-03-26T14:32:01.000Z",
-      data: { project: "acme", callsign: "fix-auth", craft: { callsign: "fix-auth", status: "InFlight" } },
+      data: {
+        project: "acme",
+        callsign: "fix-auth",
+        craft: { callsign: "fix-auth", status: "InFlight" },
+      },
     });
 
     expect(result).toEqual({
@@ -29,7 +33,10 @@ describe("mapEventToQueryUpdate", () => {
 
     expect(result).toEqual({
       strategy: "invalidate",
-      keys: [["crafts", "acme", "fix-auth"], ["crafts", "acme"]],
+      keys: [
+        ["crafts", "acme", "fix-auth"],
+        ["crafts", "acme"],
+      ],
     });
   });
 

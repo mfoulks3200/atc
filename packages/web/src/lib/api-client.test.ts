@@ -33,9 +33,7 @@ describe("apiClient", () => {
   });
 
   it("returns empty for 204 responses", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(null, { status: 204 }),
-    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 204 }));
 
     const result = await apiClient.get("/api/v1/something");
     expect(result).toBeNull();
