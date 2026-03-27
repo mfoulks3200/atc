@@ -1,0 +1,20 @@
+{
+  "name": "@atc/adapter-claude-agent-sdk",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --build"
+  },
+  "dependencies": {
+    "@atc/types": "workspace:*",
+    "@atc/errors": "workspace:*",
+    "@atc/daemon": "workspace:*",
+    "@anthropic-ai/sdk": "^0.52.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3"
+  }
+}
