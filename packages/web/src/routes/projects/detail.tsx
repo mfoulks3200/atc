@@ -1,11 +1,15 @@
 import { useParams } from "react-router";
 import { useProject, useCrafts, useTowerQueue } from "@/hooks/use-api";
+import { useWsManager } from "@/hooks/ws-context";
+import { useSubscription } from "@/hooks/use-subscription";
 import { PageHeader } from "@/components/base/page-header";
 import { FlightStrip } from "@/components/base/flight-strip";
 import { StatCard } from "@/components/base/stat-card";
 
 export function Component() {
   const { name } = useParams<{ name: string }>();
+  const wsManager = useWsManager();
+  useSubscription(wsManager, `project:${name}`);
   const { data: project } = useProject(name!);
   const { data: crafts } = useCrafts(name!);
   const { data: queue } = useTowerQueue(name!);

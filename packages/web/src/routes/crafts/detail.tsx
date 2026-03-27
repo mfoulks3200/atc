@@ -1,5 +1,7 @@
 import { useParams } from "react-router";
 import { useCraft, useCraftBlackBox, useCraftIntercom, useCraftVectors } from "@/hooks/use-api";
+import { useWsManager } from "@/hooks/ws-context";
+import { useSubscription } from "@/hooks/use-subscription";
 import { PageHeader } from "@/components/base/page-header";
 import { StatusBadge } from "@/components/base/status-badge";
 import { VectorProgress } from "@/components/base/vector-progress";
@@ -9,6 +11,8 @@ import { IntercomMessage } from "@/components/base/intercom-message";
 
 export function Component() {
   const { name, callsign } = useParams<{ name: string; callsign: string }>();
+  const wsManager = useWsManager();
+  useSubscription(wsManager, `craft:${callsign}`);
   const { data: craft } = useCraft(name!, callsign!);
   const { data: blackBox } = useCraftBlackBox(name!, callsign!);
   const { data: intercom } = useCraftIntercom(name!, callsign!);

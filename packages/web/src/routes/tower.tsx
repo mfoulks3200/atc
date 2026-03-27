@@ -1,10 +1,14 @@
 import { useParams } from "react-router";
 import { useTowerQueue, useCrafts } from "@/hooks/use-api";
+import { useWsManager } from "@/hooks/ws-context";
+import { useSubscription } from "@/hooks/use-subscription";
 import { PageHeader } from "@/components/base/page-header";
 import { QueueCard } from "@/components/base/queue-card";
 
 export function Component() {
   const { name } = useParams<{ name: string }>();
+  const wsManager = useWsManager();
+  useSubscription(wsManager, "tower");
   const { data: queue } = useTowerQueue(name!);
   const { data: crafts } = useCrafts(name!);
 

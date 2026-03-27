@@ -1,9 +1,13 @@
 import { Link } from "react-router";
 import { useAgents } from "@/hooks/use-api";
+import { useWsManager } from "@/hooks/ws-context";
+import { useSubscription } from "@/hooks/use-subscription";
 import { PageHeader } from "@/components/base/page-header";
 import { StatusBadge } from "@/components/base/status-badge";
 
 export function Component() {
+  const wsManager = useWsManager();
+  useSubscription(wsManager, "agent:*");
   const { data: agents, isLoading } = useAgents();
 
   return (

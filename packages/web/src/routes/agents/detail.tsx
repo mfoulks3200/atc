@@ -1,11 +1,15 @@
 import { useParams } from "react-router";
 import { useAgent, useAgentUsage } from "@/hooks/use-api";
+import { useWsManager } from "@/hooks/ws-context";
+import { useSubscription } from "@/hooks/use-subscription";
 import { PageHeader } from "@/components/base/page-header";
 import { StatusBadge } from "@/components/base/status-badge";
 import { StatCard } from "@/components/base/stat-card";
 
 export function Component() {
   const { id } = useParams<{ id: string }>();
+  const wsManager = useWsManager();
+  useSubscription(wsManager, `agent:${id}`);
   const { data: agent } = useAgent(id!);
   const { data: usage } = useAgentUsage(id!);
 
