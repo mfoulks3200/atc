@@ -1,12 +1,10 @@
 import { NavLink, useParams } from "react-router";
-import { useCrafts, useTowerQueue } from "@/hooks/use-api";
+import { useTowerQueue } from "@/hooks/use-api";
 
 export function ProjectSidebar() {
   const { name } = useParams<{ name: string }>();
-  const { data: crafts } = useCrafts(name!);
   const { data: queue } = useTowerQueue(name!);
 
-  const craftCount = crafts?.length ?? 0;
   const queueCount = queue?.length ?? 0;
 
   return (
@@ -76,21 +74,6 @@ export function ProjectSidebar() {
           })}
         >
           ⊡ Overview
-        </NavLink>
-        <NavLink
-          to={`/projects/${name}/crafts`}
-          className="mb-1 flex items-center justify-between rounded-md px-2 py-1.5 text-xs no-underline"
-          style={({ isActive }) => ({
-            color: isActive ? "var(--accent-green)" : "var(--text-muted)",
-            backgroundColor: isActive ? "var(--bg-elevated)" : "transparent",
-          })}
-        >
-          <span>✈ Crafts</span>
-          {craftCount > 0 && (
-            <span className="text-[10px]" style={{ color: "var(--text-dim)" }}>
-              {craftCount}
-            </span>
-          )}
         </NavLink>
         <NavLink
           to={`/projects/${name}/tower`}
