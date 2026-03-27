@@ -12,6 +12,7 @@ const CATEGORIES = ["craft", "tower", "agent", "controls"];
 export function Component() {
   const [events, setEvents] = useState<WsEvent[]>([]);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set(CATEGORIES));
+  const [autoScroll, setAutoScroll] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const wsManager = useWsManager();
   useSubscription(wsManager, "*");
@@ -24,6 +25,19 @@ export function Component() {
     window.addEventListener("atc-ws-event", handler);
     return () => window.removeEventListener("atc-ws-event", handler);
   }, []);
+
+  useEffect(() => {
+    if (autoScroll && scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [events, autoScroll]);
+
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    // If user scrolled more than 50px from top, pause auto-scroll
+    setAutoScroll(el.scrollTop < 50);
+  }
 
   const filteredEvents = events.filter((event) => {
     const category = event.channel.split(":")[0];
@@ -53,7 +67,7 @@ export function Component() {
       <div className="flex items-center justify-between border-b px-5 py-2.5" style={{ borderColor: "var(--border)" }}>
         <FilterPills categories={CATEGORIES} active={activeFilters} onChange={setActiveFilters} />
       </div>
-      <div ref={scrollRef} className="flex-1 overflow-auto px-5 py-2">
+      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-auto px-5 py-2">
         {filteredEvents.length === 0 ? (
           <div className="py-8 text-center text-xs" style={{ color: "var(--text-dim)" }}>
             No events yet. Events will stream here in real time.
