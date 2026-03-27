@@ -1,6 +1,6 @@
-import { StrictMode, useEffect } from "react";
+import { StrictMode, useEffect, useMemo } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router";
+import { createBrowserRouter, RouterProvider } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getWsUrl } from "@/lib/api-client";
 import { useWebSocket } from "@/hooks/use-websocket";
@@ -18,6 +18,28 @@ const queryClient = new QueryClient({
   },
 });
 
+const router = createBrowserRouter([
+  {
+    Component: RootLayout,
+    children: [
+      { index: true, lazy: () => import("@/routes/dashboard") },
+      { path: "projects", lazy: () => import("@/routes/projects/list") },
+      { path: "agents", lazy: () => import("@/routes/agents/list") },
+      { path: "agents/:id", lazy: () => import("@/routes/agents/detail") },
+      { path: "events", lazy: () => import("@/routes/events") },
+    ],
+  },
+  {
+    path: "projects/:name",
+    Component: ProjectLayout,
+    children: [
+      { index: true, lazy: () => import("@/routes/projects/detail") },
+      { path: "crafts/:callsign", lazy: () => import("@/routes/crafts/detail") },
+      { path: "tower", lazy: () => import("@/routes/tower") },
+    ],
+  },
+]);
+
 function App() {
   const wsUrl = getWsUrl();
   const wsManager = useWebSocket(wsUrl);
@@ -28,27 +50,11 @@ function App() {
     });
   }, [wsManager]);
 
+  const wsContext = useMemo(() => ({ manager: wsManager, url: wsUrl }), [wsManager, wsUrl]);
+
   return (
-    <WsProvider value={wsManager}>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<RootLayout wsManager={wsManager} wsUrl={wsUrl} />}>
-            <Route index lazy={() => import("@/routes/dashboard")} />
-            <Route path="projects" lazy={() => import("@/routes/projects/list")} />
-            <Route path="agents" lazy={() => import("@/routes/agents/list")} />
-            <Route path="agents/:id" lazy={() => import("@/routes/agents/detail")} />
-            <Route path="events" lazy={() => import("@/routes/events")} />
-          </Route>
-          <Route
-            path="projects/:name"
-            element={<ProjectLayout wsManager={wsManager} wsUrl={wsUrl} />}
-          >
-            <Route index lazy={() => import("@/routes/projects/detail")} />
-            <Route path="crafts/:callsign" lazy={() => import("@/routes/crafts/detail")} />
-            <Route path="tower" lazy={() => import("@/routes/tower")} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+    <WsProvider value={wsContext}>
+      <RouterProvider router={router} />
     </WsProvider>
   );
 }

@@ -1,14 +1,14 @@
 import { ConnectionIndicator } from "@/components/base/connection-indicator";
 import { useConnectionStatus } from "@/hooks/use-websocket";
-import type { WebSocketManager } from "@/hooks/use-websocket";
+import { useWsManager, useWsUrl } from "@/hooks/ws-context";
 
 interface HeaderProps {
-  wsManager: WebSocketManager;
-  wsUrl: string;
   children?: React.ReactNode;
 }
 
-export function Header({ wsManager, wsUrl, children }: HeaderProps) {
+export function Header({ children }: HeaderProps) {
+  const wsManager = useWsManager();
+  const wsUrl = useWsUrl();
   const connectionStatus = useConnectionStatus(wsManager);
 
   return (

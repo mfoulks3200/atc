@@ -1,11 +1,15 @@
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
+import websocket from "@fastify/websocket";
+import { randomUUID } from "node:crypto";
 import { AgentStore } from "../state/agent-store.js";
 import { CraftStore } from "../state/craft-store.js";
 import { TowerStore } from "../state/tower-store.js";
 import { AdapterRegistry } from "../adapters/registry.js";
 import { ChannelRegistry } from "./websocket/channels.js";
-import type { PilotRecord } from "../types.js";
+import { HeartbeatTracker } from "./websocket/heartbeat.js";
+import { handleWsMessage } from "./websocket/handler.js";
+import type { PilotRecord, WsClientMessage, WsServerMessage } from "../types.js";
 import { healthRoutes } from "./routes/health.js";
 import { projectRoutes } from "./routes/projects.js";
 import { craftRoutes } from "./routes/crafts.js";
@@ -56,6 +60,8 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   app.decorate("channelRegistry", options.channelRegistry ?? new ChannelRegistry());
   app.decorate("pilotStore", new Map<string, Map<string, PilotRecord>>());
 
+  void app.register(websocket);
+
   void app.register(healthRoutes);
   void app.register(projectRoutes);
   void app.register(craftRoutes);
@@ -65,6 +71,37 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   void app.register(pilotRoutes);
   void app.register(intercomRoutes);
   void app.register(blackboxRoutes);
+
+  const heartbeat = new HeartbeatTracker(3);
+
+  void app.register(async (instance) => {
+    instance.get("/ws", { websocket: true }, (socket) => {
+      const clientId = randomUUID();
+      heartbeat.addClient(clientId);
+
+      const send = (data: WsServerMessage) => {
+        if (socket.readyState === 1) {
+          socket.send(JSON.stringify(data));
+        }
+      };
+
+      send({ type: "connected", sessionId: clientId });
+
+      socket.on("message", (raw: Buffer | ArrayBuffer | Buffer[]) => {
+        try {
+          const message = JSON.parse(raw.toString()) as WsClientMessage;
+          handleWsMessage(message, clientId, send, instance.channelRegistry, heartbeat);
+        } catch {
+          // ignore malformed messages
+        }
+      });
+
+      socket.on("close", () => {
+        heartbeat.removeClient(clientId);
+        instance.channelRegistry.removeClient(clientId);
+      });
+    });
+  });
 
   return app;
 }
