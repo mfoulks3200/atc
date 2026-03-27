@@ -47,6 +47,75 @@ export function Component() {
             {crafts?.map((craft) => <FlightStrip key={craft.callsign} craft={craft} project={name!} />)}
           </div>
         </div>
+        {/* Config */}
+        {project &&
+          (project.checklist.length > 0 || Object.keys(project.mcpServers).length > 0) && (
+            <div
+              className="mt-4 rounded-md border p-3.5"
+              style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}
+            >
+              <div
+                className="mb-3 text-[9px] uppercase tracking-widest"
+                style={{ color: "var(--text-dim)" }}
+              >
+                CONFIGURATION
+              </div>
+              {project.checklist.length > 0 && (
+                <div className="mb-3">
+                  <div
+                    className="mb-1.5 text-[10px] uppercase"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Checklist
+                  </div>
+                  <div className="space-y-1">
+                    {project.checklist.map((item) => (
+                      <div
+                        key={item.name}
+                        className="flex items-center justify-between rounded-md p-2 text-[11px]"
+                        style={{ backgroundColor: "var(--bg-elevated)" }}
+                      >
+                        <span style={{ color: "var(--text-secondary)" }}>{item.name}</span>
+                        <span
+                          className="font-mono text-[10px]"
+                          style={{ color: "var(--text-dim)" }}
+                        >
+                          {item.command}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {Object.keys(project.mcpServers).length > 0 && (
+                <div>
+                  <div
+                    className="mb-1.5 text-[10px] uppercase"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    MCP Servers
+                  </div>
+                  <div className="space-y-1">
+                    {Object.entries(project.mcpServers).map(([name, config]) => (
+                      <div
+                        key={name}
+                        className="flex items-center justify-between rounded-md p-2 text-[11px]"
+                        style={{ backgroundColor: "var(--bg-elevated)" }}
+                      >
+                        <span style={{ color: "var(--text-secondary)" }}>{name}</span>
+                        <span
+                          className="font-mono text-[10px]"
+                          style={{ color: "var(--text-dim)" }}
+                        >
+                          {config.command} {config.args.join(" ")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
       </div>
     </div>
   );
