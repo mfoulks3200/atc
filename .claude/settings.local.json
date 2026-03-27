@@ -9,7 +9,10 @@
       "Bash(git:*)",
       "Bash(pnpm add:*)",
       "Bash(npx tsc:*)",
-      "Skill(commit-commands:commit)"
+      "Skill(commit-commands:commit)",
+      "Bash(node -e \"const t = require\\(''./packages/web/src/types/api.ts''\\); console.log\\(''ok''\\)\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(npx vite:*)"
     ]
   }
 }
