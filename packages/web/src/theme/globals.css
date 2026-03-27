@@ -1,0 +1,19 @@
+@import "tailwindcss";
+@import "./variables.css";
+
+@theme {
+  --font-mono: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-base);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

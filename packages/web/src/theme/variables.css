@@ -1,0 +1,28 @@
+:root {
+  --bg-base: #0a0f1a;
+  --bg-surface: #0d1424;
+  --bg-elevated: #162033;
+  --border: #1a2744;
+  --text-primary: #e0e8f0;
+  --text-secondary: #c8d6e5;
+  --text-muted: #7a8ba8;
+  --text-dim: #4a6fa5;
+  --accent-green: #00ff88;
+  --accent-yellow: #ffd866;
+  --accent-red: #ff5555;
+  --accent-blue: #78b4ff;
+  --accent-purple: #b48eff;
+  --font-mono: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  --radius-sm: 3px;
+  --radius-md: 6px;
+
+  /* Derived tokens for shadcn compatibility */
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
+  --card: var(--bg-surface);
+  --card-foreground: var(--text-secondary);
+  --muted: var(--bg-elevated);
+  --muted-foreground: var(--text-muted);
+  --border-color: var(--border);
+  --ring: var(--accent-green);
+}
