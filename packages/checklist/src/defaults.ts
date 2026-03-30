@@ -1,39 +1,42 @@
-import { createChecklistItem } from "./runner.js";
-import type { ChecklistItem } from "./types.js";
+import { ChecklistItemSeverity } from "@atc/types";
+import type { ChecklistTemplate } from "@atc/types";
 
 /**
- * Creates the default landing checklist with placeholder validators.
+ * Default landing checklist template.
  *
- * The four default checks correspond to the spec's default checklist
- * (Section 4.2). Each placeholder always passes — projects override
- * these with real implementations.
+ * Provides baseline validation for the `before:landing-check` event.
+ * Projects should replace these placeholder commands with real ones.
  *
- * @returns A frozen array of the 4 default checklist items.
- * @see RULE-LCHK-4 — the checklist is project-configurable.
+ * @see RULE-CHKL-1, RULE-CHKL-2
  */
-export function createDefaultChecklist(): readonly ChecklistItem[] {
-  const defaults: readonly ChecklistItem[] = [
-    createChecklistItem("Tests", async () => ({
+export const DEFAULT_LANDING_TEMPLATE: ChecklistTemplate = {
+  id: "default-landing-checklist",
+  name: "Default Landing Checklist",
+  description: "Built-in pre-landing validation checks.",
+  items: [
+    {
       name: "Tests",
-      passed: true,
-      message: "Placeholder — all test suites pass.",
-    })),
-    createChecklistItem("Lint", async () => ({
+      description: "All test suites must pass before landing.",
+      severity: ChecklistItemSeverity.Required,
+      executor: { type: "shell", command: "pnpm run test" },
+    },
+    {
       name: "Lint",
-      passed: true,
-      message: "Placeholder — no lint errors or warnings.",
-    })),
-    createChecklistItem("Documentation", async () => ({
+      description: "No lint errors allowed before landing.",
+      severity: ChecklistItemSeverity.Required,
+      executor: { type: "shell", command: "pnpm run lint" },
+    },
+    {
       name: "Documentation",
-      passed: true,
-      message: "Placeholder — required docs are present and up to date.",
-    })),
-    createChecklistItem("Build", async () => ({
+      description: "Required docs should be present and up to date.",
+      severity: ChecklistItemSeverity.Advisory,
+      executor: { type: "shell", command: "pnpm run docs:check" },
+    },
+    {
       name: "Build",
-      passed: true,
-      message: "Placeholder — project builds successfully.",
-    })),
-  ];
-
-  return Object.freeze(defaults);
-}
+      description: "Project must build successfully before landing.",
+      severity: ChecklistItemSeverity.Required,
+      executor: { type: "shell", command: "pnpm run build" },
+    },
+  ],
+};

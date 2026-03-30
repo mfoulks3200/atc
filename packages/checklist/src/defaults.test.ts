@@ -1,42 +1,30 @@
 import { describe, it, expect } from "vitest";
-import { createDefaultChecklist } from "./defaults.js";
-import { runChecklist } from "./runner.js";
+import { DEFAULT_LANDING_TEMPLATE } from "./defaults.js";
+import { ChecklistItemSeverity } from "@atc/types";
 
-describe("createDefaultChecklist", () => {
-  it("returns exactly 4 default checklist items", () => {
-    const items = createDefaultChecklist();
-
-    expect(items).toHaveLength(4);
+describe("DEFAULT_LANDING_TEMPLATE", () => {
+  it("has a name and 4 items", () => {
+    expect(DEFAULT_LANDING_TEMPLATE.name).toBe("Default Landing Checklist");
+    expect(DEFAULT_LANDING_TEMPLATE.items).toHaveLength(4);
   });
 
-  it("includes Tests, Lint, Documentation, and Build items (RULE-LCHK-4)", () => {
-    const items = createDefaultChecklist();
-    const names = items.map((i) => i.name);
-
+  it("has Tests, Lint, Build as required and Documentation as advisory", () => {
+    const names = DEFAULT_LANDING_TEMPLATE.items.map((i) => i.name);
     expect(names).toEqual(["Tests", "Lint", "Documentation", "Build"]);
+    expect(DEFAULT_LANDING_TEMPLATE.items[0]!.severity).toBe(ChecklistItemSeverity.Required);
+    expect(DEFAULT_LANDING_TEMPLATE.items[1]!.severity).toBe(ChecklistItemSeverity.Required);
+    expect(DEFAULT_LANDING_TEMPLATE.items[2]!.severity).toBe(ChecklistItemSeverity.Advisory);
+    expect(DEFAULT_LANDING_TEMPLATE.items[3]!.severity).toBe(ChecklistItemSeverity.Required);
   });
 
-  it("all default items pass (placeholder validators)", async () => {
-    const items = createDefaultChecklist();
-    const result = await runChecklist(items);
-
-    expect(result.passed).toBe(true);
-    expect(result.failedItems).toHaveLength(0);
-  });
-
-  it("each item result name matches the item name", async () => {
-    const items = createDefaultChecklist();
-
-    for (const item of items) {
-      const result = await item.validate();
-      expect(result.name).toBe(item.name);
-      expect(result.passed).toBe(true);
+  it("all items use shell executors", () => {
+    for (const item of DEFAULT_LANDING_TEMPLATE.items) {
+      expect(item.executor.type).toBe("shell");
     }
   });
 
-  it("returns a frozen array", () => {
-    const items = createDefaultChecklist();
-
-    expect(Object.isFrozen(items)).toBe(true);
+  it("has an id", () => {
+    expect(DEFAULT_LANDING_TEMPLATE.id).toBeDefined();
+    expect(DEFAULT_LANDING_TEMPLATE.id).toBe("default-landing-checklist");
   });
 });
