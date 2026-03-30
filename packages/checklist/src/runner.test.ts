@@ -4,7 +4,11 @@ import { ChecklistItemSeverity, LifecycleEvent } from "@atc/types";
 import type { ChecklistItemDef } from "@atc/types";
 import type { McpToolHandler } from "./executor/mcp-tool.js";
 
-const shellItem = (name: string, command: string, severity = ChecklistItemSeverity.Required): ChecklistItemDef => ({
+const shellItem = (
+  name: string,
+  command: string,
+  severity = ChecklistItemSeverity.Required,
+): ChecklistItemDef => ({
   name,
   severity,
   executor: { type: "shell", command },

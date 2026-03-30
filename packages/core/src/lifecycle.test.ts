@@ -1,7 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { CraftStatus, ControlMode, VectorStatus, BlackBoxEntryType, LifecycleEvent } from "@atc/types";
+import {
+  CraftStatus,
+  ControlMode,
+  VectorStatus,
+  BlackBoxEntryType,
+  LifecycleEvent,
+} from "@atc/types";
 import type { Craft, Pilot } from "@atc/types";
-import { transitionCraft, canTransition, isTerminalState, mapTransitionToEvents } from "./lifecycle.js";
+import {
+  transitionCraft,
+  canTransition,
+  isTerminalState,
+  mapTransitionToEvents,
+} from "./lifecycle.js";
 
 const captain: Pilot = {
   identifier: "captain-1",

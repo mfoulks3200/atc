@@ -18,7 +18,11 @@ export function createOverrideStore() {
       overrides.set(key(override.craftCallsign, override.templateId, override.event), override);
     },
 
-    get(callsign: string, templateId: string, event: LifecycleEvent): CraftChecklistOverride | undefined {
+    get(
+      callsign: string,
+      templateId: string,
+      event: LifecycleEvent,
+    ): CraftChecklistOverride | undefined {
       return overrides.get(key(callsign, templateId, event));
     },
 

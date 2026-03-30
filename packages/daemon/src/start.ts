@@ -11,8 +11,7 @@ import { homedir } from "node:os";
 import { mkdir } from "node:fs/promises";
 import { Daemon } from "./daemon.js";
 
-const profileDir =
-  process.argv[2] ?? join(homedir(), ".atc", "profiles", "default");
+const profileDir = process.argv[2] ?? join(homedir(), ".atc", "profiles", "default");
 
 await mkdir(profileDir, { recursive: true });
 

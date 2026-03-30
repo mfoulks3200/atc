@@ -21,17 +21,37 @@ describe("createBindingRegistry", () => {
   });
 
   it("finds bindings by event and category (exact match)", () => {
-    registry.create({ templateId: "tpl-1", event: LifecycleEvent.BeforeLandingCheck, craftCategory: "feature" });
-    registry.create({ templateId: "tpl-2", event: LifecycleEvent.BeforeLandingCheck, craftCategory: "hotfix" });
-    registry.create({ templateId: "tpl-3", event: LifecycleEvent.BeforeTakeoff, craftCategory: "feature" });
+    registry.create({
+      templateId: "tpl-1",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCategory: "feature",
+    });
+    registry.create({
+      templateId: "tpl-2",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCategory: "hotfix",
+    });
+    registry.create({
+      templateId: "tpl-3",
+      event: LifecycleEvent.BeforeTakeoff,
+      craftCategory: "feature",
+    });
     const results = registry.findByEventAndCategory(LifecycleEvent.BeforeLandingCheck, "feature");
     expect(results).toHaveLength(1);
     expect(results[0]!.templateId).toBe("tpl-1");
   });
 
   it("includes wildcard category bindings", () => {
-    registry.create({ templateId: "tpl-1", event: LifecycleEvent.BeforeLandingCheck, craftCategory: "*" });
-    registry.create({ templateId: "tpl-2", event: LifecycleEvent.BeforeLandingCheck, craftCategory: "feature" });
+    registry.create({
+      templateId: "tpl-1",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCategory: "*",
+    });
+    registry.create({
+      templateId: "tpl-2",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCategory: "feature",
+    });
     const results = registry.findByEventAndCategory(LifecycleEvent.BeforeLandingCheck, "feature");
     expect(results).toHaveLength(2);
   });
@@ -42,13 +62,25 @@ describe("createBindingRegistry", () => {
   });
 
   it("lists all bindings", () => {
-    registry.create({ templateId: "tpl-1", event: LifecycleEvent.BeforeLandingCheck, craftCategory: "feature" });
-    registry.create({ templateId: "tpl-2", event: LifecycleEvent.BeforeTakeoff, craftCategory: "*" });
+    registry.create({
+      templateId: "tpl-1",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCategory: "feature",
+    });
+    registry.create({
+      templateId: "tpl-2",
+      event: LifecycleEvent.BeforeTakeoff,
+      craftCategory: "*",
+    });
     expect(registry.list()).toHaveLength(2);
   });
 
   it("deletes a binding", () => {
-    registry.create({ templateId: "tpl-1", event: LifecycleEvent.BeforeLandingCheck, craftCategory: "feature" });
+    registry.create({
+      templateId: "tpl-1",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCategory: "feature",
+    });
     const deleted = registry.delete("tpl-1", LifecycleEvent.BeforeLandingCheck, "feature");
     expect(deleted).toBe(true);
     expect(registry.list()).toHaveLength(0);

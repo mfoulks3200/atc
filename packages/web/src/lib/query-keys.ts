@@ -27,7 +27,6 @@ export const queryKeys = {
     templates: () => ["checklists", "templates"] as const,
     template: (id: string) => ["checklists", "templates", id] as const,
     bindings: () => ["checklists", "bindings"] as const,
-    runs: (project: string, callsign: string) =>
-      ["checklists", "runs", project, callsign] as const,
+    runs: (project: string, callsign: string) => ["checklists", "runs", project, callsign] as const,
   },
 };

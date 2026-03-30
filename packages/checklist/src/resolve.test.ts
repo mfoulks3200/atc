@@ -37,10 +37,18 @@ describe("resolveChecklist", () => {
 
   it("resolves items from a bound template", () => {
     const tpl = templates.create({ name: "Pre-Landing", items: [testItem, lintItem] });
-    bindings.create({ templateId: tpl.id, event: LifecycleEvent.BeforeLandingCheck, craftCategory: "feature" });
+    bindings.create({
+      templateId: tpl.id,
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCategory: "feature",
+    });
     const result = resolveChecklist({
-      craftCallsign: "ATC-1", craftCategory: "feature", event: LifecycleEvent.BeforeLandingCheck,
-      templates, bindings, overrides,
+      craftCallsign: "ATC-1",
+      craftCategory: "feature",
+      event: LifecycleEvent.BeforeLandingCheck,
+      templates,
+      bindings,
+      overrides,
     });
     expect(result).toHaveLength(1);
     expect(result[0]!.templateName).toBe("Pre-Landing");
@@ -50,32 +58,54 @@ describe("resolveChecklist", () => {
 
   it("includes wildcard category bindings", () => {
     const tpl = templates.create({ name: "Universal", items: [testItem] });
-    bindings.create({ templateId: tpl.id, event: LifecycleEvent.BeforeTakeoff, craftCategory: "*" });
+    bindings.create({
+      templateId: tpl.id,
+      event: LifecycleEvent.BeforeTakeoff,
+      craftCategory: "*",
+    });
     const result = resolveChecklist({
-      craftCallsign: "ATC-1", craftCategory: "hotfix", event: LifecycleEvent.BeforeTakeoff,
-      templates, bindings, overrides,
+      craftCallsign: "ATC-1",
+      craftCategory: "hotfix",
+      event: LifecycleEvent.BeforeTakeoff,
+      templates,
+      bindings,
+      overrides,
     });
     expect(result).toHaveLength(1);
   });
 
   it("returns empty array when no bindings match", () => {
     const result = resolveChecklist({
-      craftCallsign: "ATC-1", craftCategory: "feature", event: LifecycleEvent.BeforeTakeoff,
-      templates, bindings, overrides,
+      craftCallsign: "ATC-1",
+      craftCategory: "feature",
+      event: LifecycleEvent.BeforeTakeoff,
+      templates,
+      bindings,
+      overrides,
     });
     expect(result).toHaveLength(0);
   });
 
   it("applies override: adds items after template items", () => {
     const tpl = templates.create({ name: "Pre-Landing", items: [testItem] });
-    bindings.create({ templateId: tpl.id, event: LifecycleEvent.BeforeLandingCheck, craftCategory: "feature" });
+    bindings.create({
+      templateId: tpl.id,
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCategory: "feature",
+    });
     overrides.set({
-      craftCallsign: "ATC-1", templateId: tpl.id, event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "ATC-1",
+      templateId: tpl.id,
+      event: LifecycleEvent.BeforeLandingCheck,
       addItems: [docsItem],
     });
     const result = resolveChecklist({
-      craftCallsign: "ATC-1", craftCategory: "feature", event: LifecycleEvent.BeforeLandingCheck,
-      templates, bindings, overrides,
+      craftCallsign: "ATC-1",
+      craftCategory: "feature",
+      event: LifecycleEvent.BeforeLandingCheck,
+      templates,
+      bindings,
+      overrides,
     });
     expect(result[0]!.items).toHaveLength(2);
     expect(result[0]!.items.map((i) => i.name)).toEqual(["Tests", "Docs"]);
@@ -83,14 +113,24 @@ describe("resolveChecklist", () => {
 
   it("applies override: removes items by name", () => {
     const tpl = templates.create({ name: "Pre-Landing", items: [testItem, lintItem] });
-    bindings.create({ templateId: tpl.id, event: LifecycleEvent.BeforeLandingCheck, craftCategory: "feature" });
+    bindings.create({
+      templateId: tpl.id,
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCategory: "feature",
+    });
     overrides.set({
-      craftCallsign: "ATC-1", templateId: tpl.id, event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "ATC-1",
+      templateId: tpl.id,
+      event: LifecycleEvent.BeforeLandingCheck,
       removeItems: ["Lint"],
     });
     const result = resolveChecklist({
-      craftCallsign: "ATC-1", craftCategory: "feature", event: LifecycleEvent.BeforeLandingCheck,
-      templates, bindings, overrides,
+      craftCallsign: "ATC-1",
+      craftCategory: "feature",
+      event: LifecycleEvent.BeforeLandingCheck,
+      templates,
+      bindings,
+      overrides,
     });
     expect(result[0]!.items).toHaveLength(1);
     expect(result[0]!.items[0]!.name).toBe("Tests");
@@ -98,14 +138,24 @@ describe("resolveChecklist", () => {
 
   it("applies override: disables template entirely", () => {
     const tpl = templates.create({ name: "Pre-Landing", items: [testItem] });
-    bindings.create({ templateId: tpl.id, event: LifecycleEvent.BeforeLandingCheck, craftCategory: "feature" });
+    bindings.create({
+      templateId: tpl.id,
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCategory: "feature",
+    });
     overrides.set({
-      craftCallsign: "ATC-1", templateId: tpl.id, event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "ATC-1",
+      templateId: tpl.id,
+      event: LifecycleEvent.BeforeLandingCheck,
       disableTemplate: true,
     });
     const result = resolveChecklist({
-      craftCallsign: "ATC-1", craftCategory: "feature", event: LifecycleEvent.BeforeLandingCheck,
-      templates, bindings, overrides,
+      craftCallsign: "ATC-1",
+      craftCategory: "feature",
+      event: LifecycleEvent.BeforeLandingCheck,
+      templates,
+      bindings,
+      overrides,
     });
     expect(result).toHaveLength(0);
   });
@@ -113,11 +163,23 @@ describe("resolveChecklist", () => {
   it("handles multiple templates bound to same event", () => {
     const tpl1 = templates.create({ name: "Tests", items: [testItem] });
     const tpl2 = templates.create({ name: "Lint", items: [lintItem] });
-    bindings.create({ templateId: tpl1.id, event: LifecycleEvent.BeforeLandingCheck, craftCategory: "feature" });
-    bindings.create({ templateId: tpl2.id, event: LifecycleEvent.BeforeLandingCheck, craftCategory: "feature" });
+    bindings.create({
+      templateId: tpl1.id,
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCategory: "feature",
+    });
+    bindings.create({
+      templateId: tpl2.id,
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCategory: "feature",
+    });
     const result = resolveChecklist({
-      craftCallsign: "ATC-1", craftCategory: "feature", event: LifecycleEvent.BeforeLandingCheck,
-      templates, bindings, overrides,
+      craftCallsign: "ATC-1",
+      craftCategory: "feature",
+      event: LifecycleEvent.BeforeLandingCheck,
+      templates,
+      bindings,
+      overrides,
     });
     expect(result).toHaveLength(2);
     expect(result[0]!.templateName).toBe("Tests");

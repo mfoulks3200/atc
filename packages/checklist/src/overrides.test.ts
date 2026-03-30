@@ -15,7 +15,13 @@ describe("createOverrideStore", () => {
       craftCallsign: "ATC-247",
       templateId: "tpl-1",
       event: LifecycleEvent.BeforeLandingCheck,
-      addItems: [{ name: "Migration", severity: ChecklistItemSeverity.Required, executor: { type: "shell", command: "pnpm run migrate" } }],
+      addItems: [
+        {
+          name: "Migration",
+          severity: ChecklistItemSeverity.Required,
+          executor: { type: "shell", command: "pnpm run migrate" },
+        },
+      ],
     };
     store.set(override);
     const result = store.get("ATC-247", "tpl-1", LifecycleEvent.BeforeLandingCheck);
@@ -55,9 +61,21 @@ describe("createOverrideStore", () => {
   });
 
   it("lists overrides for a craft", () => {
-    store.set({ craftCallsign: "ATC-247", templateId: "tpl-1", event: LifecycleEvent.BeforeLandingCheck });
-    store.set({ craftCallsign: "ATC-247", templateId: "tpl-2", event: LifecycleEvent.BeforeTakeoff });
-    store.set({ craftCallsign: "ATC-300", templateId: "tpl-1", event: LifecycleEvent.BeforeLandingCheck });
+    store.set({
+      craftCallsign: "ATC-247",
+      templateId: "tpl-1",
+      event: LifecycleEvent.BeforeLandingCheck,
+    });
+    store.set({
+      craftCallsign: "ATC-247",
+      templateId: "tpl-2",
+      event: LifecycleEvent.BeforeTakeoff,
+    });
+    store.set({
+      craftCallsign: "ATC-300",
+      templateId: "tpl-1",
+      event: LifecycleEvent.BeforeLandingCheck,
+    });
     const results = store.listForCraft("ATC-247");
     expect(results).toHaveLength(2);
   });

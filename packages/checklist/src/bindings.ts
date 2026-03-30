@@ -16,7 +16,10 @@ export function createBindingRegistry() {
       return input;
     },
 
-    findByEventAndCategory(event: LifecycleEvent, craftCategory: string): readonly ChecklistBinding[] {
+    findByEventAndCategory(
+      event: LifecycleEvent,
+      craftCategory: string,
+    ): readonly ChecklistBinding[] {
       return bindings.filter(
         (b) => b.event === event && (b.craftCategory === craftCategory || b.craftCategory === "*"),
       );
@@ -28,7 +31,8 @@ export function createBindingRegistry() {
 
     delete(templateId: string, event: LifecycleEvent, craftCategory: string): boolean {
       const index = bindings.findIndex(
-        (b) => b.templateId === templateId && b.event === event && b.craftCategory === craftCategory,
+        (b) =>
+          b.templateId === templateId && b.event === event && b.craftCategory === craftCategory,
       );
       if (index === -1) return false;
       bindings.splice(index, 1);

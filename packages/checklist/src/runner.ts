@@ -1,6 +1,11 @@
 import { ChecklistError } from "@atc/errors";
 import { ChecklistItemSeverity } from "@atc/types";
-import type { ChecklistItemDef, ChecklistItemResult, ChecklistRunResult, LifecycleEvent } from "@atc/types";
+import type {
+  ChecklistItemDef,
+  ChecklistItemResult,
+  ChecklistRunResult,
+  LifecycleEvent,
+} from "@atc/types";
 import { executeShell } from "./executor/shell.js";
 import { executeMcpTool } from "./executor/mcp-tool.js";
 import type { McpToolHandler } from "./executor/mcp-tool.js";
