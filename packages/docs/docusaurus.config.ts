@@ -7,8 +7,8 @@ const config: Config = {
   tagline: "Agent orchestration with aviation precision",
   favicon: "img/favicon.ico",
 
-  url: "https://atc-docs.example.com",
-  baseUrl: "/",
+  url: "https://mfoulks3200.github.io",
+  baseUrl: "/atc/",
 
   onBrokenLinks: "throw",
   onBrokenMarkdownLinks: "warn",
