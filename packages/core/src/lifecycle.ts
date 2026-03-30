@@ -1,5 +1,5 @@
 import type { Craft } from "@atc/types";
-import { CraftStatus, VectorStatus, BlackBoxEntryType } from "@atc/types";
+import { CraftStatus, VectorStatus, BlackBoxEntryType, LifecycleEvent } from "@atc/types";
 import { TRANSITIONS, TERMINAL_STATES } from "@atc/types";
 import { LifecycleError } from "@atc/errors";
 
@@ -64,6 +64,39 @@ export function transitionCraft(craft: Craft, to: CraftStatus): Craft {
   checkPreconditions(craft, to);
 
   return { ...craft, status: to };
+}
+
+/**
+ * Maps a state transition to its before/after lifecycle events.
+ *
+ * Returns undefined for transitions that don't have associated events
+ * (e.g., LandingChecklist -> ClearedToLand is the *result* of before:landing-check).
+ *
+ * @param from - Current craft status.
+ * @param to - Target craft status.
+ * @returns Before and after event pair, or undefined.
+ * @see RULE-CHKL-8
+ */
+export function mapTransitionToEvents(
+  from: CraftStatus,
+  to: CraftStatus,
+): { before: LifecycleEvent; after: LifecycleEvent } | undefined {
+  if (from === CraftStatus.Taxiing && to === CraftStatus.InFlight) {
+    return { before: LifecycleEvent.BeforeTakeoff, after: LifecycleEvent.AfterTakeoff };
+  }
+  if (from === CraftStatus.InFlight && to === CraftStatus.LandingChecklist) {
+    return { before: LifecycleEvent.BeforeLandingCheck, after: LifecycleEvent.AfterLandingCheck };
+  }
+  if (from === CraftStatus.GoAround && to === CraftStatus.LandingChecklist) {
+    return { before: LifecycleEvent.BeforeGoAround, after: LifecycleEvent.AfterGoAround };
+  }
+  if (from === CraftStatus.GoAround && to === CraftStatus.Emergency) {
+    return { before: LifecycleEvent.BeforeEmergency, after: LifecycleEvent.AfterEmergency };
+  }
+  if (from === CraftStatus.ClearedToLand && to === CraftStatus.Landed) {
+    return { before: LifecycleEvent.BeforeLanding, after: LifecycleEvent.AfterLanding };
+  }
+  return undefined;
 }
 
 /**

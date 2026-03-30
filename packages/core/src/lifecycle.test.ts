@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { CraftStatus, ControlMode, VectorStatus, BlackBoxEntryType } from "@atc/types";
+import { CraftStatus, ControlMode, VectorStatus, BlackBoxEntryType, LifecycleEvent } from "@atc/types";
 import type { Craft, Pilot } from "@atc/types";
-import { transitionCraft, canTransition, isTerminalState } from "./lifecycle.js";
+import { transitionCraft, canTransition, isTerminalState, mapTransitionToEvents } from "./lifecycle.js";
 
 const captain: Pilot = {
   identifier: "captain-1",
@@ -152,5 +152,52 @@ describe("transitionCraft", () => {
     });
 
     expect(() => transitionCraft(craft, CraftStatus.ReturnToOrigin)).toThrow("RULE-LIFE-7");
+  });
+});
+
+describe("mapTransitionToEvents", () => {
+  it("maps Taxiing -> InFlight to takeoff events", () => {
+    const events = mapTransitionToEvents(CraftStatus.Taxiing, CraftStatus.InFlight);
+    expect(events).toEqual({
+      before: LifecycleEvent.BeforeTakeoff,
+      after: LifecycleEvent.AfterTakeoff,
+    });
+  });
+
+  it("maps InFlight -> LandingChecklist to landing-check events", () => {
+    const events = mapTransitionToEvents(CraftStatus.InFlight, CraftStatus.LandingChecklist);
+    expect(events).toEqual({
+      before: LifecycleEvent.BeforeLandingCheck,
+      after: LifecycleEvent.AfterLandingCheck,
+    });
+  });
+
+  it("maps GoAround -> LandingChecklist to go-around events", () => {
+    const events = mapTransitionToEvents(CraftStatus.GoAround, CraftStatus.LandingChecklist);
+    expect(events).toEqual({
+      before: LifecycleEvent.BeforeGoAround,
+      after: LifecycleEvent.AfterGoAround,
+    });
+  });
+
+  it("maps GoAround -> Emergency to emergency events", () => {
+    const events = mapTransitionToEvents(CraftStatus.GoAround, CraftStatus.Emergency);
+    expect(events).toEqual({
+      before: LifecycleEvent.BeforeEmergency,
+      after: LifecycleEvent.AfterEmergency,
+    });
+  });
+
+  it("maps ClearedToLand -> Landed to landing events", () => {
+    const events = mapTransitionToEvents(CraftStatus.ClearedToLand, CraftStatus.Landed);
+    expect(events).toEqual({
+      before: LifecycleEvent.BeforeLanding,
+      after: LifecycleEvent.AfterLanding,
+    });
+  });
+
+  it("returns undefined for transitions without event mappings", () => {
+    const events = mapTransitionToEvents(CraftStatus.LandingChecklist, CraftStatus.ClearedToLand);
+    expect(events).toBeUndefined();
   });
 });

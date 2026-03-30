@@ -17,4 +17,4 @@ export {
   createVectorReport,
 } from "./flight-plan.js";
 
-export { transitionCraft, canTransition, isTerminalState } from "./lifecycle.js";
+export { transitionCraft, canTransition, isTerminalState, mapTransitionToEvents } from "./lifecycle.js";
