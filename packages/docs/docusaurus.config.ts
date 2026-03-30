@@ -50,7 +50,7 @@ const config: Config = {
           label: "Documentation",
         },
         {
-          href: "https://github.com/your-org/atc",
+          href: "https://github.com/mfoulks3200/atc",
           label: "GitHub",
           position: "right",
         },
