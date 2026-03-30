@@ -1,0 +1,93 @@
+/* ATC Aviation Theme */
+
+:root {
+  /* Light mode — kept functional but styled to match brand */
+  --ifm-color-primary: #16213e;
+  --ifm-color-primary-dark: #121c34;
+  --ifm-color-primary-darker: #101a31;
+  --ifm-color-primary-darkest: #0d1528;
+  --ifm-color-primary-light: #1a2648;
+  --ifm-color-primary-lighter: #1c284b;
+  --ifm-color-primary-lightest: #213054;
+  --ifm-font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Oxygen, Ubuntu, sans-serif;
+  --ifm-heading-font-family: "SF Mono", "Cascadia Code", "Fira Code", Menlo,
+    Consolas, monospace;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 255, 65, 0.1);
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #00ff41;
+  --ifm-color-primary-dark: #00e63b;
+  --ifm-color-primary-darker: #00d938;
+  --ifm-color-primary-darkest: #00b32e;
+  --ifm-color-primary-light: #1aff54;
+  --ifm-color-primary-lighter: #26ff5a;
+  --ifm-color-primary-lightest: #4dff73;
+  --ifm-background-color: #1a1a2e;
+  --ifm-background-surface-color: #16213e;
+  --ifm-navbar-background-color: #0f0f1e;
+  --ifm-footer-background-color: #0a0a16;
+  --ifm-font-color-base: #e0e0e0;
+  --ifm-heading-color: #ffffff;
+  --ifm-link-color: #00ff41;
+  --ifm-link-hover-color: #39ff14;
+  --ifm-menu-color-active: #00ff41;
+  --ifm-menu-color-background-active: rgba(0, 255, 65, 0.1);
+  --ifm-toc-link-color: #a0a0a0;
+  --ifm-code-background: rgba(0, 255, 65, 0.08);
+  --ifm-code-color: #00ff41;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 255, 65, 0.15);
+}
+
+/* Monospace headings for instrument panel feel */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--ifm-heading-font-family);
+  letter-spacing: -0.02em;
+}
+
+/* Navbar styling */
+.navbar {
+  border-bottom: 1px solid rgba(0, 255, 65, 0.15);
+}
+
+[data-theme="dark"] .navbar {
+  box-shadow: 0 1px 0 0 rgba(0, 255, 65, 0.1);
+}
+
+/* Sidebar active item glow */
+[data-theme="dark"] .menu__link--active {
+  border-left: 2px solid #00ff41;
+  padding-left: calc(var(--ifm-menu-link-padding-horizontal) - 2px);
+}
+
+/* Admonition / callout amber accent */
+[data-theme="dark"] .alert--warning {
+  --ifm-alert-background-color: rgba(255, 191, 0, 0.1);
+  --ifm-alert-border-color: #ffbf00;
+  --ifm-alert-foreground-color: #ffbf00;
+}
+
+/* Footer */
+.footer {
+  border-top: 1px solid rgba(0, 255, 65, 0.15);
+}
+
+/* Table styling */
+[data-theme="dark"] table {
+  border-color: rgba(0, 255, 65, 0.15);
+}
+
+[data-theme="dark"] table thead {
+  background-color: rgba(0, 255, 65, 0.05);
+}
+
+[data-theme="dark"] table tr:nth-child(2n) {
+  background-color: rgba(0, 255, 65, 0.03);
+}
