@@ -1,11 +1,11 @@
 import { AtcError } from "./base.js";
 
 /**
- * Error thrown when a RULE-LCHK-* invariant is violated.
- * Covers landing checklist constraints: execution authority,
- * item failures, go-around triggers.
+ * Error thrown when a RULE-CHKL-* invariant is violated.
+ * Covers checklist constraints: template validation,
+ * binding resolution, item execution, and transition gating.
  *
- * @see RULE-LCHK-1 through RULE-LCHK-4
+ * @see RULE-CHKL-1 through RULE-CHKL-8
  */
 export class ChecklistError extends AtcError {
   override readonly name: string = "ChecklistError";
