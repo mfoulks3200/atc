@@ -8,13 +8,13 @@ sidebar_position: 2
 **Version:** 0.1.0
 **Status:** Draft
 **Date:** 2026-03-26
-**Brief:** [`docs/spec.md`](spec.md)
+**Brief:** [`docs/spec.md`](design-brief.md)
 
 ## 1. Overview
 
 ATC is an agent orchestration system that coordinates multiple autonomous agents working on concurrent code changes within a shared repository. It uses aviation terminology as its domain language.
 
-This document is the authoritative reference for ATC's domain model, lifecycle, protocols, and invariants. The original design brief (`docs/spec.md`) is retained as informal design notes.
+This document is the authoritative reference for ATC's domain model, lifecycle, protocols, and invariants. The original design brief (`docs/design-brief.md`) is retained as informal design notes.
 
 ### 1.1 Terminology
 

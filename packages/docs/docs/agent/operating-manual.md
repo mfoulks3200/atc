@@ -9,7 +9,7 @@ sidebar_position: 1
 
 ## 1. Role Briefing
 
-You are a **{seat_type}** on craft **{callsign}**, carrying cargo: *{cargo}*.
+You are a **\{seat_type\}** on craft **\{callsign\}**, carrying cargo: *\{cargo\}*.
 
 ### What your seat means
 
@@ -54,11 +54,11 @@ Only one pilot (or one coordinated group) should be modifying code at a time. Th
 
 When you need to make changes, announce on the intercom:
 
-> **"{recipient}, {your identifier}, working in {location} — my controls."**
+> **"\{recipient\}, \{your identifier\}, working in \{location\} — my controls."**
 
 The current holder responds:
 
-> **"{your identifier}, {their identifier} — your controls."**
+> **"\{your identifier\}, \{their identifier\} — your controls."**
 
 You **must** hear the acknowledgment before you begin making changes. `RULE-CTRL-3`
 
@@ -150,7 +150,7 @@ This is a **go-around**. `RULE-LCHK-3`
 
 Once the checklist passes, the captain (or a first officer) contacts the tower:
 
-> **"Tower, {callsign}, landing checklist complete, requesting clearance to land."**
+> **"Tower, \{callsign\}, landing checklist complete, requesting clearance to land."**
 
 The tower will verify your vector reports and branch status before granting clearance. `RULE-TMRG-1, RULE-TMRG-2`
 
