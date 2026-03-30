@@ -29,8 +29,11 @@ This document is the authoritative reference for ATC's domain model, lifecycle, 
 | Vector           | A milestone with acceptance criteria that a craft must pass through.             |
 | Flight Plan      | An ordered sequence of vectors assigned to a craft.                              |
 | Black Box        | An append-only log of decisions and events maintained on every craft.            |
-| Landing Checklist| A configurable set of validation checks run before requesting merge clearance.   |
-| Go-Around        | A return to implementation after a failed landing checklist.                     |
+| Checklist        | A configurable, ordered list of validation tasks bound to lifecycle events.      |
+| Checklist Template | A reusable checklist definition that can be bound to events and craft categories. |
+| Lifecycle Event  | A hookable moment in the craft lifecycle (e.g., before takeoff, after landing).  |
+| Landing Checklist| A checklist bound to the `before:landing-check` event. Legacy term for the pre-landing checklist. |
+| Go-Around        | A return to implementation after a failed checklist or landing attempt.          |
 | Landing Clearance| Permission from the tower to merge a craft's branch into main.                   |
 | Landed           | A craft whose branch has been successfully merged. Terminal state.               |
 | Origin Airport   | The spec/design stage; where crafts return on emergency.                         |
@@ -85,10 +88,11 @@ The **black box** is an append-only log maintained on every craft throughout its
 | ----------------------- | ------------------------------------------------------------------------- |
 | `Decision`              | An implementation decision (algorithm, library, approach choice).         |
 | `VectorPassed`          | A vector's acceptance criteria were met (alongside ATC vector report).    |
-| `GoAround`              | The landing checklist failed and a go-around was initiated.               |
+| `GoAround`              | A checklist failed and a go-around was initiated.                         |
 | `Conflict`              | A disagreement between pilots on approach, and how it was resolved.       |
 | `Observation`           | Any other noteworthy event, risk, or context worth preserving.            |
 | `EmergencyDeclaration`  | The captain has declared an emergency (final entry before origin handoff).|
+| `ChecklistRun`          | A checklist was executed. Contains full `ChecklistRunResult` metadata (see 4.2). |
 
 ##### Rules
 
@@ -173,6 +177,13 @@ A craft has a single set of **controls** that govern which pilot(s) are actively
 
 The **intercom** is a shared communication channel for all pilots aboard a craft. All intercom traffic is recorded in the black box.
 
+##### Message Types
+
+| Type                 | Description                                                                     |
+| -------------------- | ------------------------------------------------------------------------------- |
+| Pilot Message        | A message from one pilot to the crew. Follows radio discipline rules below.     |
+| System Notification  | An automated notification from the ATC system (e.g., checklist results). Contains: source system, summary, outcome, and optional reference to a black box entry for full details. |
+
 ##### Radio Discipline
 
 - **RULE-ICOM-1:** A pilot MUST check that no other pilot is mid-transmission before sending a message.
@@ -180,6 +191,7 @@ The **intercom** is a shared communication channel for all pilots aboard a craft
 - **RULE-ICOM-3:** Safety-critical exchanges (especially control handoffs) MUST be explicitly read back by the receiving pilot.
 - **RULE-ICOM-4:** A pilot MUST explicitly signal when their transmission is complete.
 - **RULE-ICOM-5:** Transmissions MUST be concise, using clear and direct language with standard phraseology.
+- **RULE-ICOM-6:** System notifications MUST include the source system, a human-readable summary, and a reference to the relevant black box entry when applicable.
 
 ### 2.3 Tower
 
@@ -248,8 +260,8 @@ The **origin airport** represents the spec/implementation design stage.
 | 1 | `Taxiing`         | `InFlight`         | Pilot begins implementation.                           | Captain, cargo, and flight plan assigned. |
 | 2 | `InFlight`        | `InFlight`         | Pilot passes a vector and reports to ATC.              | Next vector in flight plan sequence. |
 | 3 | `InFlight`        | `LandingChecklist` | Pilot begins validation checks.                       | All vectors passed and reported.     |
-| 4 | `LandingChecklist`| `ClearedToLand`    | All checks pass; tower grants clearance.               | All checklist items pass.            |
-| 5 | `LandingChecklist`| `GoAround`         | One or more checks fail.                               | At least one checklist item failed.  |
+| 4 | `LandingChecklist`| `ClearedToLand`    | All required checks pass; tower grants clearance.      | All required checklist items pass.   |
+| 5 | `LandingChecklist`| `GoAround`         | One or more required checks fail.                      | At least one required checklist item failed. |
 | 6 | `GoAround`        | `LandingChecklist` | Pilot re-attempts after addressing failures.           | Pilot has addressed failure(s).      |
 | 7 | `GoAround`        | `Emergency`        | Repeated failures exceed threshold or pilot escalates. | Captain decision.                    |
 | 8 | `ClearedToLand`   | `Landed`           | Tower merges branch into main.                         | Branch up to date with main.         |
@@ -261,7 +273,7 @@ The **origin airport** represents the spec/implementation design stage.
 - **RULE-LIFE-2:** Only transitions listed in Section 3.2 are valid. Any unlisted transition is illegal.
 - **RULE-LIFE-3:** `Taxiing` → `InFlight` requires a captain, cargo, and flight plan to be assigned.
 - **RULE-LIFE-4:** `InFlight` → `LandingChecklist` requires all vectors in the flight plan to be passed and reported.
-- **RULE-LIFE-5:** `LandingChecklist` → `ClearedToLand` requires all checklist items to pass and the tower to grant clearance.
+- **RULE-LIFE-5:** `LandingChecklist` → `ClearedToLand` requires all **required** checklist items to pass (advisory failures are permitted) and the tower to grant clearance.
 - **RULE-LIFE-6:** `ClearedToLand` → `Landed` requires the tower to verify the branch is up to date with main and execute the merge.
 - **RULE-LIFE-7:** `Emergency` → `ReturnToOrigin` requires an `EmergencyDeclaration` entry in the black box.
 - **RULE-LIFE-8:** `Landed` and `ReturnToOrigin` are terminal states. No transitions out are permitted.
@@ -288,25 +300,99 @@ Each time a craft passes through a vector, the pilot MUST file a vector report w
 - **RULE-VRPT-3:** ATC MUST record the report and update the craft's flight plan status.
 - **RULE-VRPT-4:** A craft missing any vector report MUST be denied landing clearance.
 
-### 4.2 Landing Checklist
+### 4.2 Checklists
 
-The landing checklist is a configurable set of validation steps that must all pass before a craft can request landing clearance.
+Checklists are configurable, ordered lists of validation tasks that run automatically at lifecycle events. They generalize the original landing checklist concept into a system that can gate any lifecycle transition or run observational checks after transitions complete.
 
-#### Default Checks
+#### 4.2.1 Lifecycle Events
 
-| Check          | Validation                                 |
-| -------------- | ------------------------------------------ |
-| Tests          | All test suites pass.                      |
-| Lint           | No lint errors or warnings.                |
-| Documentation  | Required docs are present and up to date.  |
-| Build          | Project builds successfully.               |
+A **lifecycle event** is a hookable moment in the craft lifecycle. Events come in before/after pairs.
+
+| Event                    | Fires When                              | Type   |
+| ------------------------ | --------------------------------------- | ------ |
+| `before:takeoff`         | `Taxiing → InFlight`                    | Before |
+| `after:takeoff`          | After `Taxiing → InFlight` completes    | After  |
+| `before:vector-complete` | `reportVector()` called                 | Before |
+| `after:vector-complete`  | After vector report is recorded         | After  |
+| `before:landing-check`   | `LandingChecklist → ClearedToLand`      | Before |
+| `after:landing-check`    | After landing check passes              | After  |
+| `before:go-around`       | `GoAround → LandingChecklist`           | Before |
+| `after:go-around`        | After go-around re-attempt begins       | After  |
+| `before:emergency`       | `GoAround → Emergency`                  | Before |
+| `after:emergency`        | After emergency is declared             | After  |
+| `before:landing`         | `ClearedToLand → Landed`               | Before |
+| `after:landing`          | After branch is merged                  | After  |
+
+#### 4.2.2 Checklist Items
+
+Each item in a checklist has:
+
+| Field       | Type                                | Required | Description                                              |
+| ----------- | ----------------------------------- | -------- | -------------------------------------------------------- |
+| Name        | `string`                            | Yes      | Unique within template.                                  |
+| Description | `string`                            | No       | Returned to agents on failure for remediation context.   |
+| Severity    | `"required"` or `"advisory"`        | Yes      | Required items block before-event transitions.           |
+| Executor    | `ShellExecutor` or `McpToolExecutor` | Yes     | How to run the check.                                    |
+
+**ShellExecutor:** A shell command. Pass/fail determined by exit code (0 = pass).
+
+**McpToolExecutor:** An MCP tool invocation by name with parameters.
+
+#### 4.2.3 Templates and Bindings
+
+A **checklist template** is a named, ordered list of items. Templates are bound to lifecycle events and craft categories via **checklist bindings**. A craft inherits all bindings matching its category. The wildcard category `"*"` matches all crafts.
+
+#### 4.2.4 Per-Craft Overrides
+
+Individual crafts may override inherited bindings for a specific event:
+
+- **Add items** — appended after template items.
+- **Remove items** — skipped by name.
+- **Disable template** — the template is not run for this craft and event.
+
+#### 4.2.5 Default Checklist
+
+A built-in template bound to `before:landing-check` for all categories provides baseline validation:
+
+| Check          | Severity | Validation                                 |
+| -------------- | -------- | ------------------------------------------ |
+| Tests          | Required | All test suites pass.                      |
+| Lint           | Required | No lint errors or warnings.                |
+| Documentation  | Advisory | Required docs are present and up to date.  |
+| Build          | Required | Project builds successfully.               |
+
+Projects configure checklists by creating templates and bindings. The defaults are provided as a starting point.
+
+#### 4.2.6 Execution and Results
+
+Every checklist execution produces a `ChecklistRunResult` containing:
+
+| Field         | Description                                                           |
+| ------------- | --------------------------------------------------------------------- |
+| Checklist name | The template that was executed.                                      |
+| Event         | The lifecycle event that triggered the run.                           |
+| Craft callsign | The craft this ran against.                                          |
+| Attempt       | Attempt number (1-indexed, increments on re-runs for the same event). |
+| Timestamp     | When the run completed.                                               |
+| Passed        | True if no required items failed.                                     |
+| Item results  | Per-item: name, passed, severity, message, captured output, duration. |
+
+Output is capped at 500 lines per item to keep black box entries manageable.
 
 #### Rules
 
-- **RULE-LCHK-1:** The landing checklist MUST be executed by the pilot (captain or first officer holding controls).
-- **RULE-LCHK-2:** All checklist items MUST pass for the craft to request landing clearance.
-- **RULE-LCHK-3:** If any checklist item fails, the craft MUST perform a go-around.
-- **RULE-LCHK-4:** The landing checklist is project-configurable. Projects MAY add, remove, or modify checks.
+- **RULE-CHKL-1:** A checklist template is a named, ordered list of items. Each item has a name, executor (shell command or MCP tool reference), severity (`required` or `advisory`), and optional failure description.
+- **RULE-CHKL-2:** Templates are bound to lifecycle events and craft categories. A craft inherits all bindings matching its category. The wildcard category `"*"` matches all crafts.
+- **RULE-CHKL-3:** Individual crafts MAY override inherited bindings: add items, remove items by name, or disable a template entirely for a specific event.
+- **RULE-CHKL-4:** For before-events, required item failure MUST block the transition. Advisory failures MUST be logged but MUST NOT block. For after-events, no failures block; all results are informational.
+- **RULE-CHKL-5:** Every checklist execution MUST be recorded as a `ChecklistRun` entry in the craft's black box with full metadata: event, attempt number, per-item results (name, passed, severity, message, output, duration), and overall outcome.
+- **RULE-CHKL-6:** On checklist completion, a system-generated notification MUST be posted to the craft's intercom with the outcome and a reference to the black box entry. Agents retrieve full details via tool call.
+- **RULE-CHKL-7:** Checklist items MUST execute sequentially in template order. Override-added items are appended after template items.
+- **RULE-CHKL-8:** The lifecycle event enum is extensible. Adding a new event requires only a new enum value and wiring it to the relevant transition or action.
+
+#### Legacy Compatibility
+
+The original RULE-LCHK-1 through RULE-LCHK-4 are superseded by RULE-CHKL-1 through RULE-CHKL-8. The `before:landing-check` event replaces the hardcoded landing checklist phase. The default template (Tests, Lint, Documentation, Build) preserves the original behavior.
 
 ### 4.3 Emergency Declaration
 
@@ -372,6 +458,7 @@ When a craft passes its landing checklist, the pilot requests landing clearance 
 | RULE-ICOM-3    | Read back safety-critical exchanges.                                 | 2.2.5   |
 | RULE-ICOM-4    | Signal when transmission is complete.                                | 2.2.5   |
 | RULE-ICOM-5    | Keep transmissions concise with standard phraseology.                | 2.2.5   |
+| RULE-ICOM-6    | System notifications must include source, summary, and bbox ref.     | 2.2.5   |
 | RULE-TOWER-1   | Exactly one tower per repository.                                    | 2.3     |
 | RULE-TOWER-2   | Tower must verify all vector reports before granting clearance.      | 2.3     |
 | RULE-TOWER-3   | Tower must verify branch is up to date before merge.                 | 2.3     |
@@ -387,7 +474,7 @@ When a craft passes its landing checklist, the pilot requests landing clearance 
 | RULE-LIFE-2    | Only listed transitions are valid.                                   | 3.3     |
 | RULE-LIFE-3    | Taxiing → InFlight requires captain, cargo, flight plan.            | 3.3     |
 | RULE-LIFE-4    | InFlight → LandingChecklist requires all vectors passed/reported.   | 3.3     |
-| RULE-LIFE-5    | LandingChecklist → ClearedToLand requires all checks pass + tower.  | 3.3     |
+| RULE-LIFE-5    | LandingChecklist → ClearedToLand requires all required checks pass + tower. | 3.3 |
 | RULE-LIFE-6    | ClearedToLand → Landed requires branch up to date + merge.         | 3.3     |
 | RULE-LIFE-7    | Emergency → ReturnToOrigin requires EmergencyDeclaration in bbox.   | 3.3     |
 | RULE-LIFE-8    | Landed and ReturnToOrigin are terminal; no transitions out.          | 3.3     |
@@ -395,10 +482,14 @@ When a craft passes its landing checklist, the pilot requests landing clearance 
 | RULE-VRPT-2    | Report must include callsign, vector name, evidence, timestamp.      | 4.1     |
 | RULE-VRPT-3    | ATC must record report and update flight plan status.                | 4.1     |
 | RULE-VRPT-4    | Missing vector report means landing clearance denied.                | 4.1     |
-| RULE-LCHK-1    | Checklist executed by pilot holding controls.                        | 4.2     |
-| RULE-LCHK-2    | All items must pass for landing clearance request.                   | 4.2     |
-| RULE-LCHK-3    | Any failure triggers a go-around.                                    | 4.2     |
-| RULE-LCHK-4    | Checklist is project-configurable.                                   | 4.2     |
+| RULE-CHKL-1    | Template is named, ordered list with name, executor, severity, description. | 4.2  |
+| RULE-CHKL-2    | Templates bound to lifecycle events and craft categories.            | 4.2     |
+| RULE-CHKL-3    | Crafts may override bindings: add, remove, or disable.               | 4.2     |
+| RULE-CHKL-4    | Before-events: required failures block; after-events: never block.   | 4.2     |
+| RULE-CHKL-5    | Every execution recorded as ChecklistRun in black box with full metadata. | 4.2  |
+| RULE-CHKL-6    | System notification posted to intercom on completion.                | 4.2     |
+| RULE-CHKL-7    | Items execute sequentially; override items appended after template.  | 4.2     |
+| RULE-CHKL-8    | Lifecycle event enum is extensible.                                  | 4.2     |
 | RULE-EMER-1    | Only the captain may declare an emergency.                           | 4.3     |
 | RULE-EMER-2    | Captain must record EmergencyDeclaration in black box.               | 4.3     |
 | RULE-EMER-3    | Craft must return to origin on emergency.                            | 4.3     |
