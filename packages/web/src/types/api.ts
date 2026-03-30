@@ -22,7 +22,16 @@ export type BlackBoxEntryType =
   | "GoAround"
   | "Conflict"
   | "Observation"
-  | "EmergencyDeclaration";
+  | "EmergencyDeclaration"
+  | "ChecklistRun";
+
+export interface SystemNotification {
+  source: string;
+  summary: string;
+  outcome: "passed" | "failed" | "advisory-only";
+  blackBoxEntryIndex: number;
+  timestamp: string;
+}
 
 // ---------------------------------------------------------------------------
 // Entity types

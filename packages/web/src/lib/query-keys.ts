@@ -23,4 +23,11 @@ export const queryKeys = {
   tower: {
     queue: (project: string) => ["tower", project] as const,
   },
+  checklists: {
+    templates: () => ["checklists", "templates"] as const,
+    template: (id: string) => ["checklists", "templates", id] as const,
+    bindings: () => ["checklists", "bindings"] as const,
+    runs: (project: string, callsign: string) =>
+      ["checklists", "runs", project, callsign] as const,
+  },
 };

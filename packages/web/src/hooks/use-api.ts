@@ -107,3 +107,36 @@ export function useTowerQueue(project: string) {
     queryFn: () => apiClient.get<string[]>(`/api/v1/projects/${project}/tower`),
   });
 }
+
+import type { ChecklistTemplate, ChecklistBinding, ChecklistRunResult } from "@/types/checklist";
+
+export function useChecklistTemplates() {
+  return useQuery({
+    queryKey: queryKeys.checklists.templates(),
+    queryFn: () => apiClient.get<ChecklistTemplate[]>("/api/v1/checklists/templates"),
+  });
+}
+
+export function useChecklistTemplate(id: string) {
+  return useQuery({
+    queryKey: queryKeys.checklists.template(id),
+    queryFn: () => apiClient.get<ChecklistTemplate>(`/api/v1/checklists/templates/${id}`),
+  });
+}
+
+export function useChecklistBindings() {
+  return useQuery({
+    queryKey: queryKeys.checklists.bindings(),
+    queryFn: () => apiClient.get<ChecklistBinding[]>("/api/v1/checklists/bindings"),
+  });
+}
+
+export function useCraftChecklistRuns(project: string, callsign: string) {
+  return useQuery({
+    queryKey: queryKeys.checklists.runs(project, callsign),
+    queryFn: () =>
+      apiClient.get<ChecklistRunResult[]>(
+        `/api/v1/projects/${project}/crafts/${callsign}/checklists`,
+      ),
+  });
+}
