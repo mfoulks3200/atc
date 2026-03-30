@@ -1,5 +1,5 @@
 import { useParams } from "react-router";
-import { useCraft, useCraftBlackBox, useCraftIntercom, useCraftVectors } from "@/hooks/use-api";
+import { useCraft, useCraftBlackBox, useCraftIntercom, useCraftVectors, useCraftChecklistRuns } from "@/hooks/use-api";
 import { useWsManager } from "@/hooks/ws-context";
 import { useSubscription } from "@/hooks/use-subscription";
 import { PageHeader } from "@/components/base/page-header";
@@ -8,6 +8,24 @@ import { VectorProgress } from "@/components/base/vector-progress";
 import { CrewMember } from "@/components/base/crew-member";
 import { BlackBoxEntryRow } from "@/components/base/black-box-entry";
 import { IntercomMessage } from "@/components/base/intercom-message";
+import { ChecklistRunCard } from "@/components/base/checklist-run-card";
+import type { ChecklistRunResult } from "@/types/checklist";
+
+function groupRunsByChecklist(
+  runs: ChecklistRunResult[],
+): [string, ChecklistRunResult[]][] {
+  const groups = new Map<string, ChecklistRunResult[]>();
+  for (const run of runs) {
+    const key = `${run.checklistName}:${run.event}`;
+    const group = groups.get(key) ?? [];
+    group.push(run);
+    groups.set(key, group);
+  }
+  for (const group of groups.values()) {
+    group.sort((a, b) => a.attempt - b.attempt);
+  }
+  return [...groups.entries()];
+}
 
 export function Component() {
   const { name, callsign } = useParams<{ name: string; callsign: string }>();
@@ -17,6 +35,7 @@ export function Component() {
   const { data: blackBox } = useCraftBlackBox(name!, callsign!);
   const { data: intercom } = useCraftIntercom(name!, callsign!);
   const { data: vectors } = useCraftVectors(name!, callsign!);
+  const { data: checklistRuns } = useCraftChecklistRuns(name!, callsign!);
 
   if (!craft) {
     return <div className="py-8 text-center text-xs" style={{ color: "var(--text-dim)" }}>Loading...</div>;
@@ -71,6 +90,18 @@ export function Component() {
           </div>
         </div>
       </div>
+      {checklistRuns && checklistRuns.length > 0 && (
+        <div className="mt-4">
+          <div className="mb-2.5 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
+            CHECKLISTS
+          </div>
+          <div className="space-y-3">
+            {groupRunsByChecklist(checklistRuns).map(([key, runs]) => (
+              <ChecklistRunCard key={key} runs={runs} />
+            ))}
+          </div>
+        </div>
+      )}
       <div className="mt-4 rounded-md border p-3.5" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}>
         <div className="mb-2.5 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>BLACK BOX</div>
         {(!blackBox || blackBox.length === 0) ? (
