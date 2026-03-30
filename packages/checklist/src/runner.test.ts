@@ -1,112 +1,115 @@
-import { describe, it, expect } from "vitest";
-import { createChecklistItem, runChecklist } from "./runner.js";
-import type { ChecklistItemResult } from "./types.js";
+import { describe, it, expect, vi } from "vitest";
+import { runChecklist } from "./runner.js";
+import { ChecklistItemSeverity, LifecycleEvent } from "@atc/types";
+import type { ChecklistItemDef } from "@atc/types";
+import type { McpToolHandler } from "./executor/mcp-tool.js";
 
-// ---------------------------------------------------------------------------
-// createChecklistItem
-// ---------------------------------------------------------------------------
-
-describe("createChecklistItem", () => {
-  it("returns a ChecklistItem with the given name and validate function", async () => {
-    const result: ChecklistItemResult = { name: "Test", passed: true };
-    const item = createChecklistItem("Test", async () => result);
-
-    expect(item.name).toBe("Test");
-    expect(await item.validate()).toBe(result);
-  });
+const shellItem = (name: string, command: string, severity = ChecklistItemSeverity.Required): ChecklistItemDef => ({
+  name,
+  severity,
+  executor: { type: "shell", command },
+  description: `${name} failed`,
 });
 
-// ---------------------------------------------------------------------------
-// runChecklist
-// ---------------------------------------------------------------------------
-
 describe("runChecklist", () => {
-  it("returns passed: true when all items pass (RULE-LCHK-2)", async () => {
-    const items = [
-      createChecklistItem("A", async () => ({ name: "A", passed: true })),
-      createChecklistItem("B", async () => ({ name: "B", passed: true })),
-    ];
-
-    const result = await runChecklist(items);
-
+  it("returns passed: true when all items pass", async () => {
+    const result = await runChecklist({
+      checklistName: "Pre-Landing",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "ATC-1",
+      attempt: 1,
+      items: [shellItem("Echo", "echo ok")],
+    });
     expect(result.passed).toBe(true);
-    expect(result.items).toHaveLength(2);
-    expect(result.failedItems).toHaveLength(0);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]!.passed).toBe(true);
+    expect(result.checklistName).toBe("Pre-Landing");
+    expect(result.event).toBe(LifecycleEvent.BeforeLandingCheck);
+    expect(result.craftCallsign).toBe("ATC-1");
+    expect(result.attempt).toBe(1);
+    expect(result.timestamp).toBeDefined();
   });
 
-  it("returns passed: false when any item fails (RULE-LCHK-2)", async () => {
-    const items = [
-      createChecklistItem("A", async () => ({ name: "A", passed: true })),
-      createChecklistItem("B", async () => ({
-        name: "B",
-        passed: false,
-        message: "lint errors found",
-      })),
-    ];
-
-    const result = await runChecklist(items);
-
+  it("returns passed: false when a required item fails (RULE-CHKL-4)", async () => {
+    const result = await runChecklist({
+      checklistName: "Pre-Landing",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "ATC-1",
+      attempt: 1,
+      items: [shellItem("Pass", "echo ok"), shellItem("Fail", "exit 1")],
+    });
     expect(result.passed).toBe(false);
-    expect(result.items).toHaveLength(2);
-    expect(result.failedItems).toHaveLength(1);
-    expect(result.failedItems[0]!.name).toBe("B");
-    expect(result.failedItems[0]!.message).toBe("lint errors found");
+    expect(result.items[0]!.passed).toBe(true);
+    expect(result.items[1]!.passed).toBe(false);
+    expect(result.items[1]!.message).toBe("Fail failed");
   });
 
-  it("returns passed: false when ALL items fail", async () => {
-    const items = [
-      createChecklistItem("A", async () => ({ name: "A", passed: false })),
-      createChecklistItem("B", async () => ({ name: "B", passed: false })),
-    ];
-
-    const result = await runChecklist(items);
-
-    expect(result.passed).toBe(false);
-    expect(result.failedItems).toHaveLength(2);
+  it("returns passed: true when only advisory items fail (RULE-CHKL-4)", async () => {
+    const result = await runChecklist({
+      checklistName: "Pre-Landing",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "ATC-1",
+      attempt: 1,
+      items: [
+        shellItem("Required", "echo ok", ChecklistItemSeverity.Required),
+        shellItem("Advisory", "exit 1", ChecklistItemSeverity.Advisory),
+      ],
+    });
+    expect(result.passed).toBe(true);
+    expect(result.items[1]!.passed).toBe(false);
+    expect(result.items[1]!.severity).toBe(ChecklistItemSeverity.Advisory);
   });
 
-  it("preserves execution order in items array", async () => {
-    const items = [
-      createChecklistItem("First", async () => ({
-        name: "First",
-        passed: true,
-      })),
-      createChecklistItem("Second", async () => ({
-        name: "Second",
-        passed: true,
-      })),
-      createChecklistItem("Third", async () => ({
-        name: "Third",
-        passed: false,
-      })),
-    ];
+  it("runs items sequentially (RULE-CHKL-7)", async () => {
+    const result = await runChecklist({
+      checklistName: "Sequential",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "ATC-1",
+      attempt: 1,
+      items: [shellItem("A", "echo A"), shellItem("B", "echo B"), shellItem("C", "echo C")],
+    });
+    expect(result.items.map((i) => i.name)).toEqual(["A", "B", "C"]);
+  });
 
-    const result = await runChecklist(items);
-
-    expect(result.items.map((i) => i.name)).toEqual(["First", "Second", "Third"]);
+  it("includes durationMs for each item", async () => {
+    const result = await runChecklist({
+      checklistName: "Timing",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "ATC-1",
+      attempt: 1,
+      items: [shellItem("Echo", "echo ok")],
+    });
+    expect(result.items[0]!.durationMs).toBeGreaterThanOrEqual(0);
   });
 
   it("throws ChecklistError when items array is empty", async () => {
-    await expect(runChecklist([])).rejects.toThrow("Checklist must contain at least one item");
+    await expect(
+      runChecklist({
+        checklistName: "Empty",
+        event: LifecycleEvent.BeforeLandingCheck,
+        craftCallsign: "ATC-1",
+        attempt: 1,
+        items: [],
+      }),
+    ).rejects.toThrow("Checklist must contain at least one item");
   });
 
-  it("runs all items even if early ones fail (collects all results)", async () => {
-    const calls: string[] = [];
-    const items = [
-      createChecklistItem("A", async () => {
-        calls.push("A");
-        return { name: "A", passed: false };
-      }),
-      createChecklistItem("B", async () => {
-        calls.push("B");
-        return { name: "B", passed: true };
-      }),
-    ];
-
-    const result = await runChecklist(items);
-
-    expect(calls).toEqual(["A", "B"]);
-    expect(result.items).toHaveLength(2);
-    expect(result.failedItems).toHaveLength(1);
+  it("handles MCP tool executor", async () => {
+    const mcpHandler: McpToolHandler = vi.fn().mockResolvedValue({ passed: true, output: "ok" });
+    const mcpItem: ChecklistItemDef = {
+      name: "Check Docs",
+      severity: ChecklistItemSeverity.Advisory,
+      executor: { type: "mcp-tool", tool: "check-docs", params: { threshold: 80 } },
+    };
+    const result = await runChecklist({
+      checklistName: "MCP",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "ATC-1",
+      attempt: 1,
+      items: [mcpItem],
+      mcpHandler,
+    });
+    expect(result.passed).toBe(true);
+    expect(mcpHandler).toHaveBeenCalledWith("check-docs", { threshold: 80 });
   });
 });

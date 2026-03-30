@@ -1,51 +1,77 @@
 import { ChecklistError } from "@atc/errors";
-import type { ChecklistItem, ChecklistItemResult, ChecklistResult } from "./types.js";
+import { ChecklistItemSeverity } from "@atc/types";
+import type { ChecklistItemDef, ChecklistItemResult, ChecklistRunResult, LifecycleEvent } from "@atc/types";
+import { executeShell } from "./executor/shell.js";
+import { executeMcpTool } from "./executor/mcp-tool.js";
+import type { McpToolHandler } from "./executor/mcp-tool.js";
 
 /**
- * Creates a checklist item from a name and an async validation function.
- *
- * @param name - Display name for the checklist item.
- * @param validate - Async function that performs the validation.
- * @returns A frozen {@link ChecklistItem}.
- * @see RULE-LCHK-4
+ * Input for running a checklist.
  */
-export function createChecklistItem(
-  name: string,
-  validate: () => Promise<ChecklistItemResult>,
-): ChecklistItem {
-  return Object.freeze({ name, validate });
+export interface RunChecklistInput {
+  readonly checklistName: string;
+  readonly event: LifecycleEvent;
+  readonly craftCallsign: string;
+  readonly attempt: number;
+  readonly items: readonly ChecklistItemDef[];
+  readonly mcpHandler?: McpToolHandler;
 }
 
 /**
- * Runs every item in the checklist and aggregates the results.
+ * Runs a checklist: executes all items sequentially and aggregates results.
  *
- * All items are executed sequentially regardless of individual pass/fail —
- * the full picture is always reported.
+ * Pass/fail is determined by required items only. Advisory failures
+ * are included in results but do not affect the overall outcome.
  *
- * @param items - The checklist items to run. Must not be empty.
+ * @param input - Checklist execution parameters.
  * @returns Aggregate result with per-item detail.
- * @throws {ChecklistError} If `items` is empty.
- * @see RULE-LCHK-1 — executed by the pilot holding controls.
- * @see RULE-LCHK-2 — `passed` is true only if ALL items passed.
- * @see RULE-LCHK-3 — a false result means a go-around is required.
+ * @throws {ChecklistError} If items array is empty.
+ * @see RULE-CHKL-4 — required failures block, advisory failures don't.
+ * @see RULE-CHKL-7 — items execute sequentially in order.
  */
-export async function runChecklist(items: readonly ChecklistItem[]): Promise<ChecklistResult> {
+export async function runChecklist(input: RunChecklistInput): Promise<ChecklistRunResult> {
+  const { checklistName, event, craftCallsign, attempt, items, mcpHandler } = input;
+
   if (items.length === 0) {
-    throw new ChecklistError("Checklist must contain at least one item", "RULE-LCHK-2");
+    throw new ChecklistError("Checklist must contain at least one item", "RULE-CHKL-4");
   }
 
   const results: ChecklistItemResult[] = [];
 
   for (const item of items) {
-    const result = await item.validate();
-    results.push(result);
+    let execResult: { passed: boolean; output: string; durationMs: number };
+
+    if (item.executor.type === "shell") {
+      execResult = await executeShell(item.executor.command);
+    } else {
+      if (!mcpHandler) {
+        execResult = { passed: false, output: "No MCP handler provided", durationMs: 0 };
+      } else {
+        execResult = await executeMcpTool(item.executor.tool, item.executor.params, mcpHandler);
+      }
+    }
+
+    results.push({
+      name: item.name,
+      passed: execResult.passed,
+      severity: item.severity,
+      message: execResult.passed ? undefined : item.description,
+      output: execResult.output,
+      durationMs: execResult.durationMs,
+    });
   }
 
-  const failedItems = results.filter((r) => !r.passed);
+  const hasRequiredFailure = results.some(
+    (r) => !r.passed && r.severity === ChecklistItemSeverity.Required,
+  );
 
-  return Object.freeze({
-    passed: failedItems.length === 0,
-    items: Object.freeze(results),
-    failedItems: Object.freeze(failedItems),
-  });
+  return {
+    checklistName,
+    event,
+    craftCallsign,
+    attempt,
+    timestamp: new Date().toISOString(),
+    passed: !hasRequiredFailure,
+    items: results,
+  };
 }
