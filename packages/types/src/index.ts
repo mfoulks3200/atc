@@ -17,3 +17,5 @@ export { TRANSITIONS, TERMINAL_STATES } from "./lifecycle.js";
 
 export type { PilotAction, SeatPermissions } from "./permissions.js";
 export { PERMISSIONS } from "./permissions.js";
+
+export { LifecycleEvent } from "./events.js";
