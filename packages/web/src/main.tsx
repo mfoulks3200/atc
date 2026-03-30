@@ -27,6 +27,9 @@ const router = createBrowserRouter([
       { path: "agents", lazy: () => import("@/routes/agents/list") },
       { path: "agents/:id", lazy: () => import("@/routes/agents/detail") },
       { path: "events", lazy: () => import("@/routes/events") },
+      { path: "checklists", lazy: () => import("@/routes/checklists/index") },
+      { path: "checklists/:id", lazy: () => import("@/routes/checklists/template") },
+      { path: "checklists/assignments", lazy: () => import("@/routes/checklists/assignments") },
     ],
   },
   {
