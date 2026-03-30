@@ -20,3 +20,16 @@ export type { PilotAction, SeatPermissions } from "./permissions.js";
 export { PERMISSIONS } from "./permissions.js";
 
 export { LifecycleEvent } from "./events.js";
+
+export { ChecklistItemSeverity } from "./checklist.js";
+export type {
+  ShellExecutor,
+  McpToolExecutor,
+  ChecklistExecutor,
+  ChecklistItemDef,
+  ChecklistTemplate,
+  ChecklistBinding,
+  CraftChecklistOverride,
+  ChecklistItemResult,
+  ChecklistRunResult,
+} from "./checklist.js";
