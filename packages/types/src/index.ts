@@ -10,6 +10,7 @@ export type {
   ControlState,
   FlightPlan,
   Craft,
+  SystemNotification,
 } from "./entities.js";
 
 export type { CraftTransition } from "./lifecycle.js";

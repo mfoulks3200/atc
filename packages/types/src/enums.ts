@@ -75,4 +75,6 @@ export enum BlackBoxEntryType {
   Observation = "Observation",
   /** The captain has declared an emergency. Final entry before origin handoff. */
   EmergencyDeclaration = "EmergencyDeclaration",
+  /** A checklist was executed. Contains full ChecklistRunResult metadata. @see RULE-CHKL-5 */
+  ChecklistRun = "ChecklistRun",
 }

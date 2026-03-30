@@ -121,3 +121,21 @@ export interface Craft {
   /** Current lifecycle phase. @see RULE-LIFE-1 */
   status: CraftStatus;
 }
+
+/**
+ * A system-generated notification posted to the intercom.
+ * Distinct from pilot-to-pilot messages.
+ * @see RULE-ICOM-6, RULE-CHKL-6
+ */
+export interface SystemNotification {
+  /** System that generated the notification (e.g., "checklist"). */
+  readonly source: string;
+  /** Human-readable summary of the event. */
+  readonly summary: string;
+  /** Outcome of the event. */
+  readonly outcome: "passed" | "failed" | "advisory-only";
+  /** Reference to the black box entry with full details. */
+  readonly blackBoxEntryIndex: number;
+  /** When the notification was generated. */
+  readonly timestamp: Date;
+}
