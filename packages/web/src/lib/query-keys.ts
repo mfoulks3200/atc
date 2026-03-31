@@ -5,6 +5,9 @@ export const queryKeys = {
     list: () => ["projects"] as const,
     detail: (name: string) => ["projects", name] as const,
   },
+  pilots: {
+    list: (project: string) => ["pilots", project] as const,
+  },
   crafts: {
     list: (project: string) => ["crafts", project] as const,
     detail: (project: string, callsign: string) => ["crafts", project, callsign] as const,
