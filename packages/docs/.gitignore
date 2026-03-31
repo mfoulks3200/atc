@@ -1,3 +1,17 @@
 build/
 .docusaurus/
 node_modules/
+
+# TypeScript build output
+docusaurus.config.js
+docusaurus.config.js.map
+docusaurus.config.d.ts
+docusaurus.config.d.ts.map
+sidebars.js
+sidebars.js.map
+sidebars.d.ts
+sidebars.d.ts.map
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+src/**/*.d.ts.map
