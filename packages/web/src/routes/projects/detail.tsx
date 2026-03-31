@@ -1,10 +1,12 @@
-import { useParams } from "react-router";
-import { useProject, useCrafts, useTowerQueue } from "@/hooks/use-api";
+import { useState } from "react";
+import { useParams, Link } from "react-router";
+import { useProject, useCrafts, useTowerQueue, usePilots } from "@/hooks/use-api";
 import { useWsManager } from "@/hooks/ws-context";
 import { useSubscription } from "@/hooks/use-subscription";
 import { PageHeader } from "@/components/base/page-header";
 import { FlightStrip } from "@/components/base/flight-strip";
 import { StatCard } from "@/components/base/stat-card";
+import { CreatePilotModal } from "@/components/forms/create-pilot-modal";
 
 export function Component() {
   const { name } = useParams<{ name: string }>();
@@ -13,6 +15,8 @@ export function Component() {
   const { data: project } = useProject(name!);
   const { data: crafts } = useCrafts(name!);
   const { data: queue } = useTowerQueue(name!);
+  const { data: pilots } = usePilots(name!);
+  const [showCreatePilot, setShowCreatePilot] = useState(false);
 
   const activeCrafts = crafts?.filter(
     (c) => c.status !== "Landed" && c.status !== "ReturnToOrigin",
@@ -20,7 +24,27 @@ export function Component() {
 
   return (
     <div>
-      <PageHeader crumbs={[{ label: "Projects", to: "/projects" }, { label: name! }]} />
+      <PageHeader
+        crumbs={[{ label: "Projects", to: "/projects" }, { label: name! }]}
+        right={
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowCreatePilot(true)}
+              className="rounded-md px-3 py-1.5 text-xs"
+              style={{ backgroundColor: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+            >
+              + New Pilot
+            </button>
+            <Link
+              to={`/projects/${name}/crafts/new`}
+              className="rounded-md px-3 py-1.5 text-xs font-semibold no-underline"
+              style={{ backgroundColor: "var(--accent-green)", color: "var(--bg-base)" }}
+            >
+              + New Craft
+            </Link>
+          </div>
+        }
+      />
       <div className="mt-5">
         {project && (
           <div className="mb-5 rounded-md border p-3.5" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}>
@@ -38,6 +62,36 @@ export function Component() {
           <StatCard label="ACTIVE" value={activeCrafts?.length ?? 0} color="var(--accent-blue)" />
           <StatCard label="TOWER QUEUE" value={queue?.length ?? 0} color="var(--accent-yellow)" />
         </div>
+
+        {/* Pilots section */}
+        {pilots && pilots.length > 0 && (
+          <div className="mb-5 rounded-md border p-3.5" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}>
+            <div className="mb-3 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>PILOTS</div>
+            <div className="space-y-1.5">
+              {pilots.map((pilot) => (
+                <div
+                  key={pilot.identifier}
+                  className="flex items-center justify-between rounded-md p-2 text-[11px]"
+                  style={{ backgroundColor: "var(--bg-elevated)" }}
+                >
+                  <span style={{ color: "var(--text-secondary)" }}>{pilot.identifier}</span>
+                  <div className="flex gap-1">
+                    {pilot.certifications.map((cert) => (
+                      <span
+                        key={cert}
+                        className="rounded-sm px-1.5 py-0.5 text-[10px]"
+                        style={{ backgroundColor: "rgba(0, 255, 136, 0.1)", color: "var(--accent-green)" }}
+                      >
+                        {cert}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="rounded-md border p-3.5" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}>
           <div className="mb-3 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>CRAFTS</div>
           {crafts && crafts.length === 0 && (
@@ -96,13 +150,13 @@ export function Component() {
                     MCP Servers
                   </div>
                   <div className="space-y-1">
-                    {Object.entries(project.mcpServers).map(([name, config]) => (
+                    {Object.entries(project.mcpServers).map(([serverName, config]) => (
                       <div
-                        key={name}
+                        key={serverName}
                         className="flex items-center justify-between rounded-md p-2 text-[11px]"
                         style={{ backgroundColor: "var(--bg-elevated)" }}
                       >
-                        <span style={{ color: "var(--text-secondary)" }}>{name}</span>
+                        <span style={{ color: "var(--text-secondary)" }}>{serverName}</span>
                         <span
                           className="font-mono text-[10px]"
                           style={{ color: "var(--text-dim)" }}
@@ -117,6 +171,12 @@ export function Component() {
             </div>
           )}
       </div>
+      <CreatePilotModal
+        open={showCreatePilot}
+        onClose={() => setShowCreatePilot(false)}
+        project={name!}
+        categories={project?.categories ?? []}
+      />
     </div>
   );
 }
