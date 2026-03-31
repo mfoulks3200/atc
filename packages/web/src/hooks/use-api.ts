@@ -124,7 +124,10 @@ export function useCreateProject() {
       remoteUrl: string;
       categories: string[];
       checklist: Array<{ name: string; command: string; timeout?: number }>;
-      mcpServers?: Record<string, { command: string; args: string[]; env?: Record<string, string> }>;
+      mcpServers?: Record<
+        string,
+        { command: string; args: string[]; env?: Record<string, string> }
+      >;
     }) => apiClient.post<ProjectMetadata>("/api/v1/projects", body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.projects.list() });
