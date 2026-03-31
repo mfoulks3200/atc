@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import type {
@@ -6,6 +6,7 @@ import type {
   StatusResponse,
   ProjectMetadata,
   CraftState,
+  PilotRecord,
   AgentRecord,
   AgentUsageReport,
   BlackBoxEntry,
@@ -105,6 +106,62 @@ export function useTowerQueue(project: string) {
   return useQuery({
     queryKey: queryKeys.tower.queue(project),
     queryFn: () => apiClient.get<string[]>(`/api/v1/projects/${project}/tower`),
+  });
+}
+
+export function usePilots(project: string) {
+  return useQuery({
+    queryKey: queryKeys.pilots.list(project),
+    queryFn: () => apiClient.get<PilotRecord[]>(`/api/v1/projects/${project}/pilots`),
+  });
+}
+
+export function useCreateProject() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      name: string;
+      remoteUrl: string;
+      categories: string[];
+      checklist: Array<{ name: string; command: string; timeout?: number }>;
+      mcpServers?: Record<
+        string,
+        { command: string; args: string[]; env?: Record<string, string> }
+      >;
+    }) => apiClient.post<ProjectMetadata>("/api/v1/projects", body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.list() });
+    },
+  });
+}
+
+export function useCreatePilot(project: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { identifier: string; certifications: string[] }) =>
+      apiClient.post<PilotRecord>(`/api/v1/projects/${project}/pilots`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.pilots.list(project) });
+    },
+  });
+}
+
+export function useCreateCraft(project: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      callsign: string;
+      branch: string;
+      cargo: string;
+      category: string;
+      captain: string;
+      firstOfficers?: string[];
+      jumpseaters?: string[];
+      flightPlan: Array<{ name: string; acceptanceCriteria: string }>;
+    }) => apiClient.post<CraftState>(`/api/v1/projects/${project}/crafts`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.crafts.list(project) });
+    },
   });
 }
 
