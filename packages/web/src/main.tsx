@@ -37,6 +37,7 @@ const router = createBrowserRouter([
     Component: ProjectLayout,
     children: [
       { index: true, lazy: () => import("@/routes/projects/detail") },
+      { path: "crafts/new", lazy: () => import("@/routes/crafts/create") },
       { path: "crafts/:callsign", lazy: () => import("@/routes/crafts/detail") },
       { path: "tower", lazy: () => import("@/routes/tower") },
     ],
