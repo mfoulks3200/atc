@@ -1,13 +1,27 @@
+import { useState } from "react";
 import { Link } from "react-router";
 import { useProjects } from "@/hooks/use-api";
 import { PageHeader } from "@/components/base/page-header";
+import { CreateProjectModal } from "@/components/forms/create-project-modal";
 
 export function Component() {
   const { data: projects, isLoading } = useProjects();
+  const [showCreate, setShowCreate] = useState(false);
 
   return (
     <div>
-      <PageHeader crumbs={[{ label: "Projects" }]} />
+      <PageHeader
+        crumbs={[{ label: "Projects" }]}
+        right={
+          <button
+            onClick={() => setShowCreate(true)}
+            className="rounded-md px-3 py-1.5 text-xs font-semibold"
+            style={{ backgroundColor: "var(--accent-green)", color: "var(--bg-base)" }}
+          >
+            + New Project
+          </button>
+        }
+      />
       <div className="mt-5">
         {isLoading && (
           <div className="py-8 text-center text-xs" style={{ color: "var(--text-dim)" }}>Loading...</div>
@@ -40,6 +54,7 @@ export function Component() {
           ))}
         </div>
       </div>
+      <CreateProjectModal open={showCreate} onClose={() => setShowCreate(false)} />
     </div>
   );
 }
