@@ -6,7 +6,6 @@ import { getWsUrl } from "@/lib/api-client";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { WsProvider } from "@/hooks/ws-context";
 import { Shell } from "@/components/layout/shell";
-import { ProjectSidebarSlot } from "@/components/layout/project-sidebar";
 import "./theme/globals.css";
 
 const queryClient = new QueryClient({
@@ -24,22 +23,16 @@ const router = createBrowserRouter([
     children: [
       { index: true, lazy: () => import("@/routes/dashboard") },
       { path: "projects", lazy: () => import("@/routes/projects/list") },
+      { path: "projects/:name", lazy: () => import("@/routes/projects/detail") },
+      { path: "projects/:name/crafts/new", lazy: () => import("@/routes/crafts/create") },
+      { path: "projects/:name/crafts/:callsign", lazy: () => import("@/routes/crafts/detail") },
+      { path: "projects/:name/tower", lazy: () => import("@/routes/tower") },
       { path: "agents", lazy: () => import("@/routes/agents/list") },
       { path: "agents/:id", lazy: () => import("@/routes/agents/detail") },
       { path: "events", lazy: () => import("@/routes/events") },
       { path: "checklists", lazy: () => import("@/routes/checklists/index") },
       { path: "checklists/:id", lazy: () => import("@/routes/checklists/template") },
       { path: "checklists/assignments", lazy: () => import("@/routes/checklists/assignments") },
-      {
-        path: "projects/:name",
-        Component: ProjectSidebarSlot,
-        children: [
-          { index: true, lazy: () => import("@/routes/projects/detail") },
-          { path: "crafts/new", lazy: () => import("@/routes/crafts/create") },
-          { path: "crafts/:callsign", lazy: () => import("@/routes/crafts/detail") },
-          { path: "tower", lazy: () => import("@/routes/tower") },
-        ],
-      },
     ],
   },
 ]);
