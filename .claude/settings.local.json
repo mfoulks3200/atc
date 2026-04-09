@@ -13,7 +13,8 @@
       "Bash(node -e \"const t = require\\(''./packages/web/src/types/api.ts''\\); console.log\\(''ok''\\)\")",
       "Bash(echo \"exit: $?\")",
       "Bash(npx vite:*)",
-      "Bash(pnpm start:*)"
+      "Bash(pnpm start:*)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts|jsx|js\\)$\")"
     ]
   }
 }

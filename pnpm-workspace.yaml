@@ -2,4 +2,6 @@ packages:
   - packages/*
 
 onlyBuiltDependencies:
+  - core-js
+  - core-js-pure
   - esbuild

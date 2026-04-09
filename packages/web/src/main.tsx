@@ -5,8 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getWsUrl } from "@/lib/api-client";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { WsProvider } from "@/hooks/ws-context";
-import { RootLayout } from "@/routes/root";
-import { ProjectLayout } from "@/routes/project-layout";
+import { Shell } from "@/components/layout/shell";
+import { ProjectSidebarSlot } from "@/components/layout/project-sidebar";
 import "./theme/globals.css";
 
 const queryClient = new QueryClient({
@@ -20,7 +20,7 @@ const queryClient = new QueryClient({
 
 const router = createBrowserRouter([
   {
-    Component: RootLayout,
+    Component: Shell,
     children: [
       { index: true, lazy: () => import("@/routes/dashboard") },
       { path: "projects", lazy: () => import("@/routes/projects/list") },
@@ -30,16 +30,16 @@ const router = createBrowserRouter([
       { path: "checklists", lazy: () => import("@/routes/checklists/index") },
       { path: "checklists/:id", lazy: () => import("@/routes/checklists/template") },
       { path: "checklists/assignments", lazy: () => import("@/routes/checklists/assignments") },
-    ],
-  },
-  {
-    path: "projects/:name",
-    Component: ProjectLayout,
-    children: [
-      { index: true, lazy: () => import("@/routes/projects/detail") },
-      { path: "crafts/new", lazy: () => import("@/routes/crafts/create") },
-      { path: "crafts/:callsign", lazy: () => import("@/routes/crafts/detail") },
-      { path: "tower", lazy: () => import("@/routes/tower") },
+      {
+        path: "projects/:name",
+        Component: ProjectSidebarSlot,
+        children: [
+          { index: true, lazy: () => import("@/routes/projects/detail") },
+          { path: "crafts/new", lazy: () => import("@/routes/crafts/create") },
+          { path: "crafts/:callsign", lazy: () => import("@/routes/crafts/detail") },
+          { path: "tower", lazy: () => import("@/routes/tower") },
+        ],
+      },
     ],
   },
 ]);

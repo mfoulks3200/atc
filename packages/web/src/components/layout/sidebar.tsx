@@ -1,6 +1,7 @@
 import { NavLink } from "react-router";
 import styles from "./sidebar.module.css";
 import { cn } from "@/lib/utils";
+import { useSidebarSlotContent } from "@/hooks/sidebar-slot-context";
 
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: "◈" },
@@ -10,6 +11,8 @@ const NAV_ITEMS = [
 ];
 
 export function Sidebar() {
+  const slotContent = useSidebarSlotContent();
+
   return (
     <aside
       className="flex w-[220px] shrink-0 flex-col border-r"
@@ -49,6 +52,7 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      {slotContent}
     </aside>
   );
 }
