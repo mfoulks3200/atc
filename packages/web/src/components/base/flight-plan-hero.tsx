@@ -3,7 +3,9 @@ import type { CraftState } from "@/types/api";
 import {
   HERO_GEOMETRY,
   computeSegments,
+  formatDuration,
   pointAt,
+  planeTransform,
   type Segment,
 } from "./flight-plan-hero.utils.js";
 
@@ -38,6 +40,37 @@ function waypointClass(seg: Segment): string {
   return "waypoint-pending";
 }
 
+/**
+ * Determines where the plane should be positioned for the current craft state.
+ * Returns a normalized t value along the arc, or null if the plane should be hidden.
+ */
+function planeT(craft: CraftState, segments: Segment[]): number | null {
+  if (craft.status === "Taxiing") return 0;
+  if (craft.status === "Landed" || craft.status === "ReturnToOrigin") return 1;
+  const failed = segments.find((s) => s.status === "Failed");
+  if (failed) return failed.tEnd;
+  const current = segments.find((s) => s.isCurrent);
+  if (current) return (current.tStart + current.tEnd) / 2;
+  return null;
+}
+
+/**
+ * Returns "passed" | "current" | "pending" | "failed" for duration coloring.
+ */
+function durationTone(seg: Segment): keyof typeof DURATION_COLOR {
+  if (seg.status === "Failed") return "failed";
+  if (seg.isCurrent) return "current";
+  if (seg.status === "Passed") return "passed";
+  return "pending";
+}
+
+function durationText(seg: Segment): string {
+  if (seg.status === "Failed") return `${formatDuration(seg.durationMs)} · FAILED`;
+  if (seg.isCurrent) return `${formatDuration(seg.durationMs)} · NOW`;
+  if (seg.isEstimate) return `~${formatDuration(seg.durationMs)}`;
+  return formatDuration(seg.durationMs);
+}
+
 export interface FlightPlanHeroProps {
   craft: CraftState;
 }
@@ -55,6 +88,14 @@ export function FlightPlanHero({ craft }: FlightPlanHeroProps) {
 
   const segments = computeSegments(craft, now);
   const { viewBox, cx, cy } = HERO_GEOMETRY;
+  const planePosT = planeT(craft, segments);
+  const plane = planePosT !== null ? planeTransform(planePosT) : null;
+  const rail = HERO_GEOMETRY.labelRail;
+  const n = segments.length;
+  const labelXs = segments.map((_, i) => {
+    if (n === 1) return viewBox.w / 2;
+    return rail.margin + (i / (n - 1)) * (viewBox.w - 2 * rail.margin);
+  });
   const departPoint = pointAt(0);
   const landPoint = pointAt(1);
 
@@ -92,6 +133,20 @@ export function FlightPlanHero({ craft }: FlightPlanHeroProps) {
             .grid-line  { stroke: #0f1a2e; stroke-width: 1; }
             .endpoint   { font-size: 9px; letter-spacing: 0.2em; fill: var(--text-dim);
               font-family: var(--font-mono); }
+            .plane       { fill: var(--accent-yellow);
+              filter: drop-shadow(0 0 10px rgba(255,216,102,0.9)); }
+            .plane-red   { fill: var(--accent-red);
+              filter: drop-shadow(0 0 12px rgba(255,85,85,0.9)); }
+            .plane-green { fill: var(--accent-green);
+              filter: drop-shadow(0 0 10px rgba(0,255,136,0.9)); }
+            .leader      { stroke: #2a3a5a; stroke-width: 1; fill: none; stroke-linejoin: round; }
+            .leader-failed { stroke: #6a2a2a; }
+            .vname       { fill: var(--text-secondary); font-size: 10px; letter-spacing: 0.08em;
+              font-family: var(--font-mono); }
+            .vname-current { fill: var(--accent-yellow); }
+            .vname-failed  { fill: var(--accent-red); }
+            .vname-done    { fill: var(--accent-green); }
+            .vtime       { font-size: 8px; letter-spacing: 0.05em; font-family: var(--font-mono); }
           `}</style>
         </defs>
 
@@ -137,6 +192,61 @@ export function FlightPlanHero({ craft }: FlightPlanHeroProps) {
               </g>
             );
           })}
+
+        {/* leader callouts */}
+        {segments.map((seg, i) => {
+          const labelX = labelXs[i];
+          const wp = pointAt(seg.tEnd);
+          const points = `${labelX},${rail.exitY} ${labelX},${HERO_GEOMETRY.leaderKinkY} ${wp.x},${wp.y}`;
+          const cls = seg.status === "Failed" ? "leader leader-failed" : "leader";
+          return <polyline key={`ld-${seg.index}`} className={cls} points={points} />;
+        })}
+
+        {/* plane glyph */}
+        {plane && (
+          <g transform={`translate(${plane.x}, ${plane.y}) rotate(${plane.rotateDeg})`}>
+            <path
+              className={
+                craft.status === "Emergency" || craft.status === "GoAround"
+                  ? "plane-red"
+                  : craft.status === "Landed" || craft.status === "ReturnToOrigin"
+                    ? "plane-green"
+                    : "plane"
+              }
+              d="M 0 -8 L 2 3 L 9 5 L 9 8 L 2 7 L 0 12 L -2 7 L -9 8 L -9 5 L -2 3 Z"
+            />
+          </g>
+        )}
+
+        {/* label rail */}
+        {segments.map((seg, i) => {
+          const isLanded = craft.status === "Landed" || craft.status === "ReturnToOrigin";
+          const nameCls =
+            seg.status === "Failed"
+              ? "vname vname-failed"
+              : seg.isCurrent
+                ? "vname vname-current"
+                : isLanded && seg.status === "Passed"
+                  ? "vname vname-done"
+                  : "vname";
+          const tone = durationTone(seg);
+          return (
+            <g key={`label-${seg.index}`}>
+              <text className={nameCls} x={labelXs[i]} y={rail.nameY} textAnchor="middle">
+                V{seg.index + 1} {seg.name.toUpperCase()}
+              </text>
+              <text
+                className="vtime"
+                x={labelXs[i]}
+                y={rail.durationY}
+                textAnchor="middle"
+                fill={DURATION_COLOR[tone]}
+              >
+                {durationText(seg)}
+              </text>
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
