@@ -6,7 +6,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc --build"
+    "build": "tsc --build",
+    "codegen:contributors": "tsx scripts/contributors.ts"
   },
   "dependencies": {
     "@atc/types": "workspace:*",
