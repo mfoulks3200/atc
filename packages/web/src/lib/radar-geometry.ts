@@ -40,3 +40,92 @@ export function jitterFor(callsign: string, vectorIndex: number): number {
   // Map 32-bit hash into [0, 10), subtract 5 → [-5, 5).
   return (h % 10000) / 1000 - 5;
 }
+
+/** A 2D point in SVG user-space coordinates. */
+export interface TrackPoint {
+  x: number;
+  y: number;
+}
+
+/** Full SVG geometry for one craft's radar track: origin → vectors → threshold, plus plane position and heading. */
+export interface CraftTrack {
+  /** Entry point on the outer radar ring. */
+  origin: TrackPoint;
+  /** One point per flight-plan vector, ordered from origin toward threshold. */
+  vectors: TrackPoint[];
+  /** Runway threshold point on the inner ring. */
+  threshold: TrackPoint;
+  /** Heading of the plane icon at its current vector, in SVG degrees. */
+  headingDeg: number;
+  /** Index into vectors[] where the plane icon sits; -1 if all passed. */
+  currentVectorIndex: number;
+}
+
+interface ComputeTrackInput {
+  callsign: string;
+  totalVectors: number;
+  /** 0-based index of the first non-passed vector. Equal to totalVectors when all passed. */
+  currentVectorIndex: number;
+  center: TrackPoint;
+  outerRadius: number;
+  threshRadius: number;
+}
+
+/**
+ * Compute the full SVG geometry for a craft's track: origin → vectors → threshold,
+ * plus the plane icon's position index and heading. Deterministic given the
+ * same input (callsign seeds the bearing and jitter).
+ *
+ * All angles are in SVG degrees, where 0 = east and 90 = south.
+ */
+export function computeCraftTrack(input: ComputeTrackInput): CraftTrack {
+  const { callsign, totalVectors, center, outerRadius, threshRadius } = input;
+  const baseBearingDeg = bearingFor(callsign);
+
+  const toPoint = (radius: number, degrees: number): TrackPoint => {
+    const rad = (degrees * Math.PI) / 180;
+    return {
+      x: center.x + radius * Math.cos(rad),
+      y: center.y + radius * Math.sin(rad),
+    };
+  };
+
+  const origin = toPoint(outerRadius, baseBearingDeg);
+  const threshold = toPoint(threshRadius, baseBearingDeg);
+
+  const vectors: TrackPoint[] = [];
+  // Distribute vectors evenly between outer ring and threshold (exclusive of
+  // the extreme endpoints so the origin/threshold markers stay distinct).
+  const span = outerRadius - threshRadius;
+  const divisor = Math.max(totalVectors + 1, 2);
+  for (let i = 0; i < totalVectors; i++) {
+    const t = (i + 1) / divisor;
+    const radius = outerRadius - span * t;
+    const degrees = baseBearingDeg + jitterFor(callsign, i);
+    vectors.push(toPoint(radius, degrees));
+  }
+
+  // Plane icon sits at the first non-passed vector, or -1 if all passed.
+  const planeIndex = input.currentVectorIndex >= totalVectors ? -1 : input.currentVectorIndex;
+
+  // Heading = direction from the previous point to the current plane point.
+  // When planeIndex is 0, use origin as the "previous" point. When -1, fall
+  // back to pointing from last vector to threshold.
+  let headingDeg: number;
+  if (planeIndex === -1) {
+    const last = vectors[vectors.length - 1] ?? origin;
+    headingDeg = (Math.atan2(threshold.y - last.y, threshold.x - last.x) * 180) / Math.PI;
+  } else {
+    const prev = planeIndex === 0 ? origin : vectors[planeIndex - 1];
+    const curr = vectors[planeIndex];
+    headingDeg = (Math.atan2(curr.y - prev.y, curr.x - prev.x) * 180) / Math.PI;
+  }
+
+  return {
+    origin,
+    vectors,
+    threshold,
+    headingDeg,
+    currentVectorIndex: planeIndex,
+  };
+}
