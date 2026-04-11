@@ -4,7 +4,7 @@
  * Uses real filesystem I/O (mkdtemp / rm) — no mocks.
  */
 
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -15,7 +15,7 @@ import { CraftStore } from "./craft-store.js";
 function makeCraft(callsign: string): CraftState {
   return {
     callsign,
-    createdAt: "2026-04-11T00:00:00.000Z",
+    createdAt: "2026-01-01T00:00:00.000Z",
     branch: callsign,
     cargo: "test cargo",
     category: "test",
@@ -137,6 +137,64 @@ describe("CraftStore", () => {
     const store2 = new CraftStore(join(tmpDir, "nonexistent"));
     await expect(store2.loadProject("proj")).resolves.not.toThrow();
     expect(store2.listForProject("proj")).toHaveLength(0);
+  });
+
+  it("backfills createdAt from earliest blackBox entry on load", async () => {
+    const projectDir = join(tmpDir, "projects", "proj-a", "crafts", "LEGACY-01");
+    await mkdir(projectDir, { recursive: true });
+    // Simulate a legacy craft file written before createdAt existed.
+    const legacy = {
+      callsign: "LEGACY-01",
+      branch: "LEGACY-01",
+      cargo: "legacy",
+      category: "test",
+      status: CraftStatus.InFlight,
+      captain: "pilot-1",
+      firstOfficers: [],
+      jumpseaters: [],
+      flightPlan: [],
+      blackBox: [
+        { timestamp: "2026-01-15T12:00:00.000Z", author: "pilot-1", type: "Decision", content: "start" },
+        { timestamp: "2026-01-16T12:00:00.000Z", author: "pilot-1", type: "Decision", content: "mid" },
+      ],
+      intercom: [],
+      controls: { mode: "exclusive", holder: "pilot-1" },
+    };
+    await writeFile(join(projectDir, "craft.json"), JSON.stringify(legacy));
+
+    await store.loadProject("proj-a");
+    const loaded = store.get("proj-a", "LEGACY-01");
+    expect(loaded?.createdAt).toBe("2026-01-15T12:00:00.000Z");
+  });
+
+  it("backfills createdAt to now when blackBox is empty", async () => {
+    const projectDir = join(tmpDir, "projects", "proj-b", "crafts", "EMPTY-01");
+    await mkdir(projectDir, { recursive: true });
+    const legacy = {
+      callsign: "EMPTY-01",
+      branch: "EMPTY-01",
+      cargo: "empty",
+      category: "test",
+      status: CraftStatus.Taxiing,
+      captain: "pilot-1",
+      firstOfficers: [],
+      jumpseaters: [],
+      flightPlan: [],
+      blackBox: [],
+      intercom: [],
+      controls: { mode: "exclusive", holder: "pilot-1" },
+    };
+    await writeFile(join(projectDir, "craft.json"), JSON.stringify(legacy));
+
+    const before = Date.now();
+    await store.loadProject("proj-b");
+    const after = Date.now();
+
+    const loaded = store.get("proj-b", "EMPTY-01");
+    expect(loaded?.createdAt).toBeDefined();
+    const loadedMs = new Date(loaded!.createdAt).getTime();
+    expect(loadedMs).toBeGreaterThanOrEqual(before);
+    expect(loadedMs).toBeLessThanOrEqual(after);
   });
 
   it("appendUsageReport() writes a JSON line to usage.json", async () => {

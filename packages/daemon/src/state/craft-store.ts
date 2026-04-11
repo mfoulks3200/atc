@@ -194,6 +194,11 @@ export class CraftStore {
    *
    * Missing or empty directories are silently ignored.
    *
+   * @remarks Backfills `createdAt` from the earliest black-box entry (or the
+   *   current time if the box is empty) when loading legacy files that predate
+   *   the field. This is a one-time in-memory migration; the on-disk file is
+   *   not rewritten.
+   *
    * @param projectName - Name of the project to load.
    * @returns Resolves when all crafts have been loaded.
    */
@@ -216,6 +221,13 @@ export class CraftStore {
         const filePath = join(craftsDir, callsign, "craft.json");
         const craft = await readJsonSafe<CraftState>(filePath);
         if (craft !== null) {
+          if (!craft.createdAt) {
+            const earliest = craft.blackBox.reduce<string | undefined>(
+              (min, e) => (min === undefined || e.timestamp < min ? e.timestamp : min),
+              undefined,
+            );
+            craft.createdAt = earliest ?? new Date().toISOString();
+          }
           projectMap.set(callsign, craft);
         }
       }),
