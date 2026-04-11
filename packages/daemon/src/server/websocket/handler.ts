@@ -4,7 +4,7 @@
  * global config store.
  */
 
-import { ConfigValidationError, UnknownConfigKeyError } from "@atc/errors";
+import { ConfigValidationError, UnknownConfigKeyError } from "@airtrafficcontrol/errors";
 import type { WsClientMessage, WsServerMessage } from "../../types.js";
 import type { ChannelRegistry } from "./channels.js";
 import type { HeartbeatTracker } from "./heartbeat.js";

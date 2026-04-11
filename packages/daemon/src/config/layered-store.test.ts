@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { ConfigValidationError, UnknownConfigKeyError } from "@atc/errors";
+import { ConfigValidationError, UnknownConfigKeyError } from "@airtrafficcontrol/errors";
 import { LayeredConfigStore } from "./layered-store.js";
 
 const TEST_SCHEMA = z

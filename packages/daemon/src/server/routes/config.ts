@@ -9,7 +9,7 @@
  */
 
 import type { FastifyInstance, FastifyReply } from "fastify";
-import { ConfigValidationError, UnknownConfigKeyError } from "@atc/errors";
+import { ConfigValidationError, UnknownConfigKeyError } from "@airtrafficcontrol/errors";
 import type { LayeredConfigStore } from "../../config/layered-store.js";
 import type { GlobalConfig } from "../../config/schema.js";
 

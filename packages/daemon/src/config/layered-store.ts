@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import { stat, watch, type FSWatcher } from "node:fs";
 import { readFile } from "node:fs/promises";
 import type { z } from "zod";
-import { ConfigValidationError, UnknownConfigKeyError, type ConfigScope } from "@atc/errors";
+import { ConfigValidationError, UnknownConfigKeyError, type ConfigScope } from "@airtrafficcontrol/errors";
 import { atomicWriteJson } from "../state/persistence.js";
 
 /** Source of a config change event. */
