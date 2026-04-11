@@ -11,6 +11,8 @@
 import type { WsClientMessage, WsServerMessage } from "../../types.js";
 import type { ChannelRegistry } from "./channels.js";
 import type { HeartbeatTracker } from "./heartbeat.js";
+import type { LayeredConfigStore } from "../../config/layered-store.js";
+import type { GlobalConfig } from "../../config/schema.js";
 
 /**
  * Process a single incoming WebSocket message from a client.
@@ -33,6 +35,7 @@ export function handleWsMessage(
   send: (data: WsServerMessage) => void,
   channels: ChannelRegistry,
   heartbeat: HeartbeatTracker,
+  _globalConfigStore: LayeredConfigStore<GlobalConfig> | null = null,
 ): void {
   switch (message.type) {
     case "subscribe":

@@ -73,13 +73,16 @@ async function scaffoldProfile(root: string, port: number): Promise<string> {
 
 describe("Daemon", () => {
   let profileDir: string;
+  let atcDir: string;
   let daemon: Daemon;
 
   beforeEach(async () => {
     const port = await getFreePort();
-    const tmp = await mkdtemp(join(tmpdir(), "atc-daemon-test-"));
-    profileDir = await scaffoldProfile(tmp, port);
-    daemon = new Daemon(profileDir);
+    atcDir = await mkdtemp(join(tmpdir(), "atc-daemon-test-"));
+    const profileRoot = join(atcDir, "profiles", "default");
+    await mkdir(profileRoot, { recursive: true });
+    profileDir = await scaffoldProfile(profileRoot, port);
+    daemon = new Daemon(profileDir, atcDir);
   });
 
   afterEach(async () => {
@@ -87,7 +90,7 @@ describe("Daemon", () => {
     if (daemon.isRunning) {
       await daemon.stop();
     }
-    await rm(profileDir, { recursive: true, force: true });
+    await rm(atcDir, { recursive: true, force: true });
   });
 
   it("creates a daemon instance", () => {

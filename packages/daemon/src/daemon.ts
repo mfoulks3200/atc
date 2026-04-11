@@ -20,6 +20,10 @@ import { FlushScheduler } from "./state/persistence.js";
 import { createApp } from "./server/app.js";
 import { writePidFile, removePidFile } from "./process/pid.js";
 import { createShutdownHandler, registerSignalHandlers } from "./process/signals.js";
+import { createGlobalConfigStore } from "./config/global-store.js";
+import type { LayeredConfigStore } from "./config/layered-store.js";
+import type { GlobalConfig } from "./config/schema.js";
+import { ChannelRegistry } from "./server/websocket/channels.js";
 
 /** Path of the PID file relative to the profile directory. */
 const PID_FILE = "daemon.pid";
@@ -41,6 +45,9 @@ const PID_FILE = "daemon.pid";
  */
 export class Daemon {
   private readonly _profileDir: string;
+  private readonly _atcDir: string;
+  private _globalConfigStore: LayeredConfigStore<GlobalConfig> | null = null;
+  private _channelRegistry: ChannelRegistry | null = null;
   private _running = false;
   private _port = 0;
   private _app: Awaited<ReturnType<typeof createApp>> | null = null;
@@ -51,9 +58,12 @@ export class Daemon {
   /**
    * @param profileDir - Absolute path to the profile directory. Must contain
    *   a `config.json` file and the standard subdirectory layout.
+   * @param atcDir - Absolute path to the `.atc` root directory. Used as the
+   *   location of the global `config.json` file.
    */
-  constructor(profileDir: string) {
+  constructor(profileDir: string, atcDir: string) {
     this._profileDir = profileDir;
+    this._atcDir = atcDir;
   }
 
   /**
@@ -97,11 +107,33 @@ export class Daemon {
 
     await agentStore.load();
 
+    const channelRegistry = new ChannelRegistry();
+    const logger = {
+      warn: (msg: string) => {
+        console.warn(msg);
+      },
+      info: (msg: string) => {
+        console.info(msg);
+      },
+      error: (msg: string, err?: unknown) => {
+        console.error(msg, err);
+      },
+    };
+    const globalConfigStore = createGlobalConfigStore(
+      this._atcDir,
+      channelRegistry.publish.bind(channelRegistry),
+      logger,
+    );
+    await globalConfigStore.load();
+    globalConfigStore.start();
+
     const app = createApp({
       profileDir: this._profileDir,
       agentStore,
       craftStore,
       towerStore,
+      channelRegistry,
+      globalConfigStore,
     });
 
     await app.listen({ port: config.port, host: config.host });
@@ -126,6 +158,8 @@ export class Daemon {
     this._flushScheduler = flushScheduler;
     this._agentStore = agentStore;
     this._craftStore = craftStore;
+    this._channelRegistry = channelRegistry;
+    this._globalConfigStore = globalConfigStore;
     this._running = true;
   }
 
@@ -158,6 +192,10 @@ export class Daemon {
 
     if (this._app !== null) {
       await this._app.close();
+    }
+
+    if (this._globalConfigStore !== null) {
+      await this._globalConfigStore.stop();
     }
 
     await removePidFile(join(this._profileDir, PID_FILE));

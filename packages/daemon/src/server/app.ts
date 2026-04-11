@@ -19,6 +19,9 @@ import { agentRoutes } from "./routes/agents.js";
 import { pilotRoutes } from "./routes/pilots.js";
 import { intercomRoutes } from "./routes/intercom.js";
 import { blackboxRoutes } from "./routes/blackbox.js";
+import { configRoutes } from "./routes/config.js";
+import type { LayeredConfigStore } from "../config/layered-store.js";
+import type { GlobalConfig } from "../config/schema.js";
 
 /**
  * Options passed to {@link createApp}.
@@ -38,6 +41,8 @@ export interface AppOptions {
   adapterRegistry?: AdapterRegistry;
   /** Pub/sub channel registry for WebSocket clients. */
   channelRegistry?: ChannelRegistry;
+  /** Store for global configuration. */
+  globalConfigStore?: LayeredConfigStore<GlobalConfig>;
 }
 
 /**
@@ -58,6 +63,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   app.decorate("towerStore", options.towerStore ?? new TowerStore("/tmp/atc-default"));
   app.decorate("adapterRegistry", options.adapterRegistry ?? new AdapterRegistry());
   app.decorate("channelRegistry", options.channelRegistry ?? new ChannelRegistry());
+  app.decorate("globalConfigStore", options.globalConfigStore ?? null);
   app.decorate("pilotStore", new Map<string, Map<string, PilotRecord>>());
 
   void app.register(websocket);
@@ -71,6 +77,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   void app.register(pilotRoutes);
   void app.register(intercomRoutes);
   void app.register(blackboxRoutes);
+  void app.register(configRoutes);
 
   const heartbeat = new HeartbeatTracker(3);
 
@@ -90,7 +97,14 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
       socket.on("message", (raw: Buffer | ArrayBuffer | Buffer[]) => {
         try {
           const message = JSON.parse(raw.toString()) as WsClientMessage;
-          handleWsMessage(message, clientId, send, instance.channelRegistry, heartbeat);
+          void handleWsMessage(
+            message,
+            clientId,
+            send,
+            instance.channelRegistry,
+            heartbeat,
+            instance.globalConfigStore,
+          );
         } catch {
           // ignore malformed messages
         }
@@ -122,5 +136,7 @@ declare module "fastify" {
     channelRegistry: ChannelRegistry;
     /** In-memory pilot store: project name -> pilot id -> PilotRecord. */
     pilotStore: Map<string, Map<string, PilotRecord>>;
+    /** Store for global configuration, if wired. */
+    globalConfigStore: LayeredConfigStore<GlobalConfig> | null;
   }
 }
