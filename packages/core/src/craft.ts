@@ -35,7 +35,7 @@ export interface CreateCraftParams {
  * @param params - The craft creation parameters.
  * @returns A new Craft in the Taxiing state.
  * @throws {CraftError} If any creation rule is violated.
- * @see RULE-CRAFT-1 through RULE-CRAFT-5, RULE-LIFE-1, RULE-BBOX-1, RULE-CTRL-1
+ * @see RULE-CRAFT-1 through RULE-CRAFT-6, RULE-LIFE-1, RULE-BBOX-1, RULE-CTRL-1
  */
 export function createCraft(params: CreateCraftParams): Craft {
   if (!params.callsign) {
@@ -65,6 +65,7 @@ export function createCraft(params: CreateCraftParams): Craft {
 
   return {
     callsign: params.callsign,
+    createdAt: new Date(),
     branch: params.branch,
     cargo: params.cargo,
     category: params.category,

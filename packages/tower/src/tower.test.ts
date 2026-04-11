@@ -11,6 +11,7 @@ import { Tower, createTower } from "./tower.js";
 function makeCraft(overrides: Partial<Craft> = {}): Craft {
   return {
     callsign: "CRAFT-1",
+    createdAt: new Date("2026-04-11T00:00:00.000Z"),
     branch: "feat/craft-1",
     cargo: "Add widget endpoint",
     category: "Backend Engineering",

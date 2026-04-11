@@ -95,11 +95,13 @@ export type FlightPlan = readonly Vector[];
 
 /**
  * The fundamental unit of work in ATC.
- * @see RULE-CRAFT-1 through RULE-CRAFT-5
+ * @see RULE-CRAFT-1 through RULE-CRAFT-6
  */
 export interface Craft {
   /** Unique, immutable identifier. @see RULE-CRAFT-1 */
   readonly callsign: string;
+  /** Timestamp when the craft entered the Taxiing phase. @see RULE-CRAFT-6 */
+  readonly createdAt: Date;
   /** Associated git branch (1:1). @see RULE-CRAFT-2 */
   readonly branch: string;
   /** Description of the change and its scope. @see RULE-CRAFT-3 */

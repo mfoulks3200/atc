@@ -7,6 +7,7 @@ import { createEmergencyReport } from "./emergency.js";
 function makeCraft(overrides: Partial<Craft> = {}): Craft {
   return {
     callsign: "TEST-1",
+    createdAt: new Date("2026-04-11T00:00:00.000Z"),
     branch: "feat/test-1",
     cargo: "Add widget endpoint",
     category: "Backend Engineering",

@@ -50,6 +50,7 @@ A **craft** is the fundamental unit of work in ATC. Each craft represents a sing
 | Property       | Type                | Constraints                        |
 | -------------- | ------------------- | ---------------------------------- |
 | Callsign       | `string`            | Unique, immutable after creation.  |
+| Created At     | `Date`              | Required. Timestamp when the craft entered the Taxiing phase. |
 | Branch         | `string`            | Unique, 1:1 with craft.           |
 | Cargo          | `string`            | Required. Description of the change and its scope. |
 | Category       | `CraftCategory`     | Required. Determines pilot eligibility (see 2.2.2). |
@@ -68,6 +69,7 @@ A **craft** is the fundamental unit of work in ATC. Each craft represents a sing
 - **RULE-CRAFT-3:** Every craft MUST have a cargo description assigned at creation.
 - **RULE-CRAFT-4:** Every craft MUST have a category assigned at creation.
 - **RULE-CRAFT-5:** Every craft MUST have exactly one captain at all times.
+- **RULE-CRAFT-6:** Every craft MUST record a creation timestamp at the moment it enters the Taxiing phase. This timestamp is immutable.
 
 #### 2.1.1 Black Box
 
@@ -436,6 +438,7 @@ When a craft passes its landing checklist, the pilot requests landing clearance 
 | RULE-CRAFT-3   | Craft must have a cargo description at creation.                     | 2.1     |
 | RULE-CRAFT-4   | Craft must have a category at creation.                              | 2.1     |
 | RULE-CRAFT-5   | Craft must have exactly one captain at all times.                    | 2.1     |
+| RULE-CRAFT-6   | Craft must record an immutable creation timestamp at Taxiing.        | 2.1     |
 | RULE-BBOX-1    | Black box created at Taxiing, persists for lifecycle.                | 2.1.1   |
 | RULE-BBOX-2    | Black box entries are append-only, immutable.                        | 2.1.1   |
 | RULE-BBOX-3    | All pilots (including jumpseaters) may write to black box.           | 2.1.1   |

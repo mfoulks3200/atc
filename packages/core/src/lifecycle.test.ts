@@ -22,6 +22,7 @@ const captain: Pilot = {
 function makeCraft(overrides?: Partial<Craft>): Craft {
   return {
     callsign: "CRAFT-001",
+    createdAt: new Date("2026-04-11T00:00:00.000Z"),
     branch: "feat/craft-001",
     cargo: "Test cargo",
     category: "Backend Engineering",
