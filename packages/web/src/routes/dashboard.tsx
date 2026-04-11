@@ -6,6 +6,7 @@ import { StatCard } from "@/components/base/stat-card";
 import { FlightStrip } from "@/components/base/flight-strip";
 import { EventRow } from "@/components/base/event-row";
 import { PageHeader } from "@/components/base/page-header";
+import { FlightRadar } from "@/components/base/flight-radar";
 import type { WsEvent, CraftState } from "@/types/api";
 
 const MAX_EVENTS = 50;
@@ -30,6 +31,9 @@ export function Component() {
   return (
     <div>
       <PageHeader crumbs={[{ label: "Dashboard" }]} />
+      <div className="mt-5">
+        <FlightRadar />
+      </div>
       <div className="mt-5 grid grid-cols-4 gap-3">
         <StatCard label="ACTIVE CRAFTS" value={status?.crafts ?? 0} color="var(--accent-green)" />
         <StatCard label="TOWER QUEUE" value={0} color="var(--accent-yellow)" />
