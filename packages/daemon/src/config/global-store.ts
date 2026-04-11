@@ -5,7 +5,7 @@
  * defaults, file path, and channel. The daemon bootstrap constructs one
  * instance and passes it to the HTTP/WS layer.
  *
- * @see RULE-CONF-1
+ * @see RULE-CFG-1
  */
 
 import { join } from "node:path";
