@@ -14,46 +14,7 @@ import type { BlackBoxEntryType, CraftStatus } from "@airtrafficcontrol/types";
 // Configuration types
 // ---------------------------------------------------------------------------
 
-/**
- * Top-level global configuration.
- * Specifies which named profile is active when the daemon starts.
- */
-export interface GlobalConfig {
-  /** The name of the profile to use by default. */
-  defaultProfile: string;
-}
-
-/**
- * Per-profile daemon runtime configuration.
- * Controls networking, logging, persistence, and the underlying adapter.
- */
-export interface ProfileConfig {
-  /** TCP port the daemon HTTP/WS server listens on. */
-  port: number;
-  /** Hostname or IP address to bind. */
-  host: string;
-  /** Minimum log severity level. */
-  logLevel: "debug" | "info" | "warn" | "error";
-  /** Whether the daemon should automatically attempt recovery on unexpected shutdown. */
-  autoRecover: boolean;
-  /** Interval in milliseconds between WebSocket heartbeat pings. */
-  wsHeartbeatInterval: number;
-  /** Interval in milliseconds between state flushes to persistent storage. */
-  stateFlushInterval: number;
-  /** Configuration for the agent adapter. */
-  adapter: AdapterConfig;
-}
-
-/**
- * Configuration for a pluggable agent adapter.
- * The `type` string selects the adapter implementation; `config` is passed through.
- */
-export interface AdapterConfig {
-  /** Adapter identifier (e.g. "claude-agent-sdk", "mock"). */
-  type: string;
-  /** Adapter-specific configuration key/value pairs. */
-  config: Record<string, unknown>;
-}
+export type { GlobalConfig, ProfileConfig, AdapterConfig } from "./config/schema.js";
 
 // ---------------------------------------------------------------------------
 // Project metadata

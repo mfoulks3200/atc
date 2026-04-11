@@ -84,12 +84,7 @@ export { ChannelRegistry } from "./server/websocket/channels.js";
 // Config loader
 // ---------------------------------------------------------------------------
 
-export {
-  loadGlobalConfig,
-  loadProfileConfig,
-  loadProjectMetadata,
-  resolveProfilePath,
-} from "./config/loader.js";
+export { loadProfileConfig, loadProjectMetadata, resolveProfilePath } from "./config/loader.js";
 
 // ---------------------------------------------------------------------------
 // Config schema defaults

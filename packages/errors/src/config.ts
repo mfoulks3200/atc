@@ -9,7 +9,7 @@ export type ConfigScope = "global" | "profile" | "project" | "agent";
 
 /**
  * Minimal shape of a Zod issue used by ConfigValidationError. Declared
- * locally to avoid a runtime dependency on zod from the @atc/errors package.
+ * locally to avoid a runtime dependency on zod from the @airtrafficcontrol/errors package.
  */
 export interface ConfigIssue {
   readonly code: string;

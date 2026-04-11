@@ -1,24 +1,69 @@
 /**
- * Config schema defaults and validation helpers for @airtrafficcontrol/daemon.
+ * Zod schemas and defaults for @airtrafficcontrol/daemon configuration tiers.
  *
- * Provides typed default values and runtime validators for GlobalConfig and
- * ProfileConfig. These are used by the loader to fill gaps in partial config
- * files and to reject obviously broken values before the daemon boots.
+ * These schemas are the single source of truth for both the runtime
+ * shape of `GlobalConfig` / `ProfileConfig` and their validation.
+ * Unknown top-level fields are preserved (passthrough) so manual edits
+ * and cross-version config files survive round-trips through the
+ * layered config store.
  */
 
-import type { GlobalConfig, ProfileConfig } from "../types.js";
+import { z } from "zod";
 
 /**
- * Default global configuration. Used when `config.json` is absent from the
- * atcDir, or when specific fields are omitted.
+ * Schema for the top-level global daemon configuration persisted at
+ * `<atcDir>/config.json`.
+ */
+export const GLOBAL_CONFIG_SCHEMA = z
+  .object({
+    defaultProfile: z.string(),
+  })
+  .passthrough();
+
+/**
+ * Schema for an adapter configuration block nested inside a profile.
+ */
+export const ADAPTER_CONFIG_SCHEMA = z.object({
+  type: z.string(),
+  config: z.record(z.unknown()),
+});
+
+/**
+ * Schema for a single profile's runtime configuration persisted at
+ * `<profileDir>/config.json`.
+ */
+export const PROFILE_CONFIG_SCHEMA = z
+  .object({
+    port: z.number().int().min(1).max(65535),
+    host: z.string(),
+    logLevel: z.enum(["debug", "info", "warn", "error"]),
+    autoRecover: z.boolean(),
+    wsHeartbeatInterval: z.number(),
+    stateFlushInterval: z.number(),
+    adapter: ADAPTER_CONFIG_SCHEMA,
+  })
+  .passthrough();
+
+/** Inferred TypeScript type for global config. */
+export type GlobalConfig = z.infer<typeof GLOBAL_CONFIG_SCHEMA>;
+
+/** Inferred TypeScript type for adapter config. */
+export type AdapterConfig = z.infer<typeof ADAPTER_CONFIG_SCHEMA>;
+
+/** Inferred TypeScript type for profile config. */
+export type ProfileConfig = z.infer<typeof PROFILE_CONFIG_SCHEMA>;
+
+/**
+ * Default global configuration. Returned when `config.json` is absent from
+ * `<atcDir>` or any field is omitted.
  */
 export const GLOBAL_CONFIG_DEFAULTS: GlobalConfig = {
   defaultProfile: "default",
 };
 
 /**
- * Default per-profile configuration. Used when a profile's `config.json` is
- * absent or when specific fields are omitted.
+ * Default per-profile configuration. Returned when a profile's `config.json`
+ * is absent or any field is omitted.
  */
 export const PROFILE_CONFIG_DEFAULTS: ProfileConfig = {
   port: 7700,
@@ -32,77 +77,3 @@ export const PROFILE_CONFIG_DEFAULTS: ProfileConfig = {
     config: {},
   },
 };
-
-/**
- * Returns `true` if `value` is a valid TCP port number (integer 1–65535).
- *
- * @param value - The value to check.
- */
-export function isValidPort(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65535;
-}
-
-/**
- * Returns `true` if `value` is one of the allowed log level strings.
- *
- * @param value - The value to check.
- */
-export function isValidLogLevel(value: unknown): value is ProfileConfig["logLevel"] {
-  return value === "debug" || value === "info" || value === "warn" || value === "error";
-}
-
-/**
- * Validates a raw partial profile config object, throwing a descriptive error
- * if any present field has an invalid type.
- *
- * @param raw - The raw object to validate.
- * @throws {Error} if any field has an unexpected type or out-of-range value.
- */
-export function validatePartialProfileConfig(raw: Record<string, unknown>): void {
-  if ("port" in raw && !isValidPort(raw["port"])) {
-    throw new Error(
-      `Invalid config: "port" must be an integer between 1 and 65535, got ${JSON.stringify(raw["port"])}`,
-    );
-  }
-
-  if ("host" in raw && typeof raw["host"] !== "string") {
-    throw new Error(`Invalid config: "host" must be a string, got ${typeof raw["host"]}`);
-  }
-
-  if ("logLevel" in raw && !isValidLogLevel(raw["logLevel"])) {
-    throw new Error(
-      `Invalid config: "logLevel" must be one of debug/info/warn/error, got ${JSON.stringify(raw["logLevel"])}`,
-    );
-  }
-
-  if ("autoRecover" in raw && typeof raw["autoRecover"] !== "boolean") {
-    throw new Error(
-      `Invalid config: "autoRecover" must be a boolean, got ${typeof raw["autoRecover"]}`,
-    );
-  }
-
-  if ("wsHeartbeatInterval" in raw && typeof raw["wsHeartbeatInterval"] !== "number") {
-    throw new Error(
-      `Invalid config: "wsHeartbeatInterval" must be a number, got ${typeof raw["wsHeartbeatInterval"]}`,
-    );
-  }
-
-  if ("stateFlushInterval" in raw && typeof raw["stateFlushInterval"] !== "number") {
-    throw new Error(
-      `Invalid config: "stateFlushInterval" must be a number, got ${typeof raw["stateFlushInterval"]}`,
-    );
-  }
-
-  if ("adapter" in raw) {
-    const adapter = raw["adapter"];
-    if (typeof adapter !== "object" || adapter === null) {
-      throw new Error(`Invalid config: "adapter" must be an object, got ${typeof adapter}`);
-    }
-    const adapterObj = adapter as Record<string, unknown>;
-    if ("type" in adapterObj && typeof adapterObj["type"] !== "string") {
-      throw new Error(
-        `Invalid config: "adapter.type" must be a string, got ${typeof adapterObj["type"]}`,
-      );
-    }
-  }
-}

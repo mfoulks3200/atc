@@ -9,12 +9,8 @@ import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import {
-  loadGlobalConfig,
-  loadProfileConfig,
-  loadProjectMetadata,
-  resolveProfilePath,
-} from "./loader.js";
+import { ConfigValidationError } from "@airtrafficcontrol/errors";
+import { loadProfileConfig, loadProjectMetadata, resolveProfilePath } from "./loader.js";
 import { PROFILE_CONFIG_DEFAULTS } from "./schema.js";
 
 let tmpDir: string;
@@ -25,23 +21,6 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await rm(tmpDir, { recursive: true, force: true });
-});
-
-// ---------------------------------------------------------------------------
-// loadGlobalConfig
-// ---------------------------------------------------------------------------
-
-describe("loadGlobalConfig", () => {
-  it("loads a valid config.json from atcDir", async () => {
-    await writeFile(join(tmpDir, "config.json"), JSON.stringify({ defaultProfile: "production" }));
-    const config = await loadGlobalConfig(tmpDir);
-    expect(config.defaultProfile).toBe("production");
-  });
-
-  it("returns defaults when config.json is missing", async () => {
-    const config = await loadGlobalConfig(tmpDir);
-    expect(config.defaultProfile).toBe("default");
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -87,11 +66,18 @@ describe("loadProfileConfig", () => {
     expect(config).toEqual(PROFILE_CONFIG_DEFAULTS);
   });
 
-  it("throws on invalid port type", async () => {
+  it("throws ConfigValidationError on invalid port type", async () => {
     const profileDir = join(tmpDir, "profiles", "bad");
     await mkdir(profileDir, { recursive: true });
     await writeFile(join(profileDir, "config.json"), JSON.stringify({ port: "not-a-number" }));
-    await expect(loadProfileConfig(profileDir)).rejects.toThrow(/port/);
+    await expect(loadProfileConfig(profileDir)).rejects.toBeInstanceOf(ConfigValidationError);
+    try {
+      await loadProfileConfig(profileDir);
+      expect.fail("expected loadProfileConfig to throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ConfigValidationError);
+      expect((err as ConfigValidationError).scope).toBe("profile");
+    }
   });
 });
 

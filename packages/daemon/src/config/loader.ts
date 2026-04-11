@@ -1,25 +1,25 @@
 /**
- * Config and metadata loader for @airtrafficcontrol/daemon.
+ * Config loader for @airtrafficcontrol/daemon profile directories.
  *
- * Handles reading JSON files from the filesystem, merging with defaults, and
- * validating types. All functions are async and safe to call at daemon startup.
+ * The global config loader has moved to `LayeredConfigStore` (see
+ * `./global-store.ts`). This module now only handles one-shot profile
+ * reads used during daemon boot.
  */
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { GlobalConfig, ProfileConfig, ProjectMetadata } from "../types.js";
+import { ConfigValidationError } from "@airtrafficcontrol/errors";
 import {
-  GLOBAL_CONFIG_DEFAULTS,
   PROFILE_CONFIG_DEFAULTS,
-  validatePartialProfileConfig,
+  PROFILE_CONFIG_SCHEMA,
+  type ProfileConfig,
+  type GlobalConfig,
 } from "./schema.js";
+import type { ProjectMetadata } from "../types.js";
 
 /**
- * Reads a JSON file and parses it, returning `null` if the file does not exist.
- * Propagates any error that is not `ENOENT`.
- *
- * @param filePath - Absolute path to the JSON file.
- * @returns The parsed value, or `null` if the file is absent.
+ * Reads a JSON file and parses it, returning `null` if absent.
+ * Propagates any error that is not ENOENT.
  */
 async function readJsonFile(filePath: string): Promise<unknown | null> {
   try {
@@ -34,26 +34,6 @@ async function readJsonFile(filePath: string): Promise<unknown | null> {
 }
 
 /**
- * Loads the global daemon configuration from `<atcDir>/config.json`.
- * Returns the defaults if the file is missing.
- *
- * @param atcDir - Path to the `.atc` directory.
- */
-export async function loadGlobalConfig(atcDir: string): Promise<GlobalConfig> {
-  const raw = await readJsonFile(join(atcDir, "config.json"));
-  if (raw === null || typeof raw !== "object") {
-    return { ...GLOBAL_CONFIG_DEFAULTS };
-  }
-  const obj = raw as Record<string, unknown>;
-  return {
-    defaultProfile:
-      typeof obj["defaultProfile"] === "string"
-        ? obj["defaultProfile"]
-        : GLOBAL_CONFIG_DEFAULTS.defaultProfile,
-  };
-}
-
-/**
  * Returns the filesystem path for a named profile directory.
  *
  * @param atcDir - Path to the `.atc` directory.
@@ -65,37 +45,42 @@ export function resolveProfilePath(atcDir: string, profileName?: string): string
 
 /**
  * Loads a profile config from `<profileDir>/config.json`, merges it with
- * defaults, and validates all present fields.
+ * defaults, and validates all present fields using the Zod schema.
  *
  * @param profileDir - Path to the profile directory.
- * @throws {Error} if any field in the config file has an invalid type.
+ * @throws {ConfigValidationError} if any field has an invalid type or value.
  */
 export async function loadProfileConfig(profileDir: string): Promise<ProfileConfig> {
   const raw = await readJsonFile(join(profileDir, "config.json"));
   if (raw === null || typeof raw !== "object") {
-    return { ...PROFILE_CONFIG_DEFAULTS, adapter: { ...PROFILE_CONFIG_DEFAULTS.adapter } };
+    return {
+      ...PROFILE_CONFIG_DEFAULTS,
+      adapter: { ...PROFILE_CONFIG_DEFAULTS.adapter },
+    };
   }
-  const obj = raw as Record<string, unknown>;
-  validatePartialProfileConfig(obj);
-  return {
+
+  const candidate = {
     ...PROFILE_CONFIG_DEFAULTS,
-    ...obj,
+    ...(raw as Record<string, unknown>),
     adapter: {
       ...PROFILE_CONFIG_DEFAULTS.adapter,
-      ...(typeof obj["adapter"] === "object" && obj["adapter"] !== null
-        ? (obj["adapter"] as Record<string, unknown>)
+      ...((raw as Record<string, unknown>)["adapter"] &&
+      typeof (raw as Record<string, unknown>)["adapter"] === "object"
+        ? ((raw as Record<string, unknown>)["adapter"] as Record<string, unknown>)
         : {}),
     },
-  } as ProfileConfig;
+  };
+
+  const result = PROFILE_CONFIG_SCHEMA.safeParse(candidate);
+  if (!result.success) {
+    throw new ConfigValidationError("profile", result.error.issues);
+  }
+  return result.data;
 }
 
 /**
  * Loads project metadata from `<projectDir>/metadata.json`.
- * Throws if the file is missing — a project without metadata is not a valid
- * registered project.
- *
- * @param projectDir - Path to the project directory.
- * @throws {Error} if `metadata.json` is not found.
+ * Throws if the file is missing.
  */
 export async function loadProjectMetadata(projectDir: string): Promise<ProjectMetadata> {
   const filePath = join(projectDir, "metadata.json");
@@ -105,3 +90,6 @@ export async function loadProjectMetadata(projectDir: string): Promise<ProjectMe
   }
   return raw as ProjectMetadata;
 }
+
+// Re-exported for callers that previously imported from loader.
+export type { ProfileConfig, GlobalConfig };
