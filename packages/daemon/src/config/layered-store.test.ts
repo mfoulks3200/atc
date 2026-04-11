@@ -184,9 +184,9 @@ describe("LayeredConfigStore — patch()", () => {
     const { store, dir } = await makeStore();
     cleanup.push(dir);
     await store.load();
-    await expect(
-      store.patch({ count: "nope" as unknown as number }),
-    ).rejects.toBeInstanceOf(ConfigValidationError);
+    await expect(store.patch({ count: "nope" as unknown as number })).rejects.toBeInstanceOf(
+      ConfigValidationError,
+    );
   });
 });
 

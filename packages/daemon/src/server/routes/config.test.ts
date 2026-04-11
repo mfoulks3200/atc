@@ -46,9 +46,10 @@ describe("PUT /api/v1/config/global", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ config: { defaultProfile: "staging" } });
-    const raw = JSON.parse(
-      await readFile(join(atcDir, "config.json"), "utf8"),
-    ) as Record<string, unknown>;
+    const raw = JSON.parse(await readFile(join(atcDir, "config.json"), "utf8")) as Record<
+      string,
+      unknown
+    >;
     expect(raw).toEqual({ defaultProfile: "staging" });
     await app.close();
     await rm(atcDir, { recursive: true, force: true });

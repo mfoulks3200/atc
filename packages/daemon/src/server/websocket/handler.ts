@@ -47,10 +47,7 @@ export async function handleWsMessage(
 }
 
 async function dispatchConfig(
-  message: Extract<
-    WsClientMessage,
-    { type: "config.patch" | "config.replace" | "config.unset" }
-  >,
+  message: Extract<WsClientMessage, { type: "config.patch" | "config.replace" | "config.unset" }>,
   send: (data: WsServerMessage) => void,
   globalConfigStore: LayeredConfigStore<GlobalConfig> | null,
 ): Promise<void> {
@@ -83,9 +80,7 @@ async function dispatchConfig(
     } else if (message.type === "config.replace") {
       merged = await globalConfigStore.replace(message.body as GlobalConfig);
     } else {
-      merged = await globalConfigStore.unset(
-        message.key as keyof GlobalConfig & string,
-      );
+      merged = await globalConfigStore.unset(message.key as keyof GlobalConfig & string);
     }
     send({
       type: "config.ack",

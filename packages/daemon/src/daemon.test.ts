@@ -173,9 +173,10 @@ describe("Daemon — global config integration", () => {
     });
     expect(res.status).toBe(200);
 
-    const raw = JSON.parse(
-      await readFile(join(atcDir, "config.json"), "utf8"),
-    ) as Record<string, unknown>;
+    const raw = JSON.parse(await readFile(join(atcDir, "config.json"), "utf8")) as Record<
+      string,
+      unknown
+    >;
     expect(raw).toEqual({ defaultProfile: "staging" });
 
     await new Promise((r) => setTimeout(r, 60));

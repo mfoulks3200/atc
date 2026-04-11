@@ -10,11 +10,7 @@
 
 import { join } from "node:path";
 import { LayeredConfigStore, type ConfigLogger } from "./layered-store.js";
-import {
-  GLOBAL_CONFIG_DEFAULTS,
-  GLOBAL_CONFIG_SCHEMA,
-  type GlobalConfig,
-} from "./schema.js";
+import { GLOBAL_CONFIG_DEFAULTS, GLOBAL_CONFIG_SCHEMA, type GlobalConfig } from "./schema.js";
 
 /**
  * Creates a global config store rooted at `<atcDir>/config.json`.

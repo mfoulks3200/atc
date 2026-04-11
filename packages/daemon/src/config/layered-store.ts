@@ -57,9 +57,9 @@ export type InvalidExternalEditListener = (error: ConfigValidationError | Error)
  * Generic layered config store. Instantiate one per scope.
  */
 export class LayeredConfigStore<T extends object> {
-  private readonly _opts: Required<
-    Omit<LayeredConfigStoreOptions<T>, "watchDebounceMs">
-  > & { readonly watchDebounceMs: number };
+  private readonly _opts: Required<Omit<LayeredConfigStoreOptions<T>, "watchDebounceMs">> & {
+    readonly watchDebounceMs: number;
+  };
 
   private _overrides: Record<string, unknown> = {};
   private _merged: T;
@@ -240,9 +240,7 @@ export class LayeredConfigStore<T extends object> {
         sparse[k] = raw[k];
         if (!this._unknownKeys.has(k)) {
           this._unknownKeys.add(k);
-          this._opts.logger.warn(
-            `Unknown config field in ${this._opts.filePath}: ${k}`,
-          );
+          this._opts.logger.warn(`Unknown config field in ${this._opts.filePath}: ${k}`);
         }
       }
     }

@@ -24,9 +24,10 @@ describe("createGlobalConfigStore", () => {
     expect(store.get()).toEqual(GLOBAL_CONFIG_DEFAULTS);
 
     await store.replace({ ...GLOBAL_CONFIG_DEFAULTS, defaultProfile: "staging" });
-    const raw = JSON.parse(
-      await readFile(join(atcDir, "config.json"), "utf8"),
-    ) as Record<string, unknown>;
+    const raw = JSON.parse(await readFile(join(atcDir, "config.json"), "utf8")) as Record<
+      string,
+      unknown
+    >;
     expect(raw).toEqual({ defaultProfile: "staging" });
     expect(publish).toHaveBeenCalledWith(
       "config:global",

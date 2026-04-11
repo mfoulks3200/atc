@@ -89,20 +89,15 @@ export async function configRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  app.delete<{ Params: { key: string } }>(
-    "/api/v1/config/global/:key",
-    async (request, reply) => {
-      const store = requireStore(reply);
-      if (store === null) return;
-      try {
-        const merged = await store.unset(
-          request.params.key as keyof GlobalConfig & string,
-        );
-        return { config: merged };
-      } catch (err) {
-        const { statusCode, body } = mapError(err);
-        return reply.code(statusCode).send(body);
-      }
-    },
-  );
+  app.delete<{ Params: { key: string } }>("/api/v1/config/global/:key", async (request, reply) => {
+    const store = requireStore(reply);
+    if (store === null) return;
+    try {
+      const merged = await store.unset(request.params.key as keyof GlobalConfig & string);
+      return { config: merged };
+    } catch (err) {
+      const { statusCode, body } = mapError(err);
+      return reply.code(statusCode).send(body);
+    }
+  });
 }
