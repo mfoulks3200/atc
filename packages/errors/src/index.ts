@@ -9,3 +9,5 @@ export { VectorError } from "./vector.js";
 export { ChecklistError } from "./checklist.js";
 export { EmergencyError } from "./emergency.js";
 export { TowerError } from "./tower.js";
+export { ConfigValidationError, UnknownConfigKeyError } from "./config.js";
+export type { ConfigScope, ConfigIssue } from "./config.js";
