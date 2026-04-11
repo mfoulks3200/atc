@@ -5,11 +5,12 @@
  * instance bound to port 0 (random OS-assigned port) so tests never conflict.
  */
 
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createServer } from "node:net";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import WebSocket from "ws";
 import { Daemon } from "./daemon.js";
 
 // ---------------------------------------------------------------------------
@@ -139,4 +140,55 @@ describe("Daemon", () => {
     await daemon.stop();
     expect(daemon.isRunning).toBe(false);
   });
+});
+
+describe("Daemon — global config integration", () => {
+  it("PATCH over HTTP persists diff and broadcasts over WS", async () => {
+    const port = await getFreePort();
+    const atcDir = await mkdtemp(join(tmpdir(), "atc-int-"));
+    const profileDir = join(atcDir, "profiles", "default");
+    await mkdir(profileDir, { recursive: true });
+    await scaffoldProfile(profileDir, port);
+
+    const daemon = new Daemon(profileDir, atcDir);
+    await daemon.start();
+    const baseUrl = `http://127.0.0.1:${daemon.port}`;
+
+    const ws = new WebSocket(`ws://127.0.0.1:${daemon.port}/ws`);
+    await new Promise<void>((resolve, reject) => {
+      ws.once("open", () => resolve());
+      ws.once("error", (err) => reject(err));
+    });
+    const received: unknown[] = [];
+    ws.on("message", (raw: Buffer) => {
+      received.push(JSON.parse(raw.toString()));
+    });
+    ws.send(JSON.stringify({ type: "subscribe", channel: "config:global" }));
+    await new Promise((r) => setTimeout(r, 50));
+
+    const res = await fetch(`${baseUrl}/api/v1/config/global`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ defaultProfile: "staging" }),
+    });
+    expect(res.status).toBe(200);
+
+    const raw = JSON.parse(
+      await readFile(join(atcDir, "config.json"), "utf8"),
+    ) as Record<string, unknown>;
+    expect(raw).toEqual({ defaultProfile: "staging" });
+
+    await new Promise((r) => setTimeout(r, 60));
+    const broadcast = received.find(
+      (m) =>
+        typeof m === "object" &&
+        m !== null &&
+        ("config" in m || (m as { channel?: string }).channel === "config:global"),
+    );
+    expect(broadcast).toBeDefined();
+
+    ws.close();
+    await daemon.stop();
+    await rm(atcDir, { recursive: true, force: true });
+  }, 10_000);
 });
