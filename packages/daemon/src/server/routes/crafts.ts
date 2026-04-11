@@ -84,6 +84,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
 
       const craft: CraftState = {
         callsign,
+        createdAt: new Date().toISOString(),
         branch,
         cargo,
         category,

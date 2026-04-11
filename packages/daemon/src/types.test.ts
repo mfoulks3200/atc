@@ -307,6 +307,7 @@ describe("CraftState", () => {
   it("accepts a valid shape", () => {
     const craft: CraftState = {
       callsign: "ALPHA-1",
+      createdAt: "2026-04-11T00:00:00.000Z",
       branch: "feature/alpha-1",
       cargo: "Add daemon types",
       category: "backend",

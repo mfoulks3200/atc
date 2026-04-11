@@ -211,6 +211,8 @@ export interface IntercomMessage {
 export interface CraftState {
   /** Unique aviation callsign (matches the git branch name). */
   callsign: string;
+  /** ISO-8601 timestamp when the craft was created (flight plan opened). */
+  createdAt: string;
   /** Git branch name this craft is tied to. */
   branch: string;
   /** Human-readable description of the work (the "cargo"). */

@@ -5,6 +5,7 @@ import type { CraftState } from "@atc/daemon";
 
 const baseCraft: CraftState = {
   callsign: "ALPHA-1",
+  createdAt: "2026-04-11T00:00:00.000Z",
   branch: "feature/alpha-1",
   cargo: "Add widget support",
   category: "backend",

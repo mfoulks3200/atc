@@ -15,6 +15,7 @@ describe("intercom routes", () => {
   function seedCraft(): void {
     const craft: CraftState = {
       callsign: "delta-1",
+      createdAt: "2026-04-11T00:00:00.000Z",
       branch: "feat/delta",
       cargo: "Build delta",
       category: "backend",

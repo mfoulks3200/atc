@@ -17,6 +17,7 @@ describe("tower routes", () => {
   function seedCraft(allPassed: boolean): void {
     const craft: CraftState = {
       callsign: "charlie-1",
+      createdAt: "2026-04-11T00:00:00.000Z",
       branch: "feat/charlie",
       cargo: "Build charlie",
       category: "backend",

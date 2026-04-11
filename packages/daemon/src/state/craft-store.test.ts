@@ -15,6 +15,7 @@ import { CraftStore } from "./craft-store.js";
 function makeCraft(callsign: string): CraftState {
   return {
     callsign,
+    createdAt: "2026-04-11T00:00:00.000Z",
     branch: callsign,
     cargo: "test cargo",
     category: "test",

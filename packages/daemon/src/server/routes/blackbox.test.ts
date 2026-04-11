@@ -15,6 +15,7 @@ describe("blackbox routes", () => {
   function seedCraft(): void {
     const craft: CraftState = {
       callsign: "echo-1",
+      createdAt: "2026-04-11T00:00:00.000Z",
       branch: "feat/echo",
       cargo: "Build echo",
       category: "backend",
