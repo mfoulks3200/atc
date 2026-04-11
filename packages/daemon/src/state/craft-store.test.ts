@@ -154,8 +154,18 @@ describe("CraftStore", () => {
       jumpseaters: [],
       flightPlan: [],
       blackBox: [
-        { timestamp: "2026-01-15T12:00:00.000Z", author: "pilot-1", type: "Decision", content: "start" },
-        { timestamp: "2026-01-16T12:00:00.000Z", author: "pilot-1", type: "Decision", content: "mid" },
+        {
+          timestamp: "2026-01-15T12:00:00.000Z",
+          author: "pilot-1",
+          type: "Decision",
+          content: "start",
+        },
+        {
+          timestamp: "2026-01-16T12:00:00.000Z",
+          author: "pilot-1",
+          type: "Decision",
+          content: "mid",
+        },
       ],
       intercom: [],
       controls: { mode: "exclusive", holder: "pilot-1" },

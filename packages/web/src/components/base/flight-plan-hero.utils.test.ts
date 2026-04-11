@@ -32,13 +32,13 @@ describe("pointAt", () => {
   it("returns the depart point at t=0", () => {
     const p = pointAt(0);
     expect(p.x).toBeCloseTo(226.32, 1);
-    expect(p.y).toBeCloseTo(228.40, 1);
+    expect(p.y).toBeCloseTo(228.4, 1);
   });
 
   it("returns the land point at t=1", () => {
     const p = pointAt(1);
     expect(p.x).toBeCloseTo(673.68, 1);
-    expect(p.y).toBeCloseTo(228.40, 1);
+    expect(p.y).toBeCloseTo(228.4, 1);
   });
 
   it("returns the arc apex at t=0.5", () => {
@@ -87,7 +87,7 @@ function mkCraft(partial: Partial<CraftState> & { flightPlan: VectorState[] }): 
     branch: "TEST-01",
     cargo: "test",
     category: "test",
-    status: "InFlight" as any,
+    status: "InFlight",
     captain: "p1",
     firstOfficers: [],
     jumpseaters: [],
@@ -105,9 +105,24 @@ describe("computeSegments", () => {
     const craft = mkCraft({
       createdAt: "2026-04-11T00:00:00.000Z",
       flightPlan: [
-        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" },
-        { name: "V2", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T03:00:00.000Z" },
-        { name: "V3", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T08:00:00.000Z" },
+        {
+          name: "V1",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T02:00:00.000Z",
+        },
+        {
+          name: "V2",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T03:00:00.000Z",
+        },
+        {
+          name: "V3",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T08:00:00.000Z",
+        },
       ],
     });
     const segs = computeSegments(craft, now);
@@ -123,8 +138,18 @@ describe("computeSegments", () => {
     const craft = mkCraft({
       createdAt: "2026-04-11T00:00:00.000Z",
       flightPlan: [
-        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" },
-        { name: "V2", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T08:00:00.000Z" },
+        {
+          name: "V1",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T02:00:00.000Z",
+        },
+        {
+          name: "V2",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T08:00:00.000Z",
+        },
         { name: "V3", acceptanceCriteria: "", status: "Pending" },
         { name: "V4", acceptanceCriteria: "", status: "Pending" },
       ],
@@ -140,8 +165,18 @@ describe("computeSegments", () => {
     const craft = mkCraft({
       createdAt: "2026-04-11T00:00:00.000Z",
       flightPlan: [
-        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" }, // 2h
-        { name: "V2", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T08:00:00.000Z" }, // 6h
+        {
+          name: "V1",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T02:00:00.000Z",
+        }, // 2h
+        {
+          name: "V2",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T08:00:00.000Z",
+        }, // 6h
         { name: "V3", acceptanceCriteria: "", status: "Pending" }, // current, 3h elapsed at now
         { name: "V4", acceptanceCriteria: "", status: "Pending" }, // avg = (2+6+3)/3 = 3.67h
       ],
@@ -155,7 +190,7 @@ describe("computeSegments", () => {
   it("falls back to equal weights when no measured segments exist (Taxiing)", () => {
     const craft = mkCraft({
       createdAt: "2026-04-11T00:00:00.000Z",
-      status: "Taxiing" as any,
+      status: "Taxiing",
       flightPlan: [
         { name: "V1", acceptanceCriteria: "", status: "Pending" },
         { name: "V2", acceptanceCriteria: "", status: "Pending" },
@@ -174,8 +209,18 @@ describe("computeSegments", () => {
     const craft = mkCraft({
       createdAt: "2026-04-11T00:00:00.000Z",
       flightPlan: [
-        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T04:00:00.000Z" }, // 4h
-        { name: "V2", acceptanceCriteria: "", status: "Failed", reportedAt: "2026-04-11T06:00:00.000Z" }, // 2h
+        {
+          name: "V1",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T04:00:00.000Z",
+        }, // 4h
+        {
+          name: "V2",
+          acceptanceCriteria: "",
+          status: "Failed",
+          reportedAt: "2026-04-11T06:00:00.000Z",
+        }, // 2h
         { name: "V3", acceptanceCriteria: "", status: "Pending" },
       ],
     });
@@ -189,8 +234,18 @@ describe("computeSegments", () => {
     const craft = mkCraft({
       createdAt: "2026-04-11T00:00:00.000Z",
       flightPlan: [
-        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" },
-        { name: "V2", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T03:00:00.000Z" },
+        {
+          name: "V1",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T02:00:00.000Z",
+        },
+        {
+          name: "V2",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T03:00:00.000Z",
+        },
         { name: "V3", acceptanceCriteria: "", status: "Pending" },
       ],
     });
@@ -221,10 +276,20 @@ describe("computeStats", () => {
 
   it("derives elapsed / eta / progress / status for InFlight", () => {
     const craft = mkCraft({
-      status: "InFlight" as any,
+      status: "InFlight",
       flightPlan: [
-        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" },
-        { name: "V2", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T08:00:00.000Z" },
+        {
+          name: "V1",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T02:00:00.000Z",
+        },
+        {
+          name: "V2",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T08:00:00.000Z",
+        },
         { name: "V3", acceptanceCriteria: "", status: "Pending" },
         { name: "V4", acceptanceCriteria: "", status: "Pending" },
       ],
@@ -240,10 +305,20 @@ describe("computeStats", () => {
 
   it("shows TOTAL / landed for a completed craft", () => {
     const craft = mkCraft({
-      status: "Landed" as any,
+      status: "Landed",
       flightPlan: [
-        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T05:00:00.000Z" },
-        { name: "V2", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T10:00:00.000Z" },
+        {
+          name: "V1",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T05:00:00.000Z",
+        },
+        {
+          name: "V2",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T10:00:00.000Z",
+        },
       ],
     });
     const segs = computeSegments(craft, now);
@@ -257,7 +332,7 @@ describe("computeStats", () => {
 
   it("dims everything for Taxiing", () => {
     const craft = mkCraft({
-      status: "Taxiing" as any,
+      status: "Taxiing",
       flightPlan: [
         { name: "V1", acceptanceCriteria: "", status: "Pending" },
         { name: "V2", acceptanceCriteria: "", status: "Pending" },
@@ -318,7 +393,9 @@ describe("segmentStrokeClass", () => {
   });
 
   it("adds arc-emerg when craft is in Emergency", () => {
-    expect(segmentStrokeClass(mkSeg({ isCurrent: true }), "Emergency")).toBe("arc-current arc-emerg");
+    expect(segmentStrokeClass(mkSeg({ isCurrent: true }), "Emergency")).toBe(
+      "arc-current arc-emerg",
+    );
   });
 
   it("returns arc-passed for passed segments", () => {
@@ -352,7 +429,7 @@ describe("planeT", () => {
 
   it("returns 0 when the craft is Taxiing", () => {
     const craft = mkCraft({
-      status: "Taxiing" as any,
+      status: "Taxiing",
       flightPlan: [{ name: "v1", acceptanceCriteria: "", status: "Pending" }],
     });
     const segs = computeSegments(craft, now);
@@ -361,9 +438,14 @@ describe("planeT", () => {
 
   it("returns 1 when the craft has Landed", () => {
     const craft = mkCraft({
-      status: "Landed" as any,
+      status: "Landed",
       flightPlan: [
-        { name: "v1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T05:00:00.000Z" },
+        {
+          name: "v1",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T05:00:00.000Z",
+        },
       ],
     });
     const segs = computeSegments(craft, now);
@@ -373,7 +455,12 @@ describe("planeT", () => {
   it("returns the failed waypoint's tEnd when any vector is failed", () => {
     const craft = mkCraft({
       flightPlan: [
-        { name: "v1", acceptanceCriteria: "", status: "Failed", reportedAt: "2026-04-11T02:00:00.000Z" },
+        {
+          name: "v1",
+          acceptanceCriteria: "",
+          status: "Failed",
+          reportedAt: "2026-04-11T02:00:00.000Z",
+        },
         { name: "v2", acceptanceCriteria: "", status: "Pending" },
       ],
     });
@@ -384,7 +471,12 @@ describe("planeT", () => {
   it("returns the midpoint of the current segment when in flight", () => {
     const craft = mkCraft({
       flightPlan: [
-        { name: "v1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" },
+        {
+          name: "v1",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T02:00:00.000Z",
+        },
         { name: "v2", acceptanceCriteria: "", status: "Pending" },
       ],
     });
@@ -395,9 +487,14 @@ describe("planeT", () => {
 
   it("returns null when there's nothing to show", () => {
     const craft = mkCraft({
-      status: "InFlight" as any,
+      status: "InFlight",
       flightPlan: [
-        { name: "v1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" },
+        {
+          name: "v1",
+          acceptanceCriteria: "",
+          status: "Passed",
+          reportedAt: "2026-04-11T02:00:00.000Z",
+        },
       ],
     });
     const segs = computeSegments(craft, now);
@@ -431,7 +528,9 @@ describe("durationTone", () => {
 
 describe("durationText", () => {
   it("appends FAILED suffix for failed segments", () => {
-    expect(durationText(mkSeg({ status: "Failed", durationMs: 2 * 3600_000 }))).toBe("2h 00m · FAILED");
+    expect(durationText(mkSeg({ status: "Failed", durationMs: 2 * 3600_000 }))).toBe(
+      "2h 00m · FAILED",
+    );
   });
 
   it("appends NOW suffix for the current segment", () => {
@@ -440,7 +539,9 @@ describe("durationText", () => {
 
   it("prefixes estimates with a tilde", () => {
     expect(
-      durationText(mkSeg({ status: "Pending", isEstimate: true, durationMs: 2 * 3600_000 + 45 * 60_000 })),
+      durationText(
+        mkSeg({ status: "Pending", isEstimate: true, durationMs: 2 * 3600_000 + 45 * 60_000 }),
+      ),
     ).toBe("~2h 45m");
   });
 

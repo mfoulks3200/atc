@@ -270,7 +270,10 @@ export function computeStats(craft: CraftState, segments: Segment[], nowMs: numb
     eta = "~" + formatDuration(totalMs);
   }
 
-  const statusEntry = STATUS_LABELS[status] ?? { label: status.toUpperCase(), tone: "dim" as const };
+  const statusEntry = STATUS_LABELS[status] ?? {
+    label: status.toUpperCase(),
+    tone: "dim" as const,
+  };
 
   return {
     elapsedLabel,
@@ -371,4 +374,3 @@ export function durationText(seg: Segment): string {
   if (seg.isEstimate) return `~${formatDuration(seg.durationMs)}`;
   return formatDuration(seg.durationMs);
 }
-
