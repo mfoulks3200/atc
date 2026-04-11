@@ -195,3 +195,89 @@ export function computeSegments(craft: CraftState, nowMs: number = Date.now()): 
   }
   return segments;
 }
+
+// ---------------------------------------------------------------------------
+// Duration formatting + stats
+// ---------------------------------------------------------------------------
+
+/**
+ * Formats a millisecond duration as "Xh YYm". Negative values clamp to zero.
+ */
+export function formatDuration(ms: number): string {
+  const safe = Math.max(0, ms);
+  const totalMinutes = Math.floor(safe / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${minutes.toString().padStart(2, "0")}m`;
+}
+
+export interface HeroStats {
+  /** Label to show in the top-left slot — "ELAPSED" or "TOTAL". */
+  elapsedLabel: string;
+  /** Value for the elapsed slot. */
+  elapsed: string;
+  /** Value for the ETA slot, or "—" when not applicable. */
+  eta: string;
+  /** Progress readout, e.g. "3 / 6 VECTORS". */
+  progress: string;
+  /** Status readout, e.g. "IN FLIGHT" or "★ LANDED". */
+  statusLabel: string;
+  /** Color variant for the status slot. */
+  statusTone: "amber" | "green" | "red" | "dim";
+}
+
+const STATUS_LABELS: Record<string, { label: string; tone: HeroStats["statusTone"] }> = {
+  Taxiing: { label: "TAXIING", tone: "dim" },
+  InFlight: { label: "IN FLIGHT", tone: "amber" },
+  LandingChecklist: { label: "LANDING CHECKLIST", tone: "amber" },
+  ClearedToLand: { label: "CLEARED TO LAND", tone: "amber" },
+  GoAround: { label: "GO AROUND", tone: "red" },
+  Emergency: { label: "★ EMERGENCY", tone: "red" },
+  Landed: { label: "★ LANDED", tone: "green" },
+  ReturnToOrigin: { label: "RTO", tone: "dim" },
+};
+
+/**
+ * Derives the four corner readouts from a craft and its computed segments.
+ *
+ * @param craft The craft to compute stats for.
+ * @param segments Pre-computed segments from {@link computeSegments}.
+ * @param nowMs Override for Date.now() — test seam.
+ * @see RULE-VEC-1
+ */
+export function computeStats(craft: CraftState, segments: Segment[], nowMs: number): HeroStats {
+  const status = String(craft.status);
+  const isTaxiing = status === "Taxiing";
+  const isLanded = status === "Landed" || status === "ReturnToOrigin";
+  const passedCount = craft.flightPlan.filter((v) => v.status === "Passed").length;
+  const total = craft.flightPlan.length;
+
+  const elapsedLabel = isLanded ? "TOTAL" : "ELAPSED";
+  let elapsed: string;
+  let eta: string;
+
+  if (isTaxiing) {
+    elapsed = "—";
+    eta = "—";
+  } else if (isLanded) {
+    const totalMs = segments.reduce((a, s) => a + s.durationMs, 0);
+    elapsed = formatDuration(totalMs);
+    eta = "—";
+  } else {
+    const createdMs = new Date(craft.createdAt).getTime();
+    elapsed = formatDuration(nowMs - createdMs);
+    const totalMs = segments.reduce((a, s) => a + s.durationMs, 0);
+    eta = "~" + formatDuration(totalMs);
+  }
+
+  const statusEntry = STATUS_LABELS[status] ?? { label: status.toUpperCase(), tone: "dim" as const };
+
+  return {
+    elapsedLabel,
+    elapsed,
+    eta,
+    progress: `${passedCount} / ${total} VECTORS`,
+    statusLabel: statusEntry.label,
+    statusTone: statusEntry.tone,
+  };
+}

@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { HERO_GEOMETRY, pointAt, planeTransform, computeSegments } from "./flight-plan-hero.utils.js";
+import {
+  HERO_GEOMETRY,
+  pointAt,
+  planeTransform,
+  computeSegments,
+  computeStats,
+  formatDuration,
+} from "./flight-plan-hero.utils.js";
 import type { CraftState, VectorState } from "@/types/api";
 
 describe("HERO_GEOMETRY", () => {
@@ -185,5 +192,74 @@ describe("computeSegments", () => {
     for (let i = 1; i < segs.length; i++) {
       expect(segs[i].tStart).toBe(segs[i - 1].tEnd);
     }
+  });
+});
+
+describe("formatDuration", () => {
+  it("formats hours and minutes", () => {
+    expect(formatDuration(0)).toBe("0h 00m");
+    expect(formatDuration(60_000 * 5)).toBe("0h 05m");
+    expect(formatDuration(3600_000)).toBe("1h 00m");
+    expect(formatDuration(3600_000 * 11 + 60_000 * 30)).toBe("11h 30m");
+  });
+
+  it("guards negatives", () => {
+    expect(formatDuration(-1000)).toBe("0h 00m");
+  });
+});
+
+describe("computeStats", () => {
+  const now = new Date("2026-04-11T11:00:00.000Z").getTime();
+
+  it("derives elapsed / eta / progress / status for InFlight", () => {
+    const craft = mkCraft({
+      status: "InFlight" as any,
+      flightPlan: [
+        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" },
+        { name: "V2", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T08:00:00.000Z" },
+        { name: "V3", acceptanceCriteria: "", status: "Pending" },
+        { name: "V4", acceptanceCriteria: "", status: "Pending" },
+      ],
+    });
+    const segs = computeSegments(craft, now);
+    const stats = computeStats(craft, segs, now);
+    expect(stats.elapsed).toBe("11h 00m");
+    expect(stats.progress).toBe("2 / 4 VECTORS");
+    expect(stats.statusLabel).toBe("IN FLIGHT");
+    // eta = createdAt + total duration = 0 + (2 + 6 + 3 + avg(2,6,3)≈3.67)h ≈ 14.67h → "~14h 40m"
+    expect(stats.eta).toMatch(/^~\d+h \d{2}m$/);
+  });
+
+  it("shows TOTAL / landed for a completed craft", () => {
+    const craft = mkCraft({
+      status: "Landed" as any,
+      flightPlan: [
+        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T05:00:00.000Z" },
+        { name: "V2", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T10:00:00.000Z" },
+      ],
+    });
+    const segs = computeSegments(craft, now);
+    const stats = computeStats(craft, segs, now);
+    expect(stats.elapsedLabel).toBe("TOTAL");
+    expect(stats.elapsed).toBe("10h 00m");
+    expect(stats.eta).toBe("—");
+    expect(stats.statusLabel).toBe("★ LANDED");
+    expect(stats.progress).toBe("2 / 2 VECTORS");
+  });
+
+  it("dims everything for Taxiing", () => {
+    const craft = mkCraft({
+      status: "Taxiing" as any,
+      flightPlan: [
+        { name: "V1", acceptanceCriteria: "", status: "Pending" },
+        { name: "V2", acceptanceCriteria: "", status: "Pending" },
+      ],
+    });
+    const segs = computeSegments(craft, now);
+    const stats = computeStats(craft, segs, now);
+    expect(stats.elapsed).toBe("—");
+    expect(stats.eta).toBe("—");
+    expect(stats.progress).toBe("0 / 2 VECTORS");
+    expect(stats.statusLabel).toBe("TAXIING");
   });
 });
