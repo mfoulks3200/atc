@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ChecklistTemplate, ChecklistItemDef } from "@atc/types";
+import type { ChecklistTemplate, ChecklistItemDef } from "@airtrafficcontrol/types";
 
 /**
  * Input for creating a new checklist template.

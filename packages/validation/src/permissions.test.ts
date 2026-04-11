@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { SeatType } from "@atc/types";
-import type { PilotAction } from "@atc/types";
+import { SeatType } from "@airtrafficcontrol/types";
+import type { PilotAction } from "@airtrafficcontrol/types";
 import { canHoldControls, canPerformAction } from "./permissions.js";
 
 // --- canHoldControls ---

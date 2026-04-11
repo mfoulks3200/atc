@@ -1,5 +1,5 @@
-import { ChecklistItemSeverity } from "@atc/types";
-import type { ChecklistTemplate } from "@atc/types";
+import { ChecklistItemSeverity } from "@airtrafficcontrol/types";
+import type { ChecklistTemplate } from "@airtrafficcontrol/types";
 
 /**
  * Default landing checklist template.

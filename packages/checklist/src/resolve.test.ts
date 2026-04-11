@@ -3,8 +3,8 @@ import { resolveChecklist } from "./resolve.js";
 import { createTemplateRegistry } from "./templates.js";
 import { createBindingRegistry } from "./bindings.js";
 import { createOverrideStore } from "./overrides.js";
-import { LifecycleEvent, ChecklistItemSeverity } from "@atc/types";
-import type { ChecklistItemDef } from "@atc/types";
+import { LifecycleEvent, ChecklistItemSeverity } from "@airtrafficcontrol/types";
+import type { ChecklistItemDef } from "@airtrafficcontrol/types";
 
 const testItem: ChecklistItemDef = {
   name: "Tests",

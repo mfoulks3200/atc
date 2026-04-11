@@ -11,7 +11,7 @@
  * @see RULE-CTRL-1 through RULE-CTRL-5 for controls rules.
  */
 
-import type { CraftState } from "@atc/daemon";
+import type { CraftState } from "@airtrafficcontrol/daemon";
 
 /**
  * Builds a structured system prompt string for a pilot agent.

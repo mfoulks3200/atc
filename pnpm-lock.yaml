@@ -35,18 +35,18 @@ importers:
 
   packages/adapter-claude-agent-sdk:
     dependencies:
+      '@airtrafficcontrol/daemon':
+        specifier: workspace:*
+        version: link:../daemon
+      '@airtrafficcontrol/errors':
+        specifier: workspace:*
+        version: link:../errors
+      '@airtrafficcontrol/types':
+        specifier: workspace:*
+        version: link:../types
       '@anthropic-ai/sdk':
         specifier: ^0.52.0
         version: 0.52.0
-      '@atc/daemon':
-        specifier: workspace:*
-        version: link:../daemon
-      '@atc/errors':
-        specifier: workspace:*
-        version: link:../errors
-      '@atc/types':
-        specifier: workspace:*
-        version: link:../types
     devDependencies:
       '@types/node':
         specifier: ^22.15.3
@@ -54,40 +54,40 @@ importers:
 
   packages/checklist:
     dependencies:
-      '@atc/errors':
+      '@airtrafficcontrol/errors':
         specifier: workspace:*
         version: link:../errors
-      '@atc/types':
+      '@airtrafficcontrol/types':
         specifier: workspace:*
         version: link:../types
 
   packages/core:
     dependencies:
-      '@atc/errors':
+      '@airtrafficcontrol/errors':
         specifier: workspace:*
         version: link:../errors
-      '@atc/types':
+      '@airtrafficcontrol/types':
         specifier: workspace:*
         version: link:../types
-      '@atc/validation':
+      '@airtrafficcontrol/validation':
         specifier: workspace:*
         version: link:../validation
 
   packages/daemon:
     dependencies:
-      '@atc/checklist':
+      '@airtrafficcontrol/checklist':
         specifier: workspace:*
         version: link:../checklist
-      '@atc/core':
+      '@airtrafficcontrol/core':
         specifier: workspace:*
         version: link:../core
-      '@atc/errors':
+      '@airtrafficcontrol/errors':
         specifier: workspace:*
         version: link:../errors
-      '@atc/tower':
+      '@airtrafficcontrol/tower':
         specifier: workspace:*
         version: link:../tower
-      '@atc/types':
+      '@airtrafficcontrol/types':
         specifier: workspace:*
         version: link:../types
       '@fastify/websocket':
@@ -145,16 +145,16 @@ importers:
 
   packages/tower:
     dependencies:
-      '@atc/checklist':
+      '@airtrafficcontrol/checklist':
         specifier: workspace:*
         version: link:../checklist
-      '@atc/core':
+      '@airtrafficcontrol/core':
         specifier: workspace:*
         version: link:../core
-      '@atc/errors':
+      '@airtrafficcontrol/errors':
         specifier: workspace:*
         version: link:../errors
-      '@atc/types':
+      '@airtrafficcontrol/types':
         specifier: workspace:*
         version: link:../types
 
@@ -162,10 +162,10 @@ importers:
 
   packages/validation:
     dependencies:
-      '@atc/errors':
+      '@airtrafficcontrol/errors':
         specifier: workspace:*
         version: link:../errors
-      '@atc/types':
+      '@airtrafficcontrol/types':
         specifier: workspace:*
         version: link:../types
 

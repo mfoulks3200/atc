@@ -1,5 +1,5 @@
 /**
- * OS signal handling utilities for @atc/daemon.
+ * OS signal handling utilities for @airtrafficcontrol/daemon.
  *
  * Provides a once-only shutdown callback wrapper and a helper to bind it to
  * the standard termination signals SIGTERM and SIGINT.

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { ControlMode, SeatType } from "@atc/types";
-import type { SharedControlArea } from "@atc/types";
+import { ControlMode, SeatType } from "@airtrafficcontrol/types";
+import type { SharedControlArea } from "@airtrafficcontrol/types";
 import {
   createInitialControls,
   claimExclusiveControls,

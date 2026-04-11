@@ -1,4 +1,4 @@
-import type { Craft, FlightPlan, BlackBoxEntry } from "@atc/types";
+import type { Craft, FlightPlan, BlackBoxEntry } from "@airtrafficcontrol/types";
 
 /**
  * A craft waiting in the merge queue.

@@ -4,7 +4,7 @@ import { createApp } from "../app.js";
 import { CraftStore } from "../../state/craft-store.js";
 import { AgentStore } from "../../state/agent-store.js";
 import { TowerStore } from "../../state/tower-store.js";
-import { CraftStatus, BlackBoxEntryType } from "@atc/types";
+import { CraftStatus, BlackBoxEntryType } from "@airtrafficcontrol/types";
 import type { CraftState } from "../../types.js";
 
 describe("blackbox routes", () => {

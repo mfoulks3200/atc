@@ -1,4 +1,4 @@
-import type { Pilot } from "@atc/types";
+import type { Pilot } from "@airtrafficcontrol/types";
 
 /**
  * Checks whether a pilot holds a certification for the given craft category.

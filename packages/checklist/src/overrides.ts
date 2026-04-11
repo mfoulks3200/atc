@@ -1,4 +1,4 @@
-import type { CraftChecklistOverride, LifecycleEvent } from "@atc/types";
+import type { CraftChecklistOverride, LifecycleEvent } from "@airtrafficcontrol/types";
 
 /**
  * Creates an in-memory override store.

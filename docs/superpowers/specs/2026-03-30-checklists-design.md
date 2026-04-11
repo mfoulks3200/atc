@@ -127,7 +127,7 @@ Recorded in the black box after every checklist execution.
 
 ### 3.1 Package Changes
 
-The existing `@atc/checklist` package is extended in place. New types are added to `@atc/types`.
+The existing `@airtrafficcontrol/checklist` package is extended in place. New types are added to `@airtrafficcontrol/types`.
 
 ```
 packages/types/src/
@@ -135,7 +135,7 @@ packages/types/src/
   events.ts             — LifecycleEvent enum
 
 packages/checklist/src/
-  types.ts              — (existing, replaced by @atc/types re-exports)
+  types.ts              — (existing, replaced by @airtrafficcontrol/types re-exports)
   runner.ts             — (existing, expanded) runs items, handles shell + MCP
   defaults.ts           — (existing, updated) default templates instead of bare items
   templates.ts          — template registry: CRUD, lookup by id
@@ -158,7 +158,7 @@ When a lifecycle event fires:
 5. Execute items sequentially via the appropriate executor (shell or mcp-tool).
 6. Collect `ChecklistRunResult`.
 
-### 3.3 Integration with `@atc/core`
+### 3.3 Integration with `@airtrafficcontrol/core`
 
 - `transitionCraft()` in `lifecycle.ts` gains a hook point: before executing a transition, it calls `resolveAndRunChecklist(craft, event)`.
 - `reportVector()` in `flight-plan.ts` gets the same hook for `before:vector-complete` / `after:vector-complete`.
@@ -260,7 +260,7 @@ Displayed on the craft detail page within the flight strip / craft detail view.
 ### New Domain Model Additions
 
 - **`BlackBoxEntryType.ChecklistRun`** — New entry type for checklist execution results.
-- **`LifecycleEvent` enum** — New enum in `@atc/types` defining all hookable lifecycle moments.
+- **`LifecycleEvent` enum** — New enum in `@airtrafficcontrol/types` defining all hookable lifecycle moments.
 - **System intercom notification** — New intercom message variant for system-generated notifications, distinct from pilot-to-pilot messages.
 
 ## 6. Storage

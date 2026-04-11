@@ -3,7 +3,7 @@
 **Version:** 0.1.0
 **Status:** Draft
 **Date:** 2026-03-26
-**Packages:** `@atc/daemon`, `@atc/adapter-claude-agent-sdk`
+**Packages:** `@airtrafficcontrol/daemon`, `@airtrafficcontrol/adapter-claude-agent-sdk`
 
 ## 1. Overview
 
@@ -19,7 +19,7 @@ The ATC daemon is a long-running central process that orchestrates all agent ope
 
 ### 1.2 Out of Scope
 
-- CLI package (`@atc/cli`) — will be a separate spec.
+- CLI package (`@airtrafficcontrol/cli`) — will be a separate spec.
 - Web dashboard — will be a separate spec.
 - Authentication/authorization on the API (daemon binds to localhost by default).
 
@@ -281,7 +281,7 @@ interface McpServerConfig {
 
 ### 5.2 Adapter Registry
 
-Adapters are registered by name. The profile config's `adapter.type` selects which one to use. The daemon ships with `claude-agent-sdk` as the default (provided by the `@atc/adapter-claude-agent-sdk` package).
+Adapters are registered by name. The profile config's `adapter.type` selects which one to use. The daemon ships with `claude-agent-sdk` as the default (provided by the `@airtrafficcontrol/adapter-claude-agent-sdk` package).
 
 ### 5.3 Per-Pilot MCP Servers
 
@@ -303,7 +303,7 @@ Pilots can have their own MCP server configurations:
 
 **Merge strategy:** When an agent launches, it receives project-level MCP servers plus its pilot-level servers. Pilot-level servers override project-level servers with the same name.
 
-## 6. Default Adapter: `@atc/adapter-claude-agent-sdk`
+## 6. Default Adapter: `@airtrafficcontrol/adapter-claude-agent-sdk`
 
 This is an independent package (`packages/adapter-claude-agent-sdk`) to avoid coupling with the daemon.
 
@@ -311,7 +311,7 @@ This is an independent package (`packages/adapter-claude-agent-sdk`) to avoid co
 
 ```
 packages/adapter-claude-agent-sdk/
-├── package.json          # Depends on @atc/types, @atc/errors, claude_agent_sdk
+├── package.json          # Depends on @airtrafficcontrol/types, @airtrafficcontrol/errors, claude_agent_sdk
 ├── tsconfig.json
 └── src/
     ├── index.ts          # Barrel export
@@ -519,7 +519,7 @@ Channel wildcards use `*` for glob-style prefix matching.
 
 ## 9. Daemon Package Structure
 
-**Package:** `@atc/daemon` at `packages/daemon`
+**Package:** `@airtrafficcontrol/daemon` at `packages/daemon`
 
 ```
 packages/daemon/
@@ -567,8 +567,8 @@ packages/daemon/
 
 **Dependencies:**
 - `fastify`, `@fastify/websocket` — HTTP + WebSocket server
-- `@atc/types`, `@atc/errors`, `@atc/core`, `@atc/tower`, `@atc/checklist` — workspace dependencies
-- `@atc/adapter-claude-agent-sdk` — default adapter (workspace dependency)
+- `@airtrafficcontrol/types`, `@airtrafficcontrol/errors`, `@airtrafficcontrol/core`, `@airtrafficcontrol/tower`, `@airtrafficcontrol/checklist` — workspace dependencies
+- `@airtrafficcontrol/adapter-claude-agent-sdk` — default adapter (workspace dependency)
 
 ## 10. Spec Compliance
 

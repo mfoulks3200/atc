@@ -1,4 +1,4 @@
-# @atc/types Changelog
+# @airtrafficcontrol/types Changelog
 
 ## Unreleased
 

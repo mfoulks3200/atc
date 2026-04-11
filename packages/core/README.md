@@ -1,11 +1,11 @@
-# @atc/core
+# @airtrafficcontrol/core
 
 Runtime implementation of the ATC system. Provides pure functions for craft creation, lifecycle transitions, black box management, controls protocol, and flight plan navigation. All functions are immutable — they return new objects rather than mutating inputs.
 
 ## Installation
 
 ```bash
-pnpm add @atc/core
+pnpm add @airtrafficcontrol/core
 ```
 
 This is an internal workspace package (`workspace:*`).
@@ -109,8 +109,8 @@ import {
   getNextVector,
   reportVector,
   allVectorsPassed,
-} from "@atc/core";
-import { CraftStatus, SeatType, BlackBoxEntryType, VectorStatus } from "@atc/types";
+} from "@airtrafficcontrol/core";
+import { CraftStatus, SeatType, BlackBoxEntryType, VectorStatus } from "@airtrafficcontrol/types";
 
 // Create a craft
 const craft = createCraft({
@@ -137,14 +137,14 @@ const updated = { ...inFlight, blackBox: appendToBlackBox(inFlight.blackBox, ent
 
 | Package | Purpose |
 |---|---|
-| `@atc/types` | Domain types and enums |
-| `@atc/errors` | Error classes for rule violations |
-| `@atc/validation` | Crew certification validation |
+| `@airtrafficcontrol/types` | Domain types and enums |
+| `@airtrafficcontrol/errors` | Error classes for rule violations |
+| `@airtrafficcontrol/validation` | Crew certification validation |
 
 ## Related Packages
 
-- [`@atc/types`](../types/) — Type definitions consumed by this package
-- [`@atc/errors`](../errors/) — Error classes thrown by this package
-- [`@atc/validation`](../validation/) — Validation functions used during craft creation
-- [`@atc/tower`](../tower/) — Merge coordination consuming craft state
-- [`@atc/daemon`](../daemon/) — Long-running process that orchestrates core operations
+- [`@airtrafficcontrol/types`](../types/) — Type definitions consumed by this package
+- [`@airtrafficcontrol/errors`](../errors/) — Error classes thrown by this package
+- [`@airtrafficcontrol/validation`](../validation/) — Validation functions used during craft creation
+- [`@airtrafficcontrol/tower`](../tower/) — Merge coordination consuming craft state
+- [`@airtrafficcontrol/daemon`](../daemon/) — Long-running process that orchestrates core operations

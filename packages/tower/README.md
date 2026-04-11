@@ -1,11 +1,11 @@
-# @atc/tower
+# @airtrafficcontrol/tower
 
 Merge coordination for the ATC system. The Tower manages landing clearance requests, maintains a first-come-first-served merge queue, and handles emergency declarations. There is exactly one tower per repository.
 
 ## Installation
 
 ```bash
-pnpm add @atc/tower
+pnpm add @airtrafficcontrol/tower
 ```
 
 This is an internal workspace package (`workspace:*`).
@@ -98,7 +98,7 @@ See `RULE-ORIG-2`, `RULE-EMER-4`, `RULE-BBOX-4`.
 ## Usage
 
 ```typescript
-import { createTower } from "@atc/tower";
+import { createTower } from "@airtrafficcontrol/tower";
 
 const tower = createTower();
 
@@ -125,13 +125,13 @@ const report = tower.declareEmergency(craft, "captain-1", "Repeated test failure
 
 | Package | Purpose |
 |---|---|
-| `@atc/types` | `Craft`, `FlightPlan`, `BlackBoxEntry`, `VectorStatus`, `BlackBoxEntryType` |
-| `@atc/errors` | `TowerError`, `EmergencyError` |
-| `@atc/core` | Core runtime functions |
-| `@atc/checklist` | Checklist types |
+| `@airtrafficcontrol/types` | `Craft`, `FlightPlan`, `BlackBoxEntry`, `VectorStatus`, `BlackBoxEntryType` |
+| `@airtrafficcontrol/errors` | `TowerError`, `EmergencyError` |
+| `@airtrafficcontrol/core` | Core runtime functions |
+| `@airtrafficcontrol/checklist` | Checklist types |
 
 ## Related Packages
 
-- [`@atc/core`](../core/) — Craft lifecycle management
-- [`@atc/errors`](../errors/) — `TowerError` and `EmergencyError`
-- [`@atc/daemon`](../daemon/) — Hosts the tower as part of the long-running process
+- [`@airtrafficcontrol/core`](../core/) — Craft lifecycle management
+- [`@airtrafficcontrol/errors`](../errors/) — `TowerError` and `EmergencyError`
+- [`@airtrafficcontrol/daemon`](../daemon/) — Hosts the tower as part of the long-running process

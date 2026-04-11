@@ -1,5 +1,5 @@
 /**
- * @atc/adapter-claude-agent-sdk — Public API barrel export.
+ * @airtrafficcontrol/adapter-claude-agent-sdk — Public API barrel export.
  *
  * Exports the stub Claude Agent SDK adapter and the system prompt builder
  * used to initialize agent context at launch time.

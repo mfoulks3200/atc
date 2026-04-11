@@ -1,5 +1,5 @@
 {
-  "name": "@atc/core",
+  "name": "@airtrafficcontrol/core",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,8 +10,8 @@
     "codegen:contributors": "tsx scripts/contributors.ts"
   },
   "dependencies": {
-    "@atc/types": "workspace:*",
-    "@atc/errors": "workspace:*",
-    "@atc/validation": "workspace:*"
+    "@airtrafficcontrol/types": "workspace:*",
+    "@airtrafficcontrol/errors": "workspace:*",
+    "@airtrafficcontrol/validation": "workspace:*"
   }
 }

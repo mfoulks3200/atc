@@ -1,5 +1,5 @@
 /**
- * Config and metadata loader for @atc/daemon.
+ * Config and metadata loader for @airtrafficcontrol/daemon.
  *
  * Handles reading JSON files from the filesystem, merging with defaults, and
  * validating types. All functions are async and safe to call at daemon startup.

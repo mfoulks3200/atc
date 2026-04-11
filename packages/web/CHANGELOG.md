@@ -1,4 +1,4 @@
-# @atc/web Changelog
+# @airtrafficcontrol/web Changelog
 
 ## Unreleased
 

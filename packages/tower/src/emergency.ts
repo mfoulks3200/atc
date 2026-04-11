@@ -1,4 +1,4 @@
-import type { Craft } from "@atc/types";
+import type { Craft } from "@airtrafficcontrol/types";
 import type { EmergencyReport } from "./types.js";
 
 /**

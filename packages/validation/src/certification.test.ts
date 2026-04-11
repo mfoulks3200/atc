@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Pilot } from "@atc/types";
+import type { Pilot } from "@airtrafficcontrol/types";
 import { isPilotCertified } from "./certification.js";
 
 describe("isPilotCertified", () => {

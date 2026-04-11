@@ -1,4 +1,4 @@
-# @atc/checklist Implementation Plan
+# @airtrafficcontrol/checklist Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 
@@ -16,7 +16,7 @@
 
 | File | Responsibility |
 |------|---------------|
-| `packages/checklist/package.json` | `@atc/checklist` package manifest |
+| `packages/checklist/package.json` | `@airtrafficcontrol/checklist` package manifest |
 | `packages/checklist/tsconfig.json` | TypeScript config extending root |
 | `packages/checklist/src/types.ts` | `ChecklistItem`, `ChecklistItemResult`, `ChecklistResult` interfaces |
 | `packages/checklist/src/runner.ts` | `runChecklist`, `createChecklistItem` functions |
@@ -44,7 +44,7 @@
 
 ```json
 {
-  "name": "@atc/checklist",
+  "name": "@airtrafficcontrol/checklist",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -54,8 +54,8 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@atc/types": "workspace:*",
-    "@atc/errors": "workspace:*"
+    "@airtrafficcontrol/types": "workspace:*",
+    "@airtrafficcontrol/errors": "workspace:*"
   }
 }
 ```
@@ -306,7 +306,7 @@ describe("runChecklist", () => {
 - [ ] **Step 2: Create `packages/checklist/src/runner.ts`**
 
 ```typescript
-import { ChecklistError } from "@atc/errors";
+import { ChecklistError } from "@airtrafficcontrol/errors";
 import type {
   ChecklistItem,
   ChecklistItemResult,

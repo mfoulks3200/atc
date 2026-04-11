@@ -1,5 +1,5 @@
-import type { PilotAction } from "@atc/types";
-import { SeatType, PERMISSIONS } from "@atc/types";
+import type { PilotAction } from "@airtrafficcontrol/types";
+import { SeatType, PERMISSIONS } from "@airtrafficcontrol/types";
 
 /**
  * Checks whether a pilot in the given seat is allowed to hold controls.

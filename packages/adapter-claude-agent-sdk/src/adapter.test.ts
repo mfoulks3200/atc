@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ClaudeAgentSdkAdapter } from "./adapter.js";
-import { CraftStatus } from "@atc/types";
-import type { AgentHandle } from "@atc/daemon";
+import { CraftStatus } from "@airtrafficcontrol/types";
+import type { AgentHandle } from "@airtrafficcontrol/daemon";
 
 const stubHandle: AgentHandle = {
   agentId: "agent-abc",

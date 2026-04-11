@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { CraftStatus, VectorStatus, ControlMode, BlackBoxEntryType } from "@atc/types";
-import type { Craft } from "@atc/types";
+import { CraftStatus, VectorStatus, ControlMode, BlackBoxEntryType } from "@airtrafficcontrol/types";
+import type { Craft } from "@airtrafficcontrol/types";
 import { Tower, createTower } from "./tower.js";
 
 // ---------------------------------------------------------------------------

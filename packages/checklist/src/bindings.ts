@@ -1,5 +1,5 @@
-import type { ChecklistBinding } from "@atc/types";
-import type { LifecycleEvent } from "@atc/types";
+import type { ChecklistBinding } from "@airtrafficcontrol/types";
+import type { LifecycleEvent } from "@airtrafficcontrol/types";
 
 /**
  * Creates an in-memory checklist binding registry.

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import type { Pilot } from "@atc/types";
-import { SeatType } from "@atc/types";
+import type { Pilot } from "@airtrafficcontrol/types";
+import { SeatType } from "@airtrafficcontrol/types";
 import { isValidSeatAssignment, validateSeatAssignment, validateCraftCrew } from "./seat.js";
 
 // --- Test fixtures ---

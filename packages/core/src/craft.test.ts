@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { CraftStatus, ControlMode, VectorStatus } from "@atc/types";
-import type { Pilot, Vector } from "@atc/types";
+import { CraftStatus, ControlMode, VectorStatus } from "@airtrafficcontrol/types";
+import type { Pilot, Vector } from "@airtrafficcontrol/types";
 import { createCraft } from "./craft.js";
 import type { CreateCraftParams } from "./craft.js";
 

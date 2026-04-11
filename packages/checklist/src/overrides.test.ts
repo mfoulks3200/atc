@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createOverrideStore } from "./overrides.js";
-import { LifecycleEvent, ChecklistItemSeverity } from "@atc/types";
-import type { CraftChecklistOverride } from "@atc/types";
+import { LifecycleEvent, ChecklistItemSeverity } from "@airtrafficcontrol/types";
+import type { CraftChecklistOverride } from "@airtrafficcontrol/types";
 
 describe("createOverrideStore", () => {
   let store: ReturnType<typeof createOverrideStore>;

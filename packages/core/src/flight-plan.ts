@@ -1,6 +1,6 @@
-import type { FlightPlan, Vector, VectorReport } from "@atc/types";
-import { VectorStatus } from "@atc/types";
-import { VectorError } from "@atc/errors";
+import type { FlightPlan, Vector, VectorReport } from "@airtrafficcontrol/types";
+import { VectorStatus } from "@airtrafficcontrol/types";
+import { VectorError } from "@airtrafficcontrol/errors";
 
 /**
  * Returns the next pending vector in a flight plan.

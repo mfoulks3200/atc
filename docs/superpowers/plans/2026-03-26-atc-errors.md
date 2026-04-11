@@ -1,4 +1,4 @@
-# @atc/errors Implementation Plan
+# @airtrafficcontrol/errors Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 
@@ -10,7 +10,7 @@
 
 ---
 
-## Task 1: Scaffold `@atc/errors` package
+## Task 1: Scaffold `@airtrafficcontrol/errors` package
 
 ### Files
 
@@ -18,7 +18,7 @@
 
 ```json
 {
-  "name": "@atc/errors",
+  "name": "@airtrafficcontrol/errors",
   "version": "0.0.1",
   "private": true,
   "type": "module",

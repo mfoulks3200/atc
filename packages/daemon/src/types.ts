@@ -2,13 +2,13 @@
  * Daemon-specific type definitions for the ATC daemon process.
  *
  * These types cover configuration, runtime state, agent lifecycle,
- * WebSocket messaging, and usage reporting used throughout @atc/daemon.
+ * WebSocket messaging, and usage reporting used throughout @airtrafficcontrol/daemon.
  *
  * @see RULE-CRAFT-1 through RULE-CRAFT-8 for craft lifecycle constraints.
  * @see RULE-CTRL-1 through RULE-CTRL-5 for controls state rules.
  */
 
-import type { BlackBoxEntryType, CraftStatus } from "@atc/types";
+import type { BlackBoxEntryType, CraftStatus } from "@airtrafficcontrol/types";
 
 // ---------------------------------------------------------------------------
 // Configuration types

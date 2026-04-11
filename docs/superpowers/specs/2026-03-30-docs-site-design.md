@@ -1,14 +1,14 @@
-# @atc/docs — Docusaurus Documentation Site
+# @airtrafficcontrol/docs — Docusaurus Documentation Site
 
 ## Overview
 
-A new `@atc/docs` package containing a Docusaurus v3 static site with ATC/aviation-themed branding. Serves existing repo documentation (specification, contributing guide, agent operating manual) as a browsable site, with room to grow into guides, tutorials, and API reference.
+A new `@airtrafficcontrol/docs` package containing a Docusaurus v3 static site with ATC/aviation-themed branding. Serves existing repo documentation (specification, contributing guide, agent operating manual) as a browsable site, with room to grow into guides, tutorials, and API reference.
 
 ## Structure
 
 ```
 packages/docs/
-├── package.json          # @atc/docs, private
+├── package.json          # @airtrafficcontrol/docs, private
 ├── docusaurus.config.ts  # TypeScript config
 ├── sidebars.ts           # Sidebar navigation
 ├── tsconfig.json
@@ -68,7 +68,7 @@ Existing markdown files are copied into `packages/docs/docs/` with added Docusau
 
 ## Package Configuration
 
-- **Name:** `@atc/docs`
+- **Name:** `@airtrafficcontrol/docs`
 - **Private:** true (not published)
 - **Scripts:**
   - `dev` — `docusaurus start`
@@ -81,7 +81,7 @@ Existing markdown files are copied into `packages/docs/docs/` with added Docusau
 
 ## Root Integration
 
-- Add `docs:dev` and `docs:build` scripts to root `package.json` pointing at `pnpm --filter @atc/docs`
+- Add `docs:dev` and `docs:build` scripts to root `package.json` pointing at `pnpm --filter @airtrafficcontrol/docs`
 
 ## Out of Scope
 

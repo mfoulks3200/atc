@@ -1,4 +1,4 @@
-import type { ChecklistItemDef, LifecycleEvent } from "@atc/types";
+import type { ChecklistItemDef, LifecycleEvent } from "@airtrafficcontrol/types";
 import type { createTemplateRegistry } from "./templates.js";
 import type { createBindingRegistry } from "./bindings.js";
 import type { createOverrideStore } from "./overrides.js";

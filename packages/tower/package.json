@@ -1,5 +1,5 @@
 {
-  "name": "@atc/tower",
+  "name": "@airtrafficcontrol/tower",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -9,9 +9,9 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@atc/types": "workspace:*",
-    "@atc/errors": "workspace:*",
-    "@atc/core": "workspace:*",
-    "@atc/checklist": "workspace:*"
+    "@airtrafficcontrol/types": "workspace:*",
+    "@airtrafficcontrol/errors": "workspace:*",
+    "@airtrafficcontrol/core": "workspace:*",
+    "@airtrafficcontrol/checklist": "workspace:*"
   }
 }

@@ -1,6 +1,6 @@
-import type { Craft } from "@atc/types";
-import { VectorStatus, BlackBoxEntryType } from "@atc/types";
-import { TowerError, EmergencyError } from "@atc/errors";
+import type { Craft } from "@airtrafficcontrol/types";
+import { VectorStatus, BlackBoxEntryType } from "@airtrafficcontrol/types";
+import { TowerError, EmergencyError } from "@airtrafficcontrol/errors";
 import type { QueueEntry, ClearanceResult, EmergencyReport } from "./types.js";
 import { createEmergencyReport } from "./emergency.js";
 

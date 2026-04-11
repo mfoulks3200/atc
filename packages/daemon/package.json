@@ -1,5 +1,5 @@
 {
-  "name": "@atc/daemon",
+  "name": "@airtrafficcontrol/daemon",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -10,11 +10,11 @@
     "start": "node --import tsx src/start.ts"
   },
   "dependencies": {
-    "@atc/checklist": "workspace:*",
-    "@atc/core": "workspace:*",
-    "@atc/errors": "workspace:*",
-    "@atc/tower": "workspace:*",
-    "@atc/types": "workspace:*",
+    "@airtrafficcontrol/checklist": "workspace:*",
+    "@airtrafficcontrol/core": "workspace:*",
+    "@airtrafficcontrol/errors": "workspace:*",
+    "@airtrafficcontrol/tower": "workspace:*",
+    "@airtrafficcontrol/types": "workspace:*",
     "@fastify/websocket": "^11.2.0",
     "fastify": "^5.3.3"
   },

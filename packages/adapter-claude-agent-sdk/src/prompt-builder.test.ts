@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildSystemPrompt } from "./prompt-builder.js";
-import { CraftStatus } from "@atc/types";
-import type { CraftState } from "@atc/daemon";
+import { CraftStatus } from "@airtrafficcontrol/types";
+import type { CraftState } from "@airtrafficcontrol/daemon";
 
 const baseCraft: CraftState = {
   callsign: "ALPHA-1",

@@ -1,6 +1,6 @@
-import type { ControlState, SharedControlArea } from "@atc/types";
-import { ControlMode, SeatType } from "@atc/types";
-import { ControlsError } from "@atc/errors";
+import type { ControlState, SharedControlArea } from "@airtrafficcontrol/types";
+import { ControlMode, SeatType } from "@airtrafficcontrol/types";
+import { ControlsError } from "@airtrafficcontrol/errors";
 
 /**
  * Creates the initial control state for a newly created craft.

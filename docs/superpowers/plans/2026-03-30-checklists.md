@@ -4,7 +4,7 @@
 
 **Goal:** Implement a configurable checklist system that gates lifecycle transitions, records results in the black box, notifies via intercom, and provides a web UI for template management.
 
-**Architecture:** Extend `@atc/types` with checklist and lifecycle event types. Expand `@atc/checklist` with template registry, binding resolution, shell/MCP executors, and override merging. Hook into `@atc/core` lifecycle transitions. Add web UI components for template CRUD, event assignment, and run results.
+**Architecture:** Extend `@airtrafficcontrol/types` with checklist and lifecycle event types. Expand `@airtrafficcontrol/checklist` with template registry, binding resolution, shell/MCP executors, and override merging. Hook into `@airtrafficcontrol/core` lifecycle transitions. Add web UI components for template CRUD, event assignment, and run results.
 
 **Tech Stack:** TypeScript (ES2022, Node16 modules, strict), Vitest, React 19, TanStack React Query, Tailwind CSS 4
 
@@ -12,14 +12,14 @@
 
 ## File Structure
 
-### `@atc/types` — New files
+### `@airtrafficcontrol/types` — New files
 
 | File | Responsibility |
 |------|---------------|
 | `packages/types/src/checklist.ts` | All checklist type definitions: `ChecklistItemSeverity`, `ShellExecutor`, `McpToolExecutor`, `ChecklistExecutor`, `ChecklistItemDef`, `ChecklistTemplate`, `ChecklistBinding`, `CraftChecklistOverride`, `ChecklistItemResult`, `ChecklistRunResult` |
 | `packages/types/src/events.ts` | `LifecycleEvent` enum with all before/after event values |
 
-### `@atc/types` — Modified files
+### `@airtrafficcontrol/types` — Modified files
 
 | File | Change |
 |------|--------|
@@ -27,7 +27,7 @@
 | `packages/types/src/entities.ts` | Add `SystemNotification` interface for intercom |
 | `packages/types/src/index.ts` | Re-export new types |
 
-### `@atc/checklist` — New files
+### `@airtrafficcontrol/checklist` — New files
 
 | File | Responsibility |
 |------|---------------|
@@ -44,18 +44,18 @@
 | `packages/checklist/src/overrides.test.ts` | Tests for override store |
 | `packages/checklist/src/resolve.test.ts` | Tests for resolution logic |
 
-### `@atc/checklist` — Modified files
+### `@airtrafficcontrol/checklist` — Modified files
 
 | File | Change |
 |------|--------|
-| `packages/checklist/src/types.ts` | Replace old types with re-exports from `@atc/types` |
+| `packages/checklist/src/types.ts` | Replace old types with re-exports from `@airtrafficcontrol/types` |
 | `packages/checklist/src/runner.ts` | Rewrite to use new `ChecklistItemDef` with executors and severity; produce `ChecklistRunResult` |
 | `packages/checklist/src/runner.test.ts` | Rewrite tests for new runner interface |
 | `packages/checklist/src/defaults.ts` | Return a `ChecklistTemplate` with severity-tagged items |
 | `packages/checklist/src/defaults.test.ts` | Update for new template structure |
 | `packages/checklist/src/index.ts` | Re-export all new modules |
 
-### `@atc/core` — Modified files
+### `@airtrafficcontrol/core` — Modified files
 
 | File | Change |
 |------|--------|
@@ -64,13 +64,13 @@
 | `packages/core/src/flight-plan.ts` | Add optional checklist hook to `reportVector` |
 | `packages/core/src/flight-plan.test.ts` | Add tests for vector checklist integration |
 
-### `@atc/errors` — Modified files
+### `@airtrafficcontrol/errors` — Modified files
 
 | File | Change |
 |------|--------|
 | `packages/errors/src/checklist.ts` | Update JSDoc to reference RULE-CHKL-* |
 
-### `@atc/web` — New files
+### `@airtrafficcontrol/web` — New files
 
 | File | Responsibility |
 |------|---------------|
@@ -83,7 +83,7 @@
 | `packages/web/src/routes/checklists/template.tsx` | Template editor page |
 | `packages/web/src/routes/checklists/assignments.tsx` | Event assignment page |
 
-### `@atc/web` — Modified files
+### `@airtrafficcontrol/web` — Modified files
 
 | File | Change |
 |------|--------|
@@ -94,7 +94,7 @@
 
 ---
 
-## Task 1: Add `LifecycleEvent` enum to `@atc/types`
+## Task 1: Add `LifecycleEvent` enum to `@airtrafficcontrol/types`
 
 **Files:**
 - Create: `packages/types/src/events.ts`
@@ -286,7 +286,7 @@ git commit -m "feat(types): add ChecklistRun entry type and SystemNotification (
 
 ---
 
-## Task 3: Add checklist type definitions to `@atc/types`
+## Task 3: Add checklist type definitions to `@airtrafficcontrol/types`
 
 **Files:**
 - Create: `packages/types/src/checklist.ts`
@@ -808,8 +808,8 @@ git commit -m "feat(checklist): add MCP tool executor (RULE-CHKL-1)"
 // packages/checklist/src/templates.test.ts
 import { describe, it, expect, beforeEach } from "vitest";
 import { createTemplateRegistry } from "./templates.js";
-import { ChecklistItemSeverity } from "@atc/types";
-import type { ChecklistItemDef } from "@atc/types";
+import { ChecklistItemSeverity } from "@airtrafficcontrol/types";
+import type { ChecklistItemDef } from "@airtrafficcontrol/types";
 
 const testItem: ChecklistItemDef = {
   name: "Run Tests",
@@ -889,7 +889,7 @@ Expected: FAIL — module not found
 ```typescript
 // packages/checklist/src/templates.ts
 import { randomUUID } from "node:crypto";
-import type { ChecklistTemplate, ChecklistItemDef } from "@atc/types";
+import type { ChecklistTemplate, ChecklistItemDef } from "@airtrafficcontrol/types";
 
 /**
  * Input for creating a new checklist template.
@@ -985,7 +985,7 @@ git commit -m "feat(checklist): add template registry (RULE-CHKL-1, RULE-CHKL-2)
 // packages/checklist/src/bindings.test.ts
 import { describe, it, expect, beforeEach } from "vitest";
 import { createBindingRegistry } from "./bindings.js";
-import { LifecycleEvent } from "@atc/types";
+import { LifecycleEvent } from "@airtrafficcontrol/types";
 
 describe("createBindingRegistry", () => {
   let registry: ReturnType<typeof createBindingRegistry>;
@@ -1059,8 +1059,8 @@ Expected: FAIL — module not found
 
 ```typescript
 // packages/checklist/src/bindings.ts
-import type { ChecklistBinding } from "@atc/types";
-import type { LifecycleEvent } from "@atc/types";
+import type { ChecklistBinding } from "@airtrafficcontrol/types";
+import type { LifecycleEvent } from "@airtrafficcontrol/types";
 
 /**
  * Creates an in-memory checklist binding registry.
@@ -1125,8 +1125,8 @@ git commit -m "feat(checklist): add binding registry (RULE-CHKL-2)"
 // packages/checklist/src/overrides.test.ts
 import { describe, it, expect, beforeEach } from "vitest";
 import { createOverrideStore } from "./overrides.js";
-import { LifecycleEvent, ChecklistItemSeverity } from "@atc/types";
-import type { CraftChecklistOverride } from "@atc/types";
+import { LifecycleEvent, ChecklistItemSeverity } from "@airtrafficcontrol/types";
+import type { CraftChecklistOverride } from "@airtrafficcontrol/types";
 
 describe("createOverrideStore", () => {
   let store: ReturnType<typeof createOverrideStore>;
@@ -1202,8 +1202,8 @@ Expected: FAIL — module not found
 
 ```typescript
 // packages/checklist/src/overrides.ts
-import type { CraftChecklistOverride } from "@atc/types";
-import type { LifecycleEvent } from "@atc/types";
+import type { CraftChecklistOverride } from "@airtrafficcontrol/types";
+import type { LifecycleEvent } from "@airtrafficcontrol/types";
 
 /**
  * Creates an in-memory override store.
@@ -1267,8 +1267,8 @@ import { resolveChecklist } from "./resolve.js";
 import { createTemplateRegistry } from "./templates.js";
 import { createBindingRegistry } from "./bindings.js";
 import { createOverrideStore } from "./overrides.js";
-import { LifecycleEvent, ChecklistItemSeverity } from "@atc/types";
-import type { ChecklistItemDef } from "@atc/types";
+import { LifecycleEvent, ChecklistItemSeverity } from "@airtrafficcontrol/types";
+import type { ChecklistItemDef } from "@airtrafficcontrol/types";
 
 const testItem: ChecklistItemDef = {
   name: "Tests",
@@ -1446,7 +1446,7 @@ Expected: FAIL — module not found
 
 ```typescript
 // packages/checklist/src/resolve.ts
-import type { ChecklistItemDef, LifecycleEvent } from "@atc/types";
+import type { ChecklistItemDef, LifecycleEvent } from "@airtrafficcontrol/types";
 import type { createTemplateRegistry } from "./templates.js";
 import type { createBindingRegistry } from "./bindings.js";
 import type { createOverrideStore } from "./overrides.js";
@@ -1548,7 +1548,7 @@ git commit -m "feat(checklist): add checklist resolution (RULE-CHKL-2, RULE-CHKL
 Replace `packages/checklist/src/types.ts` with:
 
 ```typescript
-// Re-export all checklist types from @atc/types.
+// Re-export all checklist types from @airtrafficcontrol/types.
 // This file exists for backwards compatibility.
 export type {
   ChecklistItemDef,
@@ -1560,8 +1560,8 @@ export type {
   ChecklistExecutor,
   ShellExecutor,
   McpToolExecutor,
-} from "@atc/types";
-export { ChecklistItemSeverity } from "@atc/types";
+} from "@airtrafficcontrol/types";
+export { ChecklistItemSeverity } from "@airtrafficcontrol/types";
 ```
 
 - [ ] **Step 2: Write the failing test for the new runner**
@@ -1572,8 +1572,8 @@ Replace `packages/checklist/src/runner.test.ts` with:
 // packages/checklist/src/runner.test.ts
 import { describe, it, expect, vi } from "vitest";
 import { runChecklist } from "./runner.js";
-import { ChecklistItemSeverity, LifecycleEvent } from "@atc/types";
-import type { ChecklistItemDef } from "@atc/types";
+import { ChecklistItemSeverity, LifecycleEvent } from "@airtrafficcontrol/types";
+import type { ChecklistItemDef } from "@airtrafficcontrol/types";
 import type { McpToolHandler } from "./executor/mcp-tool.js";
 
 const shellItem = (name: string, command: string, severity = ChecklistItemSeverity.Required): ChecklistItemDef => ({
@@ -1714,9 +1714,9 @@ Replace `packages/checklist/src/runner.ts` with:
 
 ```typescript
 // packages/checklist/src/runner.ts
-import { ChecklistError } from "@atc/errors";
-import { ChecklistItemSeverity } from "@atc/types";
-import type { ChecklistItemDef, ChecklistItemResult, ChecklistRunResult, LifecycleEvent } from "@atc/types";
+import { ChecklistError } from "@airtrafficcontrol/errors";
+import { ChecklistItemSeverity } from "@airtrafficcontrol/types";
+import type { ChecklistItemDef, ChecklistItemResult, ChecklistRunResult, LifecycleEvent } from "@airtrafficcontrol/types";
 import { executeShell } from "./executor/shell.js";
 import { executeMcpTool } from "./executor/mcp-tool.js";
 import type { McpToolHandler } from "./executor/mcp-tool.js";
@@ -1821,7 +1821,7 @@ Replace `packages/checklist/src/defaults.test.ts` with:
 // packages/checklist/src/defaults.test.ts
 import { describe, it, expect } from "vitest";
 import { DEFAULT_LANDING_TEMPLATE } from "./defaults.js";
-import { ChecklistItemSeverity } from "@atc/types";
+import { ChecklistItemSeverity } from "@airtrafficcontrol/types";
 
 describe("DEFAULT_LANDING_TEMPLATE", () => {
   it("has a name and 4 items", () => {
@@ -1863,8 +1863,8 @@ Replace `packages/checklist/src/defaults.ts` with:
 
 ```typescript
 // packages/checklist/src/defaults.ts
-import { ChecklistItemSeverity } from "@atc/types";
-import type { ChecklistTemplate } from "@atc/types";
+import { ChecklistItemSeverity } from "@airtrafficcontrol/types";
+import type { ChecklistTemplate } from "@airtrafficcontrol/types";
 
 /**
  * Default landing checklist template.
@@ -1931,7 +1931,7 @@ git commit -m "feat(checklist): update defaults to ChecklistTemplate with severi
 Replace `packages/checklist/src/index.ts` with:
 
 ```typescript
-// Types (re-exported from @atc/types via local types.ts)
+// Types (re-exported from @airtrafficcontrol/types via local types.ts)
 export type {
   ChecklistItemDef,
   ChecklistTemplate,
@@ -1992,7 +1992,7 @@ git commit -m "feat(checklist): update package exports for new checklist system"
 
 ---
 
-## Task 14: Hook checklists into `@atc/core` lifecycle transitions
+## Task 14: Hook checklists into `@airtrafficcontrol/core` lifecycle transitions
 
 **Files:**
 - Modify: `packages/core/src/lifecycle.ts`
@@ -2005,8 +2005,8 @@ Add to `packages/core/src/lifecycle.test.ts`:
 ```typescript
 import { describe, it, expect, vi } from "vitest";
 import { transitionCraft, mapTransitionToEvents } from "./lifecycle.js";
-import { CraftStatus } from "@atc/types";
-import { LifecycleEvent } from "@atc/types";
+import { CraftStatus } from "@airtrafficcontrol/types";
+import { LifecycleEvent } from "@airtrafficcontrol/types";
 
 describe("mapTransitionToEvents", () => {
   it("maps Taxiing -> InFlight to takeoff events", () => {
@@ -2067,7 +2067,7 @@ Expected: FAIL — `mapTransitionToEvents` not exported
 Add to `packages/core/src/lifecycle.ts` after the imports:
 
 ```typescript
-import { LifecycleEvent } from "@atc/types";
+import { LifecycleEvent } from "@airtrafficcontrol/types";
 
 /**
  * Maps a state transition to its before/after lifecycle events.

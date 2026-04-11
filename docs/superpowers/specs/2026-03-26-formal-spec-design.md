@@ -81,7 +81,7 @@ Operational procedures spanning multiple entities:
 
 ---
 
-### 2. `packages/types/` — `@atc/types` Package
+### 2. `packages/types/` — `@airtrafficcontrol/types` Package
 
 A new TypeScript package in the monorepo containing pure type definitions, interfaces, enums, and const objects. No runtime logic, no dependencies.
 
@@ -89,7 +89,7 @@ A new TypeScript package in the monorepo containing pure type definitions, inter
 
 ```
 packages/types/
-  package.json            # @atc/types, version 0.0.1
+  package.json            # @airtrafficcontrol/types, version 0.0.1
   tsconfig.json
   src/
     index.ts              # barrel export
@@ -141,7 +141,7 @@ docs/
       2026-03-26-formal-spec-design.md              # this design document
 
 packages/
-  types/                                            # @atc/types (NEW)
+  types/                                            # @airtrafficcontrol/types (NEW)
     package.json
     tsconfig.json
     src/
@@ -150,7 +150,7 @@ packages/
       enums.ts
       lifecycle.ts
       permissions.ts
-  core/                                             # @atc/core (existing, will import @atc/types)
+  core/                                             # @airtrafficcontrol/core (existing, will import @airtrafficcontrol/types)
     ...
 ```
 
@@ -170,7 +170,7 @@ docs/spec.md (brief)
 
 ## Out of Scope
 
-- Runtime logic or behavior implementation (belongs in `@atc/core`).
+- Runtime logic or behavior implementation (belongs in `@airtrafficcontrol/core`).
 - Agent prompt engineering beyond the operating manual structure.
 - CI/CD integration or automated rule enforcement.
-- The `@atc/core` package implementation — that follows after the spec is written.
+- The `@airtrafficcontrol/core` package implementation — that follows after the spec is written.

@@ -1,11 +1,11 @@
-# @atc/errors
+# @airtrafficcontrol/errors
 
 Structured error hierarchy for the ATC domain. Every error class extends `AtcError` and carries the `RULE-*` identifier of the violated specification rule. No external dependencies.
 
 ## Installation
 
 ```bash
-pnpm add @atc/errors
+pnpm add @airtrafficcontrol/errors
 ```
 
 This is an internal workspace package (`workspace:*`).
@@ -91,7 +91,7 @@ Thrown when a `RULE-TOWER-*` or `RULE-TMRG-*` invariant is violated. Covers towe
 ## Usage
 
 ```typescript
-import { AtcError, CraftError, LifecycleError } from "@atc/errors";
+import { AtcError, CraftError, LifecycleError } from "@airtrafficcontrol/errors";
 
 // Throwing a domain error
 throw new CraftError("Craft callsign is required", "RULE-CRAFT-1");
@@ -132,7 +132,7 @@ try {
 
 ## Related Packages
 
-- [`@atc/types`](../types/) — Domain types referenced in error messages
-- [`@atc/core`](../core/) — Throws these errors when rules are violated
-- [`@atc/validation`](../validation/) — Throws `SeatAssignmentError` on invalid assignments
-- [`@atc/tower`](../tower/) — Throws `TowerError` and `EmergencyError`
+- [`@airtrafficcontrol/types`](../types/) — Domain types referenced in error messages
+- [`@airtrafficcontrol/core`](../core/) — Throws these errors when rules are violated
+- [`@airtrafficcontrol/validation`](../validation/) — Throws `SeatAssignmentError` on invalid assignments
+- [`@airtrafficcontrol/tower`](../tower/) — Throws `TowerError` and `EmergencyError`

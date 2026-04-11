@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { runChecklist } from "./runner.js";
-import { ChecklistItemSeverity, LifecycleEvent } from "@atc/types";
-import type { ChecklistItemDef } from "@atc/types";
+import { ChecklistItemSeverity, LifecycleEvent } from "@airtrafficcontrol/types";
+import type { ChecklistItemDef } from "@airtrafficcontrol/types";
 import type { McpToolHandler } from "./executor/mcp-tool.js";
 
 const shellItem = (

@@ -1,7 +1,7 @@
 # Flight Plan Hero Widget
 
 **Date:** 2026-04-11
-**Scope:** `@atc/web` craft detail page, `@atc/daemon` craft state
+**Scope:** `@airtrafficcontrol/web` craft detail page, `@airtrafficcontrol/daemon` craft state
 **Status:** Design
 
 ## Goal
@@ -168,7 +168,7 @@ Add a new required field `createdAt: string` (ISO-8601) to:
 
 Since this is a new required field and existing persisted craft JSON files won't have it, the daemon's state loader should backfill missing `createdAt` with a sensible default on read — the earliest `blackBox` entry timestamp if one exists, otherwise the current time. The backfill lives in the craft store's read path. Persisted records are rewritten with the backfilled value on the next write.
 
-No changes to `@atc/types` or `@atc/core` — `createdAt` is a daemon persistence / observation concern, not a domain rule.
+No changes to `@airtrafficcontrol/types` or `@airtrafficcontrol/core` — `createdAt` is a daemon persistence / observation concern, not a domain rule.
 
 ### Segment Duration Algorithm (client-side)
 

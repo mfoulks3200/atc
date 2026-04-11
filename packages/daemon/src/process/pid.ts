@@ -1,5 +1,5 @@
 /**
- * PID file management for @atc/daemon.
+ * PID file management for @airtrafficcontrol/daemon.
  *
  * Utilities for writing, reading, and removing a PID file on the filesystem,
  * plus a liveness check for an arbitrary process ID.

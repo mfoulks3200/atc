@@ -1,5 +1,5 @@
 {
-  "name": "@atc/validation",
+  "name": "@airtrafficcontrol/validation",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@atc/types": "workspace:*",
-    "@atc/errors": "workspace:*"
+    "@airtrafficcontrol/types": "workspace:*",
+    "@airtrafficcontrol/errors": "workspace:*"
   }
 }

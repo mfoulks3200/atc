@@ -5,8 +5,8 @@ import {
   VectorStatus,
   BlackBoxEntryType,
   LifecycleEvent,
-} from "@atc/types";
-import type { Craft, Pilot } from "@atc/types";
+} from "@airtrafficcontrol/types";
+import type { Craft, Pilot } from "@airtrafficcontrol/types";
 import {
   transitionCraft,
   canTransition,

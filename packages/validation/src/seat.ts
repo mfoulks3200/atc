@@ -1,6 +1,6 @@
-import type { Pilot } from "@atc/types";
-import { SeatType } from "@atc/types";
-import { SeatAssignmentError } from "@atc/errors";
+import type { Pilot } from "@airtrafficcontrol/types";
+import { SeatType } from "@airtrafficcontrol/types";
+import { SeatAssignmentError } from "@airtrafficcontrol/errors";
 import { isPilotCertified } from "./certification.js";
 
 /**

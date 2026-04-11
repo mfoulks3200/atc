@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BlackBoxEntryType } from "@atc/types";
+import { BlackBoxEntryType } from "@airtrafficcontrol/types";
 import { createBlackBoxEntry, appendToBlackBox } from "./black-box.js";
 
 describe("createBlackBoxEntry", () => {

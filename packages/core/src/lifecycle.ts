@@ -1,7 +1,7 @@
-import type { Craft } from "@atc/types";
-import { CraftStatus, VectorStatus, BlackBoxEntryType, LifecycleEvent } from "@atc/types";
-import { TRANSITIONS, TERMINAL_STATES } from "@atc/types";
-import { LifecycleError } from "@atc/errors";
+import type { Craft } from "@airtrafficcontrol/types";
+import { CraftStatus, VectorStatus, BlackBoxEntryType, LifecycleEvent } from "@airtrafficcontrol/types";
+import { TRANSITIONS, TERMINAL_STATES } from "@airtrafficcontrol/types";
+import { LifecycleError } from "@airtrafficcontrol/errors";
 
 /**
  * Checks whether a state transition is valid in the craft lifecycle.

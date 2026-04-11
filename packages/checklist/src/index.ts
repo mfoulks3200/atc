@@ -1,4 +1,4 @@
-// Types (re-exported from @atc/types via local types.ts)
+// Types (re-exported from @airtrafficcontrol/types via local types.ts)
 export type {
   ChecklistItemDef,
   ChecklistTemplate,

@@ -1,11 +1,11 @@
-# @atc/daemon
+# @airtrafficcontrol/daemon
 
 Long-running ATC daemon process. Provides a Fastify-based REST API and WebSocket channels for managing agents, crafts, vectors, pilots, and tower operations. Handles configuration loading, state persistence, git worktree management, adapter registration, PID file lifecycle, and graceful shutdown.
 
 ## Installation
 
 ```bash
-pnpm add @atc/daemon
+pnpm add @airtrafficcontrol/daemon
 ```
 
 This is an internal workspace package (`workspace:*`).
@@ -17,7 +17,7 @@ This is an internal workspace package (`workspace:*`).
 Top-level orchestrator for a running ATC daemon instance. Create one per process.
 
 ```typescript
-import { Daemon } from "@atc/daemon";
+import { Daemon } from "@airtrafficcontrol/daemon";
 
 const daemon = new Daemon("/home/user/.atc/profiles/default");
 await daemon.start();
@@ -228,16 +228,16 @@ Checks whether a process is alive by PID.
 
 | Package | Purpose |
 |---|---|
-| `@atc/types` | Domain types and enums |
-| `@atc/errors` | Error classes |
-| `@atc/core` | Craft lifecycle and controls logic |
-| `@atc/tower` | Merge coordination |
-| `@atc/checklist` | Landing checklist |
+| `@airtrafficcontrol/types` | Domain types and enums |
+| `@airtrafficcontrol/errors` | Error classes |
+| `@airtrafficcontrol/core` | Craft lifecycle and controls logic |
+| `@airtrafficcontrol/tower` | Merge coordination |
+| `@airtrafficcontrol/checklist` | Landing checklist |
 | `fastify` | HTTP server framework |
 | `@fastify/websocket` | WebSocket support |
 
 ## Related Packages
 
-- [`@atc/adapter-claude-agent-sdk`](../adapter-claude-agent-sdk/) — Claude Agent SDK adapter implementing `AgentAdapter`
-- [`@atc/core`](../core/) — Runtime logic consumed by daemon routes
-- [`@atc/tower`](../tower/) — Tower logic managed by the daemon
+- [`@airtrafficcontrol/adapter-claude-agent-sdk`](../adapter-claude-agent-sdk/) — Claude Agent SDK adapter implementing `AgentAdapter`
+- [`@airtrafficcontrol/core`](../core/) — Runtime logic consumed by daemon routes
+- [`@airtrafficcontrol/tower`](../tower/) — Tower logic managed by the daemon

@@ -11,7 +11,7 @@
 
 import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
-import { CraftStatus, BlackBoxEntryType } from "@atc/types";
+import { CraftStatus, BlackBoxEntryType } from "@airtrafficcontrol/types";
 import { createWorktree } from "../../git/worktree.js";
 import { loadProjectMetadata } from "../../config/loader.js";
 import { runChecklist } from "../../checklist/runner.js";

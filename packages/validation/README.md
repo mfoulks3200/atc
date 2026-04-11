@@ -1,11 +1,11 @@
-# @atc/validation
+# @airtrafficcontrol/validation
 
 Pure validation functions for certification checks, seat assignment rules, and permission enforcement. These functions implement the guard logic that ensures pilots are eligible for their seats and authorized for their actions.
 
 ## Installation
 
 ```bash
-pnpm add @atc/validation
+pnpm add @airtrafficcontrol/validation
 ```
 
 This is an internal workspace package (`workspace:*`).
@@ -21,7 +21,7 @@ Checks whether a pilot holds a certification for the given craft category. Match
 See `RULE-PILOT-2`.
 
 ```typescript
-import { isPilotCertified } from "@atc/validation";
+import { isPilotCertified } from "@airtrafficcontrol/validation";
 
 const pilot = { identifier: "agent-1", certifications: ["feature", "bugfix"] };
 isPilotCertified(pilot, "feature"); // true
@@ -59,8 +59,8 @@ Checks whether a pilot in the given seat is allowed to hold controls. Only Capta
 See `RULE-CTRL-2`.
 
 ```typescript
-import { canHoldControls } from "@atc/validation";
-import { SeatType } from "@atc/types";
+import { canHoldControls } from "@airtrafficcontrol/validation";
+import { SeatType } from "@airtrafficcontrol/types";
 
 canHoldControls(SeatType.Captain);     // true
 canHoldControls(SeatType.FirstOfficer); // true
@@ -74,8 +74,8 @@ Looks up whether a pilot in the given seat is permitted to perform the specified
 See `RULE-SEAT-1` through `RULE-SEAT-4`, `RULE-CTRL-2`, `RULE-BBOX-3`, `RULE-EMER-1`.
 
 ```typescript
-import { canPerformAction } from "@atc/validation";
-import { SeatType } from "@atc/types";
+import { canPerformAction } from "@airtrafficcontrol/validation";
+import { SeatType } from "@airtrafficcontrol/types";
 
 canPerformAction(SeatType.Captain, "declareEmergency");      // true
 canPerformAction(SeatType.FirstOfficer, "declareEmergency"); // false
@@ -86,11 +86,11 @@ canPerformAction(SeatType.Jumpseat, "writeBlackBox");        // true
 
 | Package | Purpose |
 |---|---|
-| `@atc/types` | `Pilot`, `SeatType`, `PilotAction`, `PERMISSIONS` |
-| `@atc/errors` | `SeatAssignmentError` |
+| `@airtrafficcontrol/types` | `Pilot`, `SeatType`, `PilotAction`, `PERMISSIONS` |
+| `@airtrafficcontrol/errors` | `SeatAssignmentError` |
 
 ## Related Packages
 
-- [`@atc/types`](../types/) — Domain types and permissions matrix
-- [`@atc/errors`](../errors/) — Error class thrown on invalid assignments
-- [`@atc/core`](../core/) — Uses `validateCraftCrew` during craft creation
+- [`@airtrafficcontrol/types`](../types/) — Domain types and permissions matrix
+- [`@airtrafficcontrol/errors`](../errors/) — Error class thrown on invalid assignments
+- [`@airtrafficcontrol/core`](../core/) — Uses `validateCraftCrew` during craft creation

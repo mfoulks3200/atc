@@ -1,5 +1,5 @@
 /**
- * Checklist runner for @atc/daemon.
+ * Checklist runner for @airtrafficcontrol/daemon.
  *
  * Executes a sequence of shell commands representing the landing checklist.
  * Each item is run sequentially; the first failure stops execution per

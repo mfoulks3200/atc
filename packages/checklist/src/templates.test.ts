@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createTemplateRegistry } from "./templates.js";
-import { ChecklistItemSeverity } from "@atc/types";
-import type { ChecklistItemDef } from "@atc/types";
+import { ChecklistItemSeverity } from "@airtrafficcontrol/types";
+import type { ChecklistItemDef } from "@airtrafficcontrol/types";
 
 const testItem: ChecklistItemDef = {
   name: "Run Tests",

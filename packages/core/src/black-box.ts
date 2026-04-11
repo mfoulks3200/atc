@@ -1,5 +1,5 @@
-import type { BlackBoxEntry } from "@atc/types";
-import { BlackBoxEntryType } from "@atc/types";
+import type { BlackBoxEntry } from "@airtrafficcontrol/types";
+import { BlackBoxEntryType } from "@airtrafficcontrol/types";
 
 /**
  * Creates a new black box entry with the current timestamp.

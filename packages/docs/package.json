@@ -1,5 +1,5 @@
 {
-  "name": "@atc/docs",
+  "name": "@airtrafficcontrol/docs",
   "version": "0.0.1",
   "private": true,
   "scripts": {

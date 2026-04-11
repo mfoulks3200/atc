@@ -1,4 +1,4 @@
-// Re-export all checklist types from @atc/types.
+// Re-export all checklist types from @airtrafficcontrol/types.
 // This file exists for backwards compatibility.
 export type {
   ChecklistItemDef,
@@ -10,5 +10,5 @@ export type {
   ChecklistExecutor,
   ShellExecutor,
   McpToolExecutor,
-} from "@atc/types";
-export { ChecklistItemSeverity } from "@atc/types";
+} from "@airtrafficcontrol/types";
+export { ChecklistItemSeverity } from "@airtrafficcontrol/types";

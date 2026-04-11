@@ -1,11 +1,11 @@
-# @atc/adapter-claude-agent-sdk
+# @airtrafficcontrol/adapter-claude-agent-sdk
 
 Adapter bridging ATC's agent interface to the Anthropic Claude Agent SDK. Provides `ClaudeAgentSdkAdapter` (a stub implementation of the daemon's `AgentAdapter` interface) and `buildSystemPrompt` for initializing agent context with full craft state.
 
 ## Installation
 
 ```bash
-pnpm add @atc/adapter-claude-agent-sdk
+pnpm add @airtrafficcontrol/adapter-claude-agent-sdk
 ```
 
 This is an internal workspace package (`workspace:*`).
@@ -18,7 +18,7 @@ This package is currently a **scaffold**. All adapter methods are no-ops or retu
 
 ### `ClaudeAgentSdkAdapter`
 
-Stub implementation of the `AgentAdapter` interface from `@atc/daemon`. See `RULE-PILOT-1`.
+Stub implementation of the `AgentAdapter` interface from `@airtrafficcontrol/daemon`. See `RULE-PILOT-1`.
 
 | Method | Signature | Stub Behavior |
 |---|---|---|
@@ -48,7 +48,7 @@ See `RULE-PILOT-1`, `RULE-SEAT-1` through `RULE-SEAT-3`.
 ## Usage
 
 ```typescript
-import { ClaudeAgentSdkAdapter, buildSystemPrompt } from "@atc/adapter-claude-agent-sdk";
+import { ClaudeAgentSdkAdapter, buildSystemPrompt } from "@airtrafficcontrol/adapter-claude-agent-sdk";
 
 // Register the adapter with the daemon
 const adapter = new ClaudeAgentSdkAdapter();
@@ -61,12 +61,12 @@ const prompt = buildSystemPrompt(craftState, "agent-1", "captain");
 
 | Package | Purpose |
 |---|---|
-| `@atc/types` | Domain types |
-| `@atc/errors` | Error classes |
-| `@atc/daemon` | `AgentAdapter` interface, `CraftState`, and related types |
+| `@airtrafficcontrol/types` | Domain types |
+| `@airtrafficcontrol/errors` | Error classes |
+| `@airtrafficcontrol/daemon` | `AgentAdapter` interface, `CraftState`, and related types |
 | `@anthropic-ai/sdk` | Claude Agent SDK (peer dependency for future integration) |
 
 ## Related Packages
 
-- [`@atc/daemon`](../daemon/) — Defines the `AgentAdapter` interface this package implements
-- [`@atc/types`](../types/) — Domain model types
+- [`@airtrafficcontrol/daemon`](../daemon/) — Defines the `AgentAdapter` interface this package implements
+- [`@airtrafficcontrol/types`](../types/) — Domain model types

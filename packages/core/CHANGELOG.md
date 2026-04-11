@@ -1,4 +1,4 @@
-# @atc/core Changelog
+# @airtrafficcontrol/core Changelog
 
 ## Unreleased
 

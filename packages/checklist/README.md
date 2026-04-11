@@ -1,11 +1,11 @@
-# @atc/checklist
+# @airtrafficcontrol/checklist
 
 Landing checklist runner for the ATC system. Defines checklist items as named async validation steps, executes them sequentially, and aggregates pass/fail results. When any item fails, the craft must perform a go-around.
 
 ## Installation
 
 ```bash
-pnpm add @atc/checklist
+pnpm add @airtrafficcontrol/checklist
 ```
 
 This is an internal workspace package (`workspace:*`).
@@ -66,7 +66,7 @@ See `RULE-LCHK-4`.
 ## Usage
 
 ```typescript
-import { runChecklist, createChecklistItem, createDefaultChecklist } from "@atc/checklist";
+import { runChecklist, createChecklistItem, createDefaultChecklist } from "@airtrafficcontrol/checklist";
 
 // Run the default checklist
 const defaults = createDefaultChecklist();
@@ -99,11 +99,11 @@ if (!customResult.passed) {
 
 | Package | Purpose |
 |---|---|
-| `@atc/types` | Domain types |
-| `@atc/errors` | `ChecklistError` |
+| `@airtrafficcontrol/types` | Domain types |
+| `@airtrafficcontrol/errors` | `ChecklistError` |
 
 ## Related Packages
 
-- [`@atc/errors`](../errors/) — `ChecklistError` thrown on empty checklists
-- [`@atc/tower`](../tower/) — Tower verifies checklist passed before granting clearance
-- [`@atc/daemon`](../daemon/) — Daemon runs the checklist pipeline
+- [`@airtrafficcontrol/errors`](../errors/) — `ChecklistError` thrown on empty checklists
+- [`@airtrafficcontrol/tower`](../tower/) — Tower verifies checklist passed before granting clearance
+- [`@airtrafficcontrol/daemon`](../daemon/) — Daemon runs the checklist pipeline

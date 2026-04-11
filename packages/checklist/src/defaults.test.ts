@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { DEFAULT_LANDING_TEMPLATE } from "./defaults.js";
-import { ChecklistItemSeverity } from "@atc/types";
+import { ChecklistItemSeverity } from "@airtrafficcontrol/types";
 
 describe("DEFAULT_LANDING_TEMPLATE", () => {
   it("has a name and 4 items", () => {

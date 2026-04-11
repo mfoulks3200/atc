@@ -1,5 +1,5 @@
 /**
- * @atc/daemon — Public API barrel export.
+ * @airtrafficcontrol/daemon — Public API barrel export.
  *
  * Re-exports all public types, classes, and functions from the daemon package.
  *

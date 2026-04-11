@@ -1,5 +1,5 @@
 /**
- * Type shape tests for @atc/daemon types.
+ * Type shape tests for @airtrafficcontrol/daemon types.
  *
  * These tests verify that all exported types accept valid values and
  * that TypeScript compiles the shapes correctly. They are intentionally
@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { BlackBoxEntryType, CraftStatus } from "@atc/types";
+import { BlackBoxEntryType, CraftStatus } from "@airtrafficcontrol/types";
 import type {
   AdapterConfig,
   AgentRecord,

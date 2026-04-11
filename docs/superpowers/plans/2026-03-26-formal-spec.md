@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Produce a formal human specification, a `@atc/types` TypeScript package, and an agent operating manual from the existing `docs/spec.md` design brief.
+**Goal:** Produce a formal human specification, a `@airtrafficcontrol/types` TypeScript package, and an agent operating manual from the existing `docs/spec.md` design brief.
 
 **Architecture:** Three independent deliverables that reference each other: (1) `docs/specification.md` is the source of truth with `RULE-*` IDs, (2) `packages/types/` encodes the domain model as TypeScript types/enums/consts with JSDoc traceability to rule IDs, (3) `docs/agent/operating-manual.md` provides behavioral guidance for agents referencing the same rule IDs. The types package must be built and tested before the operating manual is written, since the manual references the type definitions.
 
@@ -17,7 +17,7 @@
 | File | Responsibility |
 |------|---------------|
 | `docs/specification.md` | Formal human spec — domain model, lifecycle, protocols, rule index |
-| `packages/types/package.json` | `@atc/types` package manifest |
+| `packages/types/package.json` | `@airtrafficcontrol/types` package manifest |
 | `packages/types/tsconfig.json` | TypeScript config extending root |
 | `packages/types/src/enums.ts` | All enum definitions (CraftStatus, SeatType, ControlMode, VectorStatus, BlackBoxEntryType) |
 | `packages/types/src/entities.ts` | All interfaces (Craft, Pilot, Vector, BlackBoxEntry, VectorReport, FlightPlan, ControlState) |
@@ -531,7 +531,7 @@ and complete rule index with 56 RULE-* identifiers."
 
 ---
 
-## Task 3: Scaffold `@atc/types` Package
+## Task 3: Scaffold `@airtrafficcontrol/types` Package
 
 **Files:**
 - Create: `packages/types/package.json`
@@ -542,7 +542,7 @@ and complete rule index with 56 RULE-* identifiers."
 
 ```json
 {
-  "name": "@atc/types",
+  "name": "@airtrafficcontrol/types",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -600,7 +600,7 @@ pnpm install
 
 ```bash
 git add packages/types/package.json packages/types/tsconfig.json tsconfig.json
-git commit -m "chore: scaffold @atc/types package
+git commit -m "chore: scaffold @airtrafficcontrol/types package
 
 Empty TypeScript package in monorepo, extends root tsconfig, added to
 project references."
@@ -608,7 +608,7 @@ project references."
 
 ---
 
-## Task 4: Implement `@atc/types` Enums
+## Task 4: Implement `@airtrafficcontrol/types` Enums
 
 **Files:**
 - Create: `packages/types/src/enums.ts`
@@ -810,7 +810,7 @@ BlackBoxEntryType (6). JSDoc comments reference RULE-* IDs."
 
 ---
 
-## Task 5: Implement `@atc/types` Entities
+## Task 5: Implement `@airtrafficcontrol/types` Entities
 
 **Files:**
 - Create: `packages/types/src/entities.ts`
@@ -981,7 +981,7 @@ JSDoc referencing RULE-* IDs from the formal spec."
 
 ---
 
-## Task 6: Implement `@atc/types` Lifecycle
+## Task 6: Implement `@airtrafficcontrol/types` Lifecycle
 
 **Files:**
 - Create: `packages/types/src/lifecycle.ts`
@@ -1190,7 +1190,7 @@ trigger/preconditions. References RULE-LIFE-* IDs."
 
 ---
 
-## Task 7: Implement `@atc/types` Permissions
+## Task 7: Implement `@airtrafficcontrol/types` Permissions
 
 **Files:**
 - Create: `packages/types/src/permissions.ts`
@@ -1409,7 +1409,7 @@ git add packages/types/src/index.ts
 git commit -m "feat(types): add barrel export
 
 Re-exports all enums, interfaces, consts, and type aliases from
-@atc/types. Package is complete and ready for consumption."
+@airtrafficcontrol/types. Package is complete and ready for consumption."
 ```
 
 ---

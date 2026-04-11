@@ -1,11 +1,11 @@
-# @atc/types
+# @airtrafficcontrol/types
 
 Pure TypeScript type definitions for the ATC domain model. No runtime logic, no external dependencies. This package is the single source of truth for every enum, interface, type alias, and const that other ATC packages import.
 
 ## Installation
 
 ```bash
-pnpm add @atc/types
+pnpm add @airtrafficcontrol/types
 ```
 
 This is an internal workspace package (`workspace:*`).
@@ -206,7 +206,7 @@ import {
   TRANSITIONS,
   TERMINAL_STATES,
   PERMISSIONS,
-} from "@atc/types";
+} from "@airtrafficcontrol/types";
 
 import type {
   Craft,
@@ -221,7 +221,7 @@ import type {
   CraftTransition,
   PilotAction,
   SeatPermissions,
-} from "@atc/types";
+} from "@airtrafficcontrol/types";
 ```
 
 ## Source Files
@@ -235,6 +235,6 @@ import type {
 
 ## Related Packages
 
-- [`@atc/core`](../core/) — Runtime implementation consuming these types
-- [`@atc/errors`](../errors/) — Error classes for rule violations
-- [`@atc/validation`](../validation/) — Validation functions using these types
+- [`@airtrafficcontrol/core`](../core/) — Runtime implementation consuming these types
+- [`@airtrafficcontrol/errors`](../errors/) — Error classes for rule violations
+- [`@airtrafficcontrol/validation`](../validation/) — Validation functions using these types

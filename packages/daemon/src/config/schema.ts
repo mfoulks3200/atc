@@ -1,5 +1,5 @@
 /**
- * Config schema defaults and validation helpers for @atc/daemon.
+ * Config schema defaults and validation helpers for @airtrafficcontrol/daemon.
  *
  * Provides typed default values and runtime validators for GlobalConfig and
  * ProfileConfig. These are used by the loader to fill gaps in partial config

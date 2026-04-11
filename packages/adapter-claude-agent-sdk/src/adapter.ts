@@ -17,7 +17,7 @@ import type {
   IntercomMessage,
   AgentStatus,
   AgentUsageReport,
-} from "@atc/daemon";
+} from "@airtrafficcontrol/daemon";
 
 /**
  * Stub Claude Agent SDK adapter.

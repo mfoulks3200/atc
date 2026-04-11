@@ -1,4 +1,4 @@
-# @atc/web — ATC Dashboard Design Spec
+# @airtrafficcontrol/web — ATC Dashboard Design Spec
 
 ## Overview
 
@@ -12,7 +12,7 @@ A React-based dashboard for monitoring and inspecting the ATC daemon. Aimed at d
 - **shadcn/ui** + **Tailwind CSS** — component primitives and utility styling
 - **Native WebSocket** — real-time updates via daemon WS protocol
 
-The package lives at `packages/web/` in the monorepo. It has no dependency on `@atc/types` — it defines its own API response types to stay decoupled.
+The package lives at `packages/web/` in the monorepo. It has no dependency on `@airtrafficcontrol/types` — it defines its own API response types to stay decoupled.
 
 ## Visual Direction
 

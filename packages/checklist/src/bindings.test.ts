@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createBindingRegistry } from "./bindings.js";
-import { LifecycleEvent } from "@atc/types";
+import { LifecycleEvent } from "@airtrafficcontrol/types";
 
 describe("createBindingRegistry", () => {
   let registry: ReturnType<typeof createBindingRegistry>;

@@ -1,16 +1,16 @@
-# @atc/validation Implementation Plan
+# @airtrafficcontrol/validation Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Pure validation functions for pilot certification, seat assignment, and permission checks.
 
-**Architecture:** Stateless, side-effect-free functions that validate ATC domain rules. Returns booleans for queries, throws domain errors for assertions. Consumed by @atc/core and @atc/tower.
+**Architecture:** Stateless, side-effect-free functions that validate ATC domain rules. Returns booleans for queries, throws domain errors for assertions. Consumed by @airtrafficcontrol/core and @airtrafficcontrol/tower.
 
 **Tech Stack:** TypeScript 5.8, vitest, pnpm workspaces
 
 ---
 
-## Task 1: Scaffold the `@atc/validation` package
+## Task 1: Scaffold the `@airtrafficcontrol/validation` package
 
 Create the package skeleton with proper configuration, dependencies, and empty source files.
 
@@ -18,7 +18,7 @@ Create the package skeleton with proper configuration, dependencies, and empty s
 
 ```json
 {
-  "name": "@atc/validation",
+  "name": "@airtrafficcontrol/validation",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -28,8 +28,8 @@ Create the package skeleton with proper configuration, dependencies, and empty s
     "build": "tsc --build"
   },
   "dependencies": {
-    "@atc/types": "workspace:*",
-    "@atc/errors": "workspace:*"
+    "@airtrafficcontrol/types": "workspace:*",
+    "@airtrafficcontrol/errors": "workspace:*"
   }
 }
 ```
@@ -70,7 +70,7 @@ export { canHoldControls, canPerformAction } from "./permissions.js";
 **`packages/validation/src/certification.ts`**
 
 ```typescript
-import type { Pilot } from "@atc/types";
+import type { Pilot } from "@airtrafficcontrol/types";
 
 /**
  * Checks whether a pilot holds a certification for the given craft category.
@@ -150,7 +150,7 @@ The simplest function in the package. A pure predicate over the pilot's certific
 
 ```typescript
 import { describe, it, expect } from "vitest";
-import type { Pilot } from "@atc/types";
+import type { Pilot } from "@airtrafficcontrol/types";
 import { isPilotCertified } from "./certification.js";
 
 describe("isPilotCertified", () => {
@@ -199,7 +199,7 @@ describe("isPilotCertified", () => {
 ### 2b. Implement: `packages/validation/src/certification.ts`
 
 ```typescript
-import type { Pilot } from "@atc/types";
+import type { Pilot } from "@airtrafficcontrol/types";
 
 /**
  * Checks whether a pilot holds a certification for the given craft category.
@@ -239,8 +239,8 @@ This file contains the three seat-related functions: `isValidSeatAssignment`, `v
 
 ```typescript
 import { describe, it, expect } from "vitest";
-import type { Pilot } from "@atc/types";
-import { SeatType } from "@atc/types";
+import type { Pilot } from "@airtrafficcontrol/types";
+import { SeatType } from "@airtrafficcontrol/types";
 import {
   isValidSeatAssignment,
   validateSeatAssignment,
@@ -402,9 +402,9 @@ describe("validateCraftCrew", () => {
 ### 3b. Implement: `packages/validation/src/seat.ts`
 
 ```typescript
-import type { Pilot } from "@atc/types";
-import { SeatType } from "@atc/types";
-import { SeatAssignmentError } from "@atc/errors";
+import type { Pilot } from "@airtrafficcontrol/types";
+import { SeatType } from "@airtrafficcontrol/types";
+import { SeatAssignmentError } from "@airtrafficcontrol/errors";
 import { isPilotCertified } from "./certification.js";
 
 /**
@@ -500,14 +500,14 @@ pnpm run test -- --reporter verbose packages/validation/src/seat.test.ts
 
 ## Task 4: `permissions.ts` — controls and action permissions (TDD)
 
-Two functions that query the PERMISSIONS matrix from `@atc/types`. Pure lookups, no throws.
+Two functions that query the PERMISSIONS matrix from `@airtrafficcontrol/types`. Pure lookups, no throws.
 
 ### 4a. Write tests first: `packages/validation/src/permissions.test.ts`
 
 ```typescript
 import { describe, it, expect } from "vitest";
-import { SeatType } from "@atc/types";
-import type { PilotAction } from "@atc/types";
+import { SeatType } from "@airtrafficcontrol/types";
+import type { PilotAction } from "@airtrafficcontrol/types";
 import { canHoldControls, canPerformAction } from "./permissions.js";
 
 // --- canHoldControls ---
@@ -581,8 +581,8 @@ describe("canPerformAction", () => {
 ### 4b. Implement: `packages/validation/src/permissions.ts`
 
 ```typescript
-import type { PilotAction } from "@atc/types";
-import { SeatType, PERMISSIONS } from "@atc/types";
+import type { PilotAction } from "@airtrafficcontrol/types";
+import { SeatType, PERMISSIONS } from "@airtrafficcontrol/types";
 
 /**
  * Checks whether a pilot in the given seat is allowed to hold controls.
@@ -622,7 +622,7 @@ pnpm run test -- --reporter verbose packages/validation/src/permissions.test.ts
 ### Acceptance Criteria
 
 - All 22 tests pass (3 for `canHoldControls`, 18 for `canPerformAction` via `it.each`, 1 cross-check).
-- Both functions delegate to the `PERMISSIONS` constant from `@atc/types` (no hardcoded logic).
+- Both functions delegate to the `PERMISSIONS` constant from `@airtrafficcontrol/types` (no hardcoded logic).
 - `canHoldControls` is a thin wrapper, not a separate implementation.
 - JSDoc references RULE-CTRL-2 and related rules.
 
@@ -705,13 +705,13 @@ All clean, zero warnings.
 ### Dependency Graph
 
 ```
-@atc/types (enums, interfaces, PERMISSIONS)
+@airtrafficcontrol/types (enums, interfaces, PERMISSIONS)
      |
      v
-@atc/errors (SeatAssignmentError, ControlsError)
+@airtrafficcontrol/errors (SeatAssignmentError, ControlsError)
      |
      v
-@atc/validation (this package)
+@airtrafficcontrol/validation (this package)
 ```
 
 ### Rules Enforced

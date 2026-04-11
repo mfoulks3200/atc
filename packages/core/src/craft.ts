@@ -1,7 +1,7 @@
-import type { Craft, Pilot, Vector, FlightPlan } from "@atc/types";
-import { CraftStatus, VectorStatus } from "@atc/types";
-import { CraftError } from "@atc/errors";
-import { validateCraftCrew } from "@atc/validation";
+import type { Craft, Pilot, Vector, FlightPlan } from "@airtrafficcontrol/types";
+import { CraftStatus, VectorStatus } from "@airtrafficcontrol/types";
+import { CraftError } from "@airtrafficcontrol/errors";
+import { validateCraftCrew } from "@airtrafficcontrol/validation";
 import { createInitialControls } from "./controls.js";
 
 /**
@@ -54,7 +54,7 @@ export function createCraft(params: CreateCraftParams): Craft {
   const firstOfficers = params.firstOfficers ?? [];
   const jumpseaters = params.jumpseaters ?? [];
 
-  // Validate crew certifications using @atc/validation
+  // Validate crew certifications using @airtrafficcontrol/validation
   // This checks RULE-SEAT-2, RULE-SEAT-3, RULE-CRAFT-5
   validateCraftCrew(params.captain, firstOfficers, params.category);
 

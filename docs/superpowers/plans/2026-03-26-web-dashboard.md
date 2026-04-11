@@ -1,4 +1,4 @@
-# @atc/web Dashboard Implementation Plan
+# @airtrafficcontrol/web Dashboard Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -94,7 +94,7 @@ packages/web/
 
 ```json
 {
-  "name": "@atc/web",
+  "name": "@airtrafficcontrol/web",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -224,7 +224,7 @@ Kill the server after verifying.
 
 ```bash
 git add packages/web tsconfig.json
-git commit -m "feat(web): scaffold @atc/web package with Vite, React, Tailwind"
+git commit -m "feat(web): scaffold @airtrafficcontrol/web package with Vite, React, Tailwind"
 ```
 
 ---

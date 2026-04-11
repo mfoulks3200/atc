@@ -1,4 +1,4 @@
-# @atc/daemon Changelog
+# @airtrafficcontrol/daemon Changelog
 
 ## Unreleased
 

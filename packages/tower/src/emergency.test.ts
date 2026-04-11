@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { CraftStatus, VectorStatus, ControlMode, BlackBoxEntryType } from "@atc/types";
-import type { Craft, BlackBoxEntry } from "@atc/types";
+import { CraftStatus, VectorStatus, ControlMode, BlackBoxEntryType } from "@airtrafficcontrol/types";
+import type { Craft, BlackBoxEntry } from "@airtrafficcontrol/types";
 import { createEmergencyReport } from "./emergency.js";
 
 /** Helper: build a minimal valid craft for testing. */

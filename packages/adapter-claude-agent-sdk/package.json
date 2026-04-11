@@ -1,5 +1,5 @@
 {
-  "name": "@atc/adapter-claude-agent-sdk",
+  "name": "@airtrafficcontrol/adapter-claude-agent-sdk",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -9,9 +9,9 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@atc/types": "workspace:*",
-    "@atc/errors": "workspace:*",
-    "@atc/daemon": "workspace:*",
+    "@airtrafficcontrol/types": "workspace:*",
+    "@airtrafficcontrol/errors": "workspace:*",
+    "@airtrafficcontrol/daemon": "workspace:*",
     "@anthropic-ai/sdk": "^0.52.0"
   },
   "devDependencies": {
