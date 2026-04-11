@@ -1,79 +1,29 @@
 import { useEffect, useState } from "react";
 import type { CraftState } from "@/types/api";
 import {
+  DURATION_COLOR,
   HERO_GEOMETRY,
   computeSegments,
   computeStats,
-  formatDuration,
-  pointAt,
+  durationText,
+  durationTone,
+  planeT,
   planeTransform,
+  pointAt,
+  segmentPath,
+  segmentStrokeClass,
+  waypointClass,
   type Segment,
 } from "./flight-plan-hero.utils.js";
 
-const DURATION_COLOR = {
-  passed: "#3a5a88",
-  pending: "#2e4468",
-  current: "#a88845",
-  failed: "#8a3a3a",
-} as const;
-
-/**
- * Builds the SVG arc path `d` attribute for a single segment on the shared circle.
- */
-function segmentPath(seg: Segment): string {
-  const start = pointAt(seg.tStart);
-  const end = pointAt(seg.tEnd);
-  const { r } = HERO_GEOMETRY;
-  return `M ${start.x} ${start.y} A ${r} ${r} 0 0 1 ${end.x} ${end.y}`;
-}
-
-function segmentStrokeClass(seg: Segment, craftStatus: string): string {
-  if (seg.status === "Failed") return "arc-failed";
-  if (seg.isCurrent) {
-    if (craftStatus === "Emergency") return "arc-current arc-emerg";
-    return "arc-current";
-  }
-  if (seg.status === "Passed") return "arc-passed";
-  return "arc-pending";
-}
-
-function waypointClass(seg: Segment): string {
-  if (seg.status === "Failed") return "waypoint-failed";
-  if (seg.isCurrent) return "waypoint-current";
-  if (seg.status === "Passed") return "waypoint-passed";
-  return "waypoint-pending";
-}
-
-/**
- * Determines where the plane should be positioned for the current craft state.
- * Returns a normalized t value along the arc, or null if the plane should be hidden.
- */
-function planeT(craft: CraftState, segments: Segment[]): number | null {
-  if (craft.status === "Taxiing") return 0;
-  if (craft.status === "Landed" || craft.status === "ReturnToOrigin") return 1;
-  const failed = segments.find((s) => s.status === "Failed");
-  if (failed) return failed.tEnd;
-  const current = segments.find((s) => s.isCurrent);
-  if (current) return (current.tStart + current.tEnd) / 2;
-  return null;
-}
-
-/**
- * Returns "passed" | "current" | "pending" | "failed" for duration coloring.
- */
-function durationTone(seg: Segment): keyof typeof DURATION_COLOR {
-  if (seg.status === "Failed") return "failed";
-  if (seg.isCurrent) return "current";
-  if (seg.status === "Passed") return "passed";
-  return "pending";
-}
-
-function durationText(seg: Segment): string {
-  if (seg.status === "Failed") return `${formatDuration(seg.durationMs)} · FAILED`;
-  if (seg.isCurrent) return `${formatDuration(seg.durationMs)} · NOW`;
-  if (seg.isEstimate) return `~${formatDuration(seg.durationMs)}`;
-  return formatDuration(seg.durationMs);
-}
+// TODO: Full component-level state-variant tests are deferred.
+// The long-term plan is to add @testing-library/react + jsdom to the web
+// package and test render output across state variants (Taxiing, InFlight,
+// GoAround, Emergency, Landed). See the flight-plan-hero implementation plan,
+// Task 10, option 1. For now, the component's internal helper functions
+// (segmentPath, segmentStrokeClass, waypointClass, planeT, durationTone,
+// durationText) are exported from flight-plan-hero.utils.ts and unit-tested
+// there without a DOM environment.
 
 export interface FlightPlanHeroProps {
   craft: CraftState;

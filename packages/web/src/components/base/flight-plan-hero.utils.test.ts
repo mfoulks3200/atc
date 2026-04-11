@@ -6,8 +6,16 @@ import {
   computeSegments,
   computeStats,
   formatDuration,
+  segmentPath,
+  segmentStrokeClass,
+  waypointClass,
+  planeT,
+  durationTone,
+  durationText,
+  DURATION_COLOR,
 } from "./flight-plan-hero.utils.js";
 import type { CraftState, VectorState } from "@/types/api";
+import type { Segment } from "./flight-plan-hero.utils.js";
 
 describe("HERO_GEOMETRY", () => {
   it("exposes fixed arc parameters", () => {
@@ -261,5 +269,182 @@ describe("computeStats", () => {
     expect(stats.eta).toBe("—");
     expect(stats.progress).toBe("0 / 2 VECTORS");
     expect(stats.statusLabel).toBe("TAXIING");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Helper: mkSeg
+// ---------------------------------------------------------------------------
+
+function mkSeg(overrides: Partial<Segment>): Segment {
+  return {
+    index: 0,
+    name: "v",
+    status: "Pending",
+    startMs: 0,
+    durationMs: 1000,
+    isCurrent: false,
+    isEstimate: false,
+    tStart: 0,
+    tEnd: 0.5,
+    ...overrides,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// segmentPath
+// ---------------------------------------------------------------------------
+
+describe("segmentPath", () => {
+  it("builds an arc path from tStart to tEnd on the shared circle", () => {
+    const seg = mkSeg({ tStart: 0, tEnd: 1 });
+    const d = segmentPath(seg);
+    // Should start at depart (226.32, 228.40) and end at land (673.68, 228.40)
+    expect(d).toMatch(/^M 226\.3\d+ 228\.\d+ A 400 400 0 0 1 673\.\d+ 228\.\d+$/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// segmentStrokeClass
+// ---------------------------------------------------------------------------
+
+describe("segmentStrokeClass", () => {
+  it("returns arc-failed for failed segments", () => {
+    expect(segmentStrokeClass(mkSeg({ status: "Failed" }), "GoAround")).toBe("arc-failed");
+  });
+
+  it("returns arc-current for the current segment", () => {
+    expect(segmentStrokeClass(mkSeg({ isCurrent: true }), "InFlight")).toBe("arc-current");
+  });
+
+  it("adds arc-emerg when craft is in Emergency", () => {
+    expect(segmentStrokeClass(mkSeg({ isCurrent: true }), "Emergency")).toBe("arc-current arc-emerg");
+  });
+
+  it("returns arc-passed for passed segments", () => {
+    expect(segmentStrokeClass(mkSeg({ status: "Passed" }), "InFlight")).toBe("arc-passed");
+  });
+
+  it("returns arc-pending for untouched pending segments", () => {
+    expect(segmentStrokeClass(mkSeg({ status: "Pending" }), "InFlight")).toBe("arc-pending");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// waypointClass
+// ---------------------------------------------------------------------------
+
+describe("waypointClass", () => {
+  it("maps each segment state to the right CSS class", () => {
+    expect(waypointClass(mkSeg({ status: "Failed" }))).toBe("waypoint-failed");
+    expect(waypointClass(mkSeg({ isCurrent: true }))).toBe("waypoint-current");
+    expect(waypointClass(mkSeg({ status: "Passed" }))).toBe("waypoint-passed");
+    expect(waypointClass(mkSeg({ status: "Pending" }))).toBe("waypoint-pending");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// planeT
+// ---------------------------------------------------------------------------
+
+describe("planeT", () => {
+  const now = new Date("2026-04-11T11:00:00.000Z").getTime();
+
+  it("returns 0 when the craft is Taxiing", () => {
+    const craft = mkCraft({
+      status: "Taxiing" as any,
+      flightPlan: [{ name: "v1", acceptanceCriteria: "", status: "Pending" }],
+    });
+    const segs = computeSegments(craft, now);
+    expect(planeT(craft, segs)).toBe(0);
+  });
+
+  it("returns 1 when the craft has Landed", () => {
+    const craft = mkCraft({
+      status: "Landed" as any,
+      flightPlan: [
+        { name: "v1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T05:00:00.000Z" },
+      ],
+    });
+    const segs = computeSegments(craft, now);
+    expect(planeT(craft, segs)).toBe(1);
+  });
+
+  it("returns the failed waypoint's tEnd when any vector is failed", () => {
+    const craft = mkCraft({
+      flightPlan: [
+        { name: "v1", acceptanceCriteria: "", status: "Failed", reportedAt: "2026-04-11T02:00:00.000Z" },
+        { name: "v2", acceptanceCriteria: "", status: "Pending" },
+      ],
+    });
+    const segs = computeSegments(craft, now);
+    expect(planeT(craft, segs)).toBe(segs[0].tEnd);
+  });
+
+  it("returns the midpoint of the current segment when in flight", () => {
+    const craft = mkCraft({
+      flightPlan: [
+        { name: "v1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" },
+        { name: "v2", acceptanceCriteria: "", status: "Pending" },
+      ],
+    });
+    const segs = computeSegments(craft, now);
+    const current = segs.find((s) => s.isCurrent)!;
+    expect(planeT(craft, segs)).toBeCloseTo((current.tStart + current.tEnd) / 2, 6);
+  });
+
+  it("returns null when there's nothing to show", () => {
+    const craft = mkCraft({
+      status: "InFlight" as any,
+      flightPlan: [
+        { name: "v1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" },
+      ],
+    });
+    const segs = computeSegments(craft, now);
+    expect(planeT(craft, segs)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// durationTone
+// ---------------------------------------------------------------------------
+
+describe("durationTone", () => {
+  it("maps each state to a DURATION_COLOR key", () => {
+    expect(durationTone(mkSeg({ status: "Failed" }))).toBe("failed");
+    expect(durationTone(mkSeg({ isCurrent: true }))).toBe("current");
+    expect(durationTone(mkSeg({ status: "Passed" }))).toBe("passed");
+    expect(durationTone(mkSeg({ status: "Pending" }))).toBe("pending");
+  });
+
+  it("DURATION_COLOR has a value for every tone", () => {
+    expect(DURATION_COLOR.passed).toBeTruthy();
+    expect(DURATION_COLOR.current).toBeTruthy();
+    expect(DURATION_COLOR.pending).toBeTruthy();
+    expect(DURATION_COLOR.failed).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// durationText
+// ---------------------------------------------------------------------------
+
+describe("durationText", () => {
+  it("appends FAILED suffix for failed segments", () => {
+    expect(durationText(mkSeg({ status: "Failed", durationMs: 2 * 3600_000 }))).toBe("2h 00m · FAILED");
+  });
+
+  it("appends NOW suffix for the current segment", () => {
+    expect(durationText(mkSeg({ isCurrent: true, durationMs: 3 * 3600_000 }))).toBe("3h 00m · NOW");
+  });
+
+  it("prefixes estimates with a tilde", () => {
+    expect(
+      durationText(mkSeg({ status: "Pending", isEstimate: true, durationMs: 2 * 3600_000 + 45 * 60_000 })),
+    ).toBe("~2h 45m");
+  });
+
+  it("returns plain formatted duration for measured passed segments", () => {
+    expect(durationText(mkSeg({ status: "Passed", durationMs: 5 * 3600_000 }))).toBe("5h 00m");
   });
 });

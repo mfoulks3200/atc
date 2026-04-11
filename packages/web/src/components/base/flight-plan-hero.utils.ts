@@ -281,3 +281,94 @@ export function computeStats(craft: CraftState, segments: Segment[], nowMs: numb
     statusTone: statusEntry.tone,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Component helper functions (extracted from flight-plan-hero.tsx)
+// ---------------------------------------------------------------------------
+
+export const DURATION_COLOR = {
+  passed: "#3a5a88",
+  pending: "#2e4468",
+  current: "#a88845",
+  failed: "#8a3a3a",
+} as const;
+
+/**
+ * Builds the SVG arc path `d` attribute for a single segment on the shared circle.
+ *
+ * @see RULE-VEC-1
+ */
+export function segmentPath(seg: Segment): string {
+  const start = pointAt(seg.tStart);
+  const end = pointAt(seg.tEnd);
+  const { r } = HERO_GEOMETRY;
+  return `M ${start.x} ${start.y} A ${r} ${r} 0 0 1 ${end.x} ${end.y}`;
+}
+
+/**
+ * Returns the CSS class string for a segment arc based on its status and the craft's status.
+ *
+ * @see RULE-VEC-1
+ */
+export function segmentStrokeClass(seg: Segment, craftStatus: string): string {
+  if (seg.status === "Failed") return "arc-failed";
+  if (seg.isCurrent) {
+    if (craftStatus === "Emergency") return "arc-current arc-emerg";
+    return "arc-current";
+  }
+  if (seg.status === "Passed") return "arc-passed";
+  return "arc-pending";
+}
+
+/**
+ * Returns the CSS class for a waypoint circle based on its segment's status.
+ *
+ * @see RULE-VEC-1
+ */
+export function waypointClass(seg: Segment): string {
+  if (seg.status === "Failed") return "waypoint-failed";
+  if (seg.isCurrent) return "waypoint-current";
+  if (seg.status === "Passed") return "waypoint-passed";
+  return "waypoint-pending";
+}
+
+/**
+ * Determines where the plane should be positioned for the current craft state.
+ * Returns a normalized t value along the arc, or null if the plane should be hidden.
+ *
+ * @see RULE-VEC-1
+ */
+export function planeT(craft: CraftState, segments: Segment[]): number | null {
+  if (craft.status === "Taxiing") return 0;
+  if (craft.status === "Landed" || craft.status === "ReturnToOrigin") return 1;
+  const failed = segments.find((s) => s.status === "Failed");
+  if (failed) return failed.tEnd;
+  const current = segments.find((s) => s.isCurrent);
+  if (current) return (current.tStart + current.tEnd) / 2;
+  return null;
+}
+
+/**
+ * Returns the duration color key for a segment based on its status.
+ *
+ * @see RULE-VEC-1
+ */
+export function durationTone(seg: Segment): keyof typeof DURATION_COLOR {
+  if (seg.status === "Failed") return "failed";
+  if (seg.isCurrent) return "current";
+  if (seg.status === "Passed") return "passed";
+  return "pending";
+}
+
+/**
+ * Builds the duration label text for a segment, including status suffixes and estimate prefix.
+ *
+ * @see RULE-VEC-1
+ */
+export function durationText(seg: Segment): string {
+  if (seg.status === "Failed") return `${formatDuration(seg.durationMs)} · FAILED`;
+  if (seg.isCurrent) return `${formatDuration(seg.durationMs)} · NOW`;
+  if (seg.isEstimate) return `~${formatDuration(seg.durationMs)}`;
+  return formatDuration(seg.durationMs);
+}
+
