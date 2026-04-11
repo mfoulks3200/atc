@@ -1,13 +1,10 @@
 /**
  * WebSocket message handler — routes incoming client messages to the
- * appropriate subsystem (channel registry or heartbeat tracker).
- *
- * This is the single entry point for all inbound WebSocket frames. It
- * dispatches on the message type and delegates to the relevant module,
- * keeping the concerns of pub/sub routing and heartbeat tracking
- * cleanly separated.
+ * appropriate subsystem: channel registry, heartbeat tracker, or
+ * global config store.
  */
 
+import { ConfigValidationError, UnknownConfigKeyError } from "@atc/errors";
 import type { WsClientMessage, WsServerMessage } from "../../types.js";
 import type { ChannelRegistry } from "./channels.js";
 import type { HeartbeatTracker } from "./heartbeat.js";
@@ -17,38 +14,113 @@ import type { GlobalConfig } from "../../config/schema.js";
 /**
  * Process a single incoming WebSocket message from a client.
  *
- * Handles all four message types in the {@link WsClientMessage} union:
- * - `"subscribe"` — registers the client for a channel pattern.
- * - `"unsubscribe"` — removes a channel registration.
- * - `"pong"` — acknowledges a server-initiated ping, resetting the missed count.
- * - `"ping"` — client-initiated keepalive; replied to immediately with a pong.
- *
- * @param message   - The parsed inbound message from the client.
- * @param clientId  - Unique identifier for the sending WebSocket client.
- * @param send      - Function that serializes and delivers a message back to the client.
- * @param channels  - The channel registry managing pub/sub subscriptions.
- * @param heartbeat - The heartbeat tracker monitoring client liveness.
+ * Dispatches on the message type. Config mutations are awaited; subscribe /
+ * unsubscribe / ping / pong are synchronous.
  */
-export function handleWsMessage(
+export async function handleWsMessage(
   message: WsClientMessage,
   clientId: string,
   send: (data: WsServerMessage) => void,
   channels: ChannelRegistry,
   heartbeat: HeartbeatTracker,
-  _globalConfigStore: LayeredConfigStore<GlobalConfig> | null = null,
-): void {
+  globalConfigStore: LayeredConfigStore<GlobalConfig> | null = null,
+): Promise<void> {
   switch (message.type) {
     case "subscribe":
       channels.subscribe(clientId, message.channel, send as (data: unknown) => void);
-      break;
+      return;
     case "unsubscribe":
       channels.unsubscribe(clientId, message.channel);
-      break;
+      return;
     case "pong":
       heartbeat.receivePong(clientId);
-      break;
+      return;
     case "ping":
       send({ type: "pong", timestamp: new Date().toISOString() });
-      break;
+      return;
+    case "config.patch":
+    case "config.replace":
+    case "config.unset":
+      await dispatchConfig(message, send, globalConfigStore);
+      return;
+  }
+}
+
+async function dispatchConfig(
+  message: Extract<
+    WsClientMessage,
+    { type: "config.patch" | "config.replace" | "config.unset" }
+  >,
+  send: (data: WsServerMessage) => void,
+  globalConfigStore: LayeredConfigStore<GlobalConfig> | null,
+): Promise<void> {
+  const { requestId } = message;
+
+  if (message.scope !== "global") {
+    send({
+      type: "config.ack",
+      requestId,
+      ok: false,
+      error: { code: "UNKNOWN_SCOPE", message: `Unknown config scope: ${String(message.scope)}` },
+    });
+    return;
+  }
+
+  if (globalConfigStore === null) {
+    send({
+      type: "config.ack",
+      requestId,
+      ok: false,
+      error: { code: "UNAVAILABLE", message: "Global config store not available" },
+    });
+    return;
+  }
+
+  try {
+    let merged: GlobalConfig;
+    if (message.type === "config.patch") {
+      merged = await globalConfigStore.patch(message.body as Partial<GlobalConfig>);
+    } else if (message.type === "config.replace") {
+      merged = await globalConfigStore.replace(message.body as GlobalConfig);
+    } else {
+      merged = await globalConfigStore.unset(
+        message.key as keyof GlobalConfig & string,
+      );
+    }
+    send({
+      type: "config.ack",
+      requestId,
+      ok: true,
+      config: merged as unknown as Record<string, unknown>,
+    });
+  } catch (err) {
+    if (err instanceof ConfigValidationError) {
+      send({
+        type: "config.ack",
+        requestId,
+        ok: false,
+        error: {
+          code: "INVALID_CONFIG",
+          message: err.message,
+          issues: err.issues as unknown[],
+        },
+      });
+      return;
+    }
+    if (err instanceof UnknownConfigKeyError) {
+      send({
+        type: "config.ack",
+        requestId,
+        ok: false,
+        error: { code: "UNKNOWN_CONFIG_KEY", message: err.message },
+      });
+      return;
+    }
+    send({
+      type: "config.ack",
+      requestId,
+      ok: false,
+      error: { code: "INTERNAL", message: (err as Error).message },
+    });
   }
 }

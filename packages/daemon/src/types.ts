@@ -243,7 +243,10 @@ export type WsClientMessage =
   | { type: "subscribe"; channel: string }
   | { type: "unsubscribe"; channel: string }
   | { type: "ping" }
-  | { type: "pong" };
+  | { type: "pong" }
+  | { type: "config.patch"; scope: "global"; body: Record<string, unknown>; requestId: string }
+  | { type: "config.replace"; scope: "global"; body: Record<string, unknown>; requestId: string }
+  | { type: "config.unset"; scope: "global"; key: string; requestId: string };
 
 /**
  * Discriminated union of all messages the daemon may push to WebSocket clients.
@@ -252,7 +255,19 @@ export type WsServerMessage =
   | { type: "connected"; sessionId: string }
   | WsEvent
   | { type: "ping" }
-  | { type: "pong"; timestamp: string };
+  | { type: "pong"; timestamp: string }
+  | {
+      type: "config.ack";
+      requestId: string;
+      ok: true;
+      config: Record<string, unknown>;
+    }
+  | {
+      type: "config.ack";
+      requestId: string;
+      ok: false;
+      error: { code: string; message: string; issues?: unknown[] };
+    };
 
 // ---------------------------------------------------------------------------
 // Usage reporting types
