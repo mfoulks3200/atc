@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { HERO_GEOMETRY, pointAt, planeTransform } from "./flight-plan-hero.utils.js";
+import { HERO_GEOMETRY, pointAt, planeTransform, computeSegments } from "./flight-plan-hero.utils.js";
+import type { CraftState, VectorState } from "@/types/api";
 
 describe("HERO_GEOMETRY", () => {
   it("exposes fixed arc parameters", () => {
@@ -61,5 +62,128 @@ describe("planeTransform", () => {
     const t = planeTransform(1);
     // At angle -56°, tangent heading ≈ 34°, plane rotation ≈ 124°.
     expect(t.rotateDeg).toBeCloseTo(124, 1);
+  });
+});
+
+function mkCraft(partial: Partial<CraftState> & { flightPlan: VectorState[] }): CraftState {
+  return {
+    callsign: "TEST-01",
+    createdAt: "2026-04-11T00:00:00.000Z",
+    branch: "TEST-01",
+    cargo: "test",
+    category: "test",
+    status: "InFlight" as any,
+    captain: "p1",
+    firstOfficers: [],
+    jumpseaters: [],
+    blackBox: [],
+    intercom: [],
+    controls: { mode: "exclusive", holder: "p1" },
+    ...partial,
+  };
+}
+
+describe("computeSegments", () => {
+  const now = new Date("2026-04-11T11:00:00.000Z").getTime();
+
+  it("computes measured durations for all passed vectors", () => {
+    const craft = mkCraft({
+      createdAt: "2026-04-11T00:00:00.000Z",
+      flightPlan: [
+        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" },
+        { name: "V2", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T03:00:00.000Z" },
+        { name: "V3", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T08:00:00.000Z" },
+      ],
+    });
+    const segs = computeSegments(craft, now);
+    expect(segs).toHaveLength(3);
+    expect(segs[0].durationMs).toBe(2 * 3600_000);
+    expect(segs[1].durationMs).toBe(1 * 3600_000);
+    expect(segs[2].durationMs).toBe(5 * 3600_000);
+    expect(segs.every((s) => s.status === "Passed")).toBe(true);
+    expect(segs.every((s) => !s.isCurrent)).toBe(true);
+  });
+
+  it("marks the first pending vector as current with live elapsed", () => {
+    const craft = mkCraft({
+      createdAt: "2026-04-11T00:00:00.000Z",
+      flightPlan: [
+        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" },
+        { name: "V2", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T08:00:00.000Z" },
+        { name: "V3", acceptanceCriteria: "", status: "Pending" },
+        { name: "V4", acceptanceCriteria: "", status: "Pending" },
+      ],
+    });
+    const segs = computeSegments(craft, now);
+    expect(segs[2].isCurrent).toBe(true);
+    // segment 3 starts at V2.reportedAt (08:00) and elapsed to now (11:00) = 3h
+    expect(segs[2].durationMs).toBe(3 * 3600_000);
+    expect(segs[3].isCurrent).toBe(false);
+  });
+
+  it("uses average of measured segments for pending estimates", () => {
+    const craft = mkCraft({
+      createdAt: "2026-04-11T00:00:00.000Z",
+      flightPlan: [
+        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" }, // 2h
+        { name: "V2", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T08:00:00.000Z" }, // 6h
+        { name: "V3", acceptanceCriteria: "", status: "Pending" }, // current, 3h elapsed at now
+        { name: "V4", acceptanceCriteria: "", status: "Pending" }, // avg = (2+6+3)/3 = 3.67h
+      ],
+    });
+    const segs = computeSegments(craft, now);
+    const avgMs = ((2 + 6 + 3) / 3) * 3600_000;
+    expect(segs[3].durationMs).toBeCloseTo(avgMs, -2);
+    expect(segs[3].isEstimate).toBe(true);
+  });
+
+  it("falls back to equal weights when no measured segments exist (Taxiing)", () => {
+    const craft = mkCraft({
+      createdAt: "2026-04-11T00:00:00.000Z",
+      status: "Taxiing" as any,
+      flightPlan: [
+        { name: "V1", acceptanceCriteria: "", status: "Pending" },
+        { name: "V2", acceptanceCriteria: "", status: "Pending" },
+        { name: "V3", acceptanceCriteria: "", status: "Pending" },
+      ],
+    });
+    const segs = computeSegments(craft, now);
+    expect(segs[0].durationMs).toBe(segs[1].durationMs);
+    expect(segs[1].durationMs).toBe(segs[2].durationMs);
+    expect(segs.every((s) => s.isEstimate)).toBe(true);
+    // Taxiing has no current segment
+    expect(segs.every((s) => !s.isCurrent)).toBe(true);
+  });
+
+  it("includes failed segments in the average", () => {
+    const craft = mkCraft({
+      createdAt: "2026-04-11T00:00:00.000Z",
+      flightPlan: [
+        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T04:00:00.000Z" }, // 4h
+        { name: "V2", acceptanceCriteria: "", status: "Failed", reportedAt: "2026-04-11T06:00:00.000Z" }, // 2h
+        { name: "V3", acceptanceCriteria: "", status: "Pending" },
+      ],
+    });
+    const segs = computeSegments(craft, now);
+    expect(segs[1].status).toBe("Failed");
+    // average of measured = (4+2)/2 = 3h
+    expect(segs[2].durationMs).toBeCloseTo(3 * 3600_000, -2);
+  });
+
+  it("produces monotonic normalized t values that sum to 1", () => {
+    const craft = mkCraft({
+      createdAt: "2026-04-11T00:00:00.000Z",
+      flightPlan: [
+        { name: "V1", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T02:00:00.000Z" },
+        { name: "V2", acceptanceCriteria: "", status: "Passed", reportedAt: "2026-04-11T03:00:00.000Z" },
+        { name: "V3", acceptanceCriteria: "", status: "Pending" },
+      ],
+    });
+    const segs = computeSegments(craft, now);
+    expect(segs[0].tStart).toBe(0);
+    expect(segs[segs.length - 1].tEnd).toBeCloseTo(1, 6);
+    for (let i = 1; i < segs.length; i++) {
+      expect(segs[i].tStart).toBe(segs[i - 1].tEnd);
+    }
   });
 });
