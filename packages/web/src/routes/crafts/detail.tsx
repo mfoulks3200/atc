@@ -9,6 +9,7 @@ import { CrewMember } from "@/components/base/crew-member";
 import { BlackBoxEntryRow } from "@/components/base/black-box-entry";
 import { IntercomMessage } from "@/components/base/intercom-message";
 import { ChecklistRunCard } from "@/components/base/checklist-run-card";
+import { FlightPlanHero } from "@/components/base/flight-plan-hero";
 import type { ChecklistRunResult } from "@/types/checklist";
 
 function groupRunsByChecklist(
@@ -66,6 +67,9 @@ export function Component() {
           <div>Controls: <span style={{ color: "var(--accent-green)" }}>{craft.controls.mode.toUpperCase()}</span></div>
           {craft.controls.holder && <div className="mt-0.5">Holder: <span style={{ color: "var(--text-secondary)" }}>{craft.controls.holder}</span></div>}
         </div>
+      </div>
+      <div className="mt-4">
+        <FlightPlanHero craft={craft} />
       </div>
       <div className="mt-4 grid grid-cols-2 gap-4">
         <div className="rounded-md border p-3.5" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}>
