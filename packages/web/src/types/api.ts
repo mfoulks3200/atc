@@ -67,6 +67,7 @@ export interface IntercomMessage {
 
 export interface CraftState {
   callsign: string;
+  createdAt: string;
   branch: string;
   cargo: string;
   category: string;
