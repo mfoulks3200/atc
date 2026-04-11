@@ -3,6 +3,7 @@ import type { CraftState } from "@/types/api";
 import {
   HERO_GEOMETRY,
   computeSegments,
+  computeStats,
   formatDuration,
   pointAt,
   planeTransform,
@@ -26,9 +27,12 @@ function segmentPath(seg: Segment): string {
   return `M ${start.x} ${start.y} A ${r} ${r} 0 0 1 ${end.x} ${end.y}`;
 }
 
-function segmentStrokeClass(seg: Segment): string {
+function segmentStrokeClass(seg: Segment, craftStatus: string): string {
   if (seg.status === "Failed") return "arc-failed";
-  if (seg.isCurrent) return "arc-current";
+  if (seg.isCurrent) {
+    if (craftStatus === "Emergency") return "arc-current arc-emerg";
+    return "arc-current";
+  }
   if (seg.status === "Passed") return "arc-passed";
   return "arc-pending";
 }
@@ -87,6 +91,15 @@ export function FlightPlanHero({ craft }: FlightPlanHeroProps) {
   }, [craft.status]);
 
   const segments = computeSegments(craft, now);
+  const stats = computeStats(craft, segments, now);
+  const statusColor =
+    stats.statusTone === "amber"
+      ? "var(--accent-yellow)"
+      : stats.statusTone === "red"
+        ? "var(--accent-red)"
+        : stats.statusTone === "green"
+          ? "var(--accent-green)"
+          : "var(--text-muted)";
   const { viewBox, cx, cy } = HERO_GEOMETRY;
   const planePosT = planeT(craft, segments);
   const plane = planePosT !== null ? planeTransform(planePosT) : null;
@@ -147,6 +160,15 @@ export function FlightPlanHero({ craft }: FlightPlanHeroProps) {
             .vname-failed  { fill: var(--accent-red); }
             .vname-done    { fill: var(--accent-green); }
             .vtime       { font-size: 8px; letter-spacing: 0.05em; font-family: var(--font-mono); }
+            .stat-lbl { fill: var(--text-dim); font-size: 8px; letter-spacing: 0.18em;
+              font-family: var(--font-mono); }
+            .stat-val { fill: var(--text-primary); font-size: 13px; font-weight: 600;
+              font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+            @keyframes fph-emerg-pulse {
+              0%, 100% { opacity: 1; }
+              50%      { opacity: 0.45; }
+            }
+            .arc-emerg { animation: fph-emerg-pulse 1.2s ease-in-out infinite; }
           `}</style>
         </defs>
 
@@ -167,7 +189,11 @@ export function FlightPlanHero({ craft }: FlightPlanHeroProps) {
 
         {/* arc segments */}
         {segments.map((seg) => (
-          <path key={`seg-${seg.index}`} className={segmentStrokeClass(seg)} d={segmentPath(seg)} />
+          <path
+            key={`seg-${seg.index}`}
+            className={segmentStrokeClass(seg, craft.status)}
+            d={segmentPath(seg)}
+          />
         ))}
 
         {/* depart marker */}
@@ -247,6 +273,39 @@ export function FlightPlanHero({ craft }: FlightPlanHeroProps) {
             </g>
           );
         })}
+        {/* four-corner stats */}
+        <g transform="translate(30, 25)">
+          <text className="stat-lbl" y={0}>
+            {stats.elapsedLabel}
+          </text>
+          <text className="stat-val" y={16}>
+            {stats.elapsed}
+          </text>
+        </g>
+        <g transform={`translate(${viewBox.w - 30}, 25)`} textAnchor="end">
+          <text className="stat-lbl" y={0}>
+            ETA
+          </text>
+          <text className="stat-val" y={16}>
+            {stats.eta}
+          </text>
+        </g>
+        <g transform="translate(30, 290)">
+          <text className="stat-lbl" y={0}>
+            PROGRESS
+          </text>
+          <text className="stat-val" y={16} fill="var(--text-muted)">
+            {stats.progress}
+          </text>
+        </g>
+        <g transform={`translate(${viewBox.w - 30}, 290)`} textAnchor="end">
+          <text className="stat-lbl" y={0}>
+            STATUS
+          </text>
+          <text className="stat-val" y={16} fill={statusColor}>
+            {stats.statusLabel}
+          </text>
+        </g>
       </svg>
     </div>
   );
