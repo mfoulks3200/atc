@@ -129,3 +129,175 @@ export function computeCraftTrack(input: ComputeTrackInput): CraftTrack {
     currentVectorIndex: planeIndex,
   };
 }
+
+/** Input to the label placement resolver — one per craft label to be placed. */
+export interface LabelInput {
+  callsign: string;
+  /** Plane position the label is attached to. */
+  anchor: TrackPoint;
+  /** Inbound heading in SVG degrees (0 = east, 90 = south). */
+  headingDeg: number;
+  /** Rendered label bounding box, in px. */
+  bbox: { width: number; height: number };
+}
+
+/** A line segment of a craft's route, used for label collision avoidance. */
+export interface RouteSegment {
+  /** Callsign of the craft that owns this segment. */
+  callsign: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+/** Resolved label placement in SVG coordinates, ready to render. */
+export interface ResolvedLabel {
+  callsign: string;
+  /** Leader-line attachment point in SVG coordinates. */
+  x: number;
+  y: number;
+  textAnchor: "start" | "end";
+}
+
+interface PlacedBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const MIN_DISTANCE = 36;
+const MAX_DISTANCE = 120;
+const DISTANCE_STEP = 4;
+const PADDING = 4;
+
+/**
+ * Deterministic label placement resolver. For each label, searches along the
+ * two perpendiculars of the craft's heading, stepping outward from MIN to MAX
+ * distance, rejecting candidates that overlap an already-placed label box or
+ * a route segment belonging to another craft. Input order is preserved.
+ */
+export function resolveLabelPlacements(
+  labels: LabelInput[],
+  segments: RouteSegment[],
+): ResolvedLabel[] {
+  const placed: PlacedBox[] = [];
+  const results: ResolvedLabel[] = [];
+
+  for (const label of labels) {
+    const headingRad = (label.headingDeg * Math.PI) / 180;
+    // Perpendicular unit vectors (two sides).
+    const perps: Array<{ dx: number; dy: number }> = [
+      { dx: -Math.sin(headingRad), dy: Math.cos(headingRad) },
+      { dx: Math.sin(headingRad), dy: -Math.cos(headingRad) },
+    ];
+
+    let chosen: ResolvedLabel | null = null;
+    let chosenBox: PlacedBox | null = null;
+
+    outer: for (let dist = MIN_DISTANCE; dist <= MAX_DISTANCE; dist += DISTANCE_STEP) {
+      for (const p of perps) {
+        const cx = label.anchor.x + p.dx * dist;
+        const cy = label.anchor.y + p.dy * dist;
+        const box: PlacedBox = {
+          x: cx - label.bbox.width / 2 - PADDING,
+          y: cy - label.bbox.height / 2 - PADDING,
+          width: label.bbox.width + PADDING * 2,
+          height: label.bbox.height + PADDING * 2,
+        };
+        if (placed.some((other) => boxesOverlap(box, other))) continue;
+        if (
+          segments.some(
+            (seg) => seg.callsign !== label.callsign && segmentIntersectsBox(seg, box),
+          )
+        ) {
+          continue;
+        }
+        chosen = {
+          callsign: label.callsign,
+          x: cx,
+          y: cy,
+          textAnchor: pickTextAnchor(cx - label.anchor.x, cy - label.anchor.y),
+        };
+        chosenBox = box;
+        break outer;
+      }
+    }
+
+    if (!chosen || !chosenBox) {
+      // Graceful fallback: max-distance on first perpendicular, no rejection.
+      const p = perps[0];
+      const cx = label.anchor.x + p.dx * MAX_DISTANCE;
+      const cy = label.anchor.y + p.dy * MAX_DISTANCE;
+      chosen = {
+        callsign: label.callsign,
+        x: cx,
+        y: cy,
+        textAnchor: pickTextAnchor(cx - label.anchor.x, cy - label.anchor.y),
+      };
+      chosenBox = {
+        x: cx - label.bbox.width / 2 - PADDING,
+        y: cy - label.bbox.height / 2 - PADDING,
+        width: label.bbox.width + PADDING * 2,
+        height: label.bbox.height + PADDING * 2,
+      };
+    }
+
+    results.push(chosen);
+    placed.push(chosenBox);
+  }
+
+  return results;
+}
+
+function pickTextAnchor(offX: number, offY: number): "start" | "end" {
+  if (offX > 0 && offY >= 0 && Math.abs(offX) > Math.abs(offY)) return "start";
+  return "end";
+}
+
+function boxesOverlap(a: PlacedBox, b: PlacedBox): boolean {
+  return !(
+    a.x + a.width <= b.x ||
+    b.x + b.width <= a.x ||
+    a.y + a.height <= b.y ||
+    b.y + b.height <= a.y
+  );
+}
+
+function segmentIntersectsBox(seg: RouteSegment, box: PlacedBox): boolean {
+  // Cheap AABB reject.
+  const segMinX = Math.min(seg.x1, seg.x2);
+  const segMaxX = Math.max(seg.x1, seg.x2);
+  const segMinY = Math.min(seg.y1, seg.y2);
+  const segMaxY = Math.max(seg.y1, seg.y2);
+  if (segMaxX < box.x || segMinX > box.x + box.width) return false;
+  if (segMaxY < box.y || segMinY > box.y + box.height) return false;
+  // Liang-Barsky clip of segment against box.
+  let t0 = 0;
+  let t1 = 1;
+  const dx = seg.x2 - seg.x1;
+  const dy = seg.y2 - seg.y1;
+  const p = [-dx, dx, -dy, dy];
+  const q = [
+    seg.x1 - box.x,
+    box.x + box.width - seg.x1,
+    seg.y1 - box.y,
+    box.y + box.height - seg.y1,
+  ];
+  for (let i = 0; i < 4; i++) {
+    if (p[i] === 0) {
+      if (q[i] < 0) return false;
+    } else {
+      const t = q[i] / p[i];
+      if (p[i] < 0) {
+        if (t > t1) return false;
+        if (t > t0) t0 = t;
+      } else {
+        if (t < t0) return false;
+        if (t < t1) t1 = t;
+      }
+    }
+  }
+  return true;
+}

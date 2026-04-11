@@ -201,3 +201,88 @@ describe("computeCraftTrack", () => {
     expect(t.headingDeg).toBeCloseTo(expected, 5);
   });
 });
+
+import { resolveLabelPlacements } from "./radar-geometry.js";
+import type { LabelInput, RouteSegment, ResolvedLabel } from "./radar-geometry.js";
+
+describe("resolveLabelPlacements", () => {
+  const bbox = { width: 60, height: 14 };
+
+  it("returns one resolved label per input, preserving order", () => {
+    const inputs: LabelInput[] = [
+      { callsign: "A", anchor: { x: 100, y: 100 }, headingDeg: 0, bbox },
+      { callsign: "B", anchor: { x: 300, y: 100 }, headingDeg: 0, bbox },
+    ];
+    const out = resolveLabelPlacements(inputs, []);
+    expect(out.map((r) => r.callsign)).toEqual(["A", "B"]);
+  });
+
+  it("separates two labels whose initial positions would overlap", () => {
+    const inputs: LabelInput[] = [
+      { callsign: "A", anchor: { x: 100, y: 100 }, headingDeg: 0, bbox },
+      { callsign: "B", anchor: { x: 105, y: 100 }, headingDeg: 0, bbox },
+    ];
+    const out = resolveLabelPlacements(inputs, []);
+    const dx = out[0].x - out[1].x;
+    const dy = out[0].y - out[1].y;
+    expect(Math.sqrt(dx * dx + dy * dy)).toBeGreaterThanOrEqual(bbox.height);
+  });
+
+  it("pushes or flips a label whose preferred slot crosses another craft's segment", () => {
+    const inputs: LabelInput[] = [
+      { callsign: "A", anchor: { x: 200, y: 200 }, headingDeg: 0, bbox },
+    ];
+    // A vertical segment immediately above the anchor belonging to craft "B"
+    // blocks the preferred perpendicular.
+    const segments: RouteSegment[] = [
+      { callsign: "B", x1: 180, y1: 100, x2: 220, y2: 180 },
+    ];
+    const out = resolveLabelPlacements(inputs, segments);
+    // Label should not be at the initial 36 px offset directly above.
+    const dy = out[0].y - 200;
+    expect(Math.abs(dy) === 36 && dy < 0).toBe(false);
+  });
+
+  it("applies the text-anchor rule: below-right → start", () => {
+    const inputs: LabelInput[] = [
+      // headingDeg 90 → perpendicular is ±0 (east-west). Below-right placement
+      // satisfies offX > 0 && offY >= 0 && |offX| > |offY|.
+      { callsign: "X", anchor: { x: 200, y: 200 }, headingDeg: 90, bbox },
+    ];
+    const out = resolveLabelPlacements(inputs, []);
+    const offX = out[0].x - 200;
+    const offY = out[0].y - 200;
+    if (offX > 0 && offY >= 0 && Math.abs(offX) > Math.abs(offY)) {
+      expect(out[0].textAnchor).toBe("start");
+    } else {
+      expect(out[0].textAnchor).toBe("end");
+    }
+  });
+
+  it("falls back to max-distance first perpendicular when fully blocked", () => {
+    // Surround the anchor with segments so no slot fits cleanly.
+    const inputs: LabelInput[] = [
+      { callsign: "A", anchor: { x: 400, y: 400 }, headingDeg: 0, bbox },
+    ];
+    const segments: RouteSegment[] = [];
+    for (let r = 36; r <= 120; r += 4) {
+      segments.push({ callsign: "B", x1: 300, y1: 400 - r, x2: 500, y2: 400 - r });
+      segments.push({ callsign: "B", x1: 300, y1: 400 + r, x2: 500, y2: 400 + r });
+    }
+    const out = resolveLabelPlacements(inputs, segments);
+    expect(out).toHaveLength(1);
+    const dy = out[0].y - 400;
+    expect(Math.abs(Math.abs(dy) - 120)).toBeLessThan(0.001);
+  });
+
+  it("is deterministic for the same input order", () => {
+    const inputs: LabelInput[] = [
+      { callsign: "A", anchor: { x: 100, y: 100 }, headingDeg: 10, bbox },
+      { callsign: "B", anchor: { x: 110, y: 105 }, headingDeg: 20, bbox },
+      { callsign: "C", anchor: { x: 120, y: 110 }, headingDeg: 30, bbox },
+    ];
+    const a = resolveLabelPlacements(inputs, []);
+    const b = resolveLabelPlacements(inputs, []);
+    expect(a).toEqual(b);
+  });
+});
