@@ -30,20 +30,22 @@ describe("runChecklist", () => {
     expect(result.items[0].durationMs).toBeGreaterThanOrEqual(0);
   });
 
-  it("stops after first failure and returns passed: false with only 1 item", async () => {
+  it("runs all items even when one fails and returns passed: false (RULE-CHKL-4)", async () => {
     const cwd = await makeTmpDir();
     const items: ChecklistItemConfig[] = [
       { name: "fail step", command: "exit 1" },
-      { name: "should not run", command: "echo skipped" },
+      { name: "still runs", command: "echo ok" },
     ];
 
     const result = await runChecklist(items, cwd);
 
     expect(result.passed).toBe(false);
-    expect(result.items).toHaveLength(1);
+    expect(result.items).toHaveLength(2);
     expect(result.items[0].passed).toBe(false);
     expect(result.items[0].name).toBe("fail step");
     expect(result.items[0].error).toBeDefined();
+    expect(result.items[1].passed).toBe(true);
+    expect(result.items[1].name).toBe("still runs");
   });
 
   it("captures stderr on failure", async () => {

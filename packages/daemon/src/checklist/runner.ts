@@ -2,13 +2,14 @@
  * Checklist runner for @airtrafficcontrol/daemon.
  *
  * Executes a sequence of shell commands representing the landing checklist.
- * Each item is run sequentially; the first failure stops execution per
- * RULE-LCHK-3 (any failure triggers a go-around).
+ * All items are run sequentially regardless of individual failures, matching
+ * the behavior of the core checklist package. Pass/fail is determined by
+ * aggregation: any failed item means the overall checklist failed.
  *
+ * @see RULE-CHKL-4 Required failures block, advisory failures don't.
+ * @see RULE-CHKL-7 Items execute sequentially in order.
  * @see RULE-LCHK-1 Checklist executed by pilot holding controls.
  * @see RULE-LCHK-2 All items must pass for landing clearance request.
- * @see RULE-LCHK-3 Any failure triggers a go-around.
- * @see RULE-LCHK-4 Checklist is project-configurable.
  */
 
 import { exec } from "node:child_process";
@@ -95,14 +96,16 @@ function runItem(item: ChecklistItemConfig, cwd: string): Promise<ChecklistItemR
 /**
  * Runs each checklist item sequentially in the given working directory.
  *
- * Stops on the first failure and includes that failing item in the results
- * (per RULE-LCHK-3). Items after the first failure are not executed.
+ * All items are executed regardless of individual failures. The overall
+ * result is `passed: true` only if every item passed. This aligns with
+ * the core checklist package's behavior of running all items and
+ * aggregating results.
  *
  * @param items - Ordered list of checklist items to execute.
  * @param cwd - Working directory passed to each shell command.
  * @returns A `ChecklistResult` with `passed: true` only if all items passed.
  *
- * @see RULE-LCHK-3
+ * @see RULE-CHKL-4, RULE-CHKL-7
  */
 export async function runChecklist(
   items: ChecklistItemConfig[],
@@ -113,11 +116,9 @@ export async function runChecklist(
   for (const item of items) {
     const result = await runItem(item, cwd);
     results.push(result);
-
-    if (!result.passed) {
-      return { passed: false, items: results };
-    }
   }
 
-  return { passed: true, items: results };
+  const passed = results.every((r) => r.passed);
+
+  return { passed, items: results };
 }
