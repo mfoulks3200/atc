@@ -4,4 +4,5 @@ dist
 .worktrees
 .superpowers
 .claude/worktrees
+.claude/settings.local.json
 *.generated.json
