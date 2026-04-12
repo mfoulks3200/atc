@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: "/projects", label: "Projects", icon: "⊡" },
   { to: "/pilots", label: "Pilots", icon: "◇" },
   { to: "/events", label: "Event Stream", icon: "≋" },
+  { to: "/settings", label: "Settings", icon: "⚙" },
 ];
 
 function ProjectNav({ name }: { name: string }) {
@@ -59,9 +60,42 @@ function ProjectNav({ name }: { name: string }) {
   );
 }
 
+const SETTINGS_NAV = [
+  { to: "/settings/general", label: "General" },
+  { to: "/settings/profile", label: "Profile" },
+  { to: "/settings/about", label: "About" },
+];
+
+function SettingsNav() {
+  return (
+    <nav className="border-t px-4 py-3" style={{ borderColor: "var(--border)" }}>
+      <div
+        className="mb-2 text-[9px] uppercase tracking-widest"
+        style={{ color: "var(--text-dim)" }}
+      >
+        SETTINGS
+      </div>
+      {SETTINGS_NAV.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          className="mb-1 block rounded-md px-2 py-1.5 text-xs no-underline"
+          style={({ isActive }) => ({
+            color: isActive ? "var(--accent-green)" : "var(--text-muted)",
+            backgroundColor: isActive ? "var(--bg-elevated)" : "transparent",
+          })}
+        >
+          {item.label}
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
+
 export function Sidebar() {
   const projectMatch = useMatch("/projects/:name/*");
   const projectName = projectMatch?.params.name;
+  const settingsMatch = useMatch("/settings/*");
 
   return (
     <aside
@@ -103,6 +137,7 @@ export function Sidebar() {
         ))}
       </nav>
       {projectName && <ProjectNav name={projectName} />}
+      {settingsMatch && <SettingsNav />}
     </aside>
   );
 }

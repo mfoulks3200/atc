@@ -1,0 +1,23 @@
+import { PageHeader } from "@/components/base/page-header";
+import { useParams } from "react-router";
+
+export function Component() {
+  const { name } = useParams<{ name: string }>();
+  return (
+    <div>
+      <PageHeader
+        crumbs={[{ label: "Settings", to: "/settings" }, { label: name! }, { label: "General" }]}
+      />
+      <div className="mt-5">
+        <div
+          className="rounded-md border p-4"
+          style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}
+        >
+          <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Project settings coming soon.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
