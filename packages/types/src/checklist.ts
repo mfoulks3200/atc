@@ -1,3 +1,4 @@
+import type { CraftCategory } from "./enums.js";
 import type { LifecycleEvent } from "./events.js";
 
 /**
@@ -73,7 +74,7 @@ export interface ChecklistBinding {
   /** The lifecycle event that triggers this checklist. */
   readonly event: LifecycleEvent;
   /** Craft category this applies to. "*" matches all categories. */
-  readonly craftCategory: string;
+  readonly craftCategory: CraftCategory | "*";
 }
 
 /**

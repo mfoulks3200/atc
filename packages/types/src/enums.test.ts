@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CraftStatus, SeatType, ControlMode, VectorStatus, BlackBoxEntryType } from "./enums.js";
+import { CraftStatus, SeatType, ControlMode, VectorStatus, BlackBoxEntryType, CraftCategoryEnum } from "./enums.js";
 
 describe("CraftStatus", () => {
   it("has exactly 8 states", () => {
@@ -51,6 +51,19 @@ describe("VectorStatus", () => {
     expect(VectorStatus.Pending).toBe("Pending");
     expect(VectorStatus.Passed).toBe("Passed");
     expect(VectorStatus.Failed).toBe("Failed");
+  });
+});
+
+describe("CraftCategoryEnum", () => {
+  it("has exactly 4 built-in categories", () => {
+    expect(Object.values(CraftCategoryEnum)).toHaveLength(4);
+  });
+
+  it("contains all built-in categories (RULE-CRAFT-4)", () => {
+    expect(CraftCategoryEnum.BackendEngineering).toBe("Backend Engineering");
+    expect(CraftCategoryEnum.FrontendEngineering).toBe("Frontend Engineering");
+    expect(CraftCategoryEnum.Infrastructure).toBe("Infrastructure");
+    expect(CraftCategoryEnum.Documentation).toBe("Documentation");
   });
 });
 

@@ -1,4 +1,4 @@
-import type { Pilot } from "@airtrafficcontrol/types";
+import type { Pilot, CraftCategory } from "@airtrafficcontrol/types";
 
 /**
  * Checks whether a pilot holds a certification for the given craft category.
@@ -11,6 +11,6 @@ import type { Pilot } from "@airtrafficcontrol/types";
  * @returns `true` if the pilot's certifications include the category.
  * @see RULE-PILOT-2
  */
-export function isPilotCertified(pilot: Pilot, category: string): boolean {
+export function isPilotCertified(pilot: Pilot, category: CraftCategory): boolean {
   return pilot.certifications.includes(category);
 }

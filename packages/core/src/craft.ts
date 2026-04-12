@@ -1,4 +1,4 @@
-import type { Craft, Pilot, Vector, FlightPlan } from "@airtrafficcontrol/types";
+import type { Craft, Pilot, Vector, FlightPlan, CraftCategory } from "@airtrafficcontrol/types";
 import { CraftStatus, VectorStatus } from "@airtrafficcontrol/types";
 import { CraftError } from "@airtrafficcontrol/errors";
 import { validateCraftCrew } from "@airtrafficcontrol/validation";
@@ -15,7 +15,7 @@ export interface CreateCraftParams {
   /** Description of the change and its scope. @see RULE-CRAFT-3 */
   readonly cargo: string;
   /** Classification of change type. @see RULE-CRAFT-4 */
-  readonly category: string;
+  readonly category: CraftCategory;
   /** Pilot-in-command. Must be certified for the category. @see RULE-CRAFT-5, RULE-SEAT-2 */
   readonly captain: Pilot;
   /** Certified assistant pilots. @see RULE-SEAT-2 */

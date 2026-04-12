@@ -1,4 +1,4 @@
-import type { Pilot } from "@airtrafficcontrol/types";
+import type { Pilot, CraftCategory } from "@airtrafficcontrol/types";
 import { SeatType } from "@airtrafficcontrol/types";
 import { SeatAssignmentError } from "@airtrafficcontrol/errors";
 import { isPilotCertified } from "./certification.js";
@@ -18,7 +18,7 @@ import { isPilotCertified } from "./certification.js";
 export function isValidSeatAssignment(
   pilot: Pilot,
   seat: SeatType,
-  craftCategory: string,
+  craftCategory: CraftCategory,
 ): boolean {
   if (seat === SeatType.Jumpseat) {
     return true;
@@ -37,7 +37,7 @@ export function isValidSeatAssignment(
  * @throws {SeatAssignmentError} If the pilot is not certified for the seat.
  * @see RULE-SEAT-2, RULE-SEAT-3
  */
-export function validateSeatAssignment(pilot: Pilot, seat: SeatType, craftCategory: string): void {
+export function validateSeatAssignment(pilot: Pilot, seat: SeatType, craftCategory: CraftCategory): void {
   if (!isValidSeatAssignment(pilot, seat, craftCategory)) {
     throw new SeatAssignmentError(
       `Pilot "${pilot.identifier}" is not certified for category "${craftCategory}" ` +
@@ -64,7 +64,7 @@ export function validateSeatAssignment(pilot: Pilot, seat: SeatType, craftCatego
 export function validateCraftCrew(
   captain: Pilot,
   firstOfficers: readonly Pilot[],
-  craftCategory: string,
+  craftCategory: CraftCategory,
 ): void {
   validateSeatAssignment(captain, SeatType.Captain, craftCategory);
 

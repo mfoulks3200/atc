@@ -59,6 +59,36 @@ export enum VectorStatus {
 }
 
 /**
+ * Built-in craft categories representing common types of change.
+ *
+ * Categories are project-configurable per the spec, so this enum provides
+ * the known defaults. Custom string categories are permitted at the type
+ * level via the {@link CraftCategory} union.
+ *
+ * @see RULE-CRAFT-4
+ */
+export enum CraftCategoryEnum {
+  /** Backend systems, APIs, data processing. */
+  BackendEngineering = "Backend Engineering",
+  /** User interfaces, browser-side code. */
+  FrontendEngineering = "Frontend Engineering",
+  /** CI/CD, deployment, cloud resources. */
+  Infrastructure = "Infrastructure",
+  /** Written docs, guides, specs. */
+  Documentation = "Documentation",
+}
+
+/**
+ * A craft category is either a built-in enum value or a custom project-defined string.
+ *
+ * This keeps type-safety for known categories while allowing project-level
+ * configuration of additional categories per the spec.
+ *
+ * @see RULE-CRAFT-4
+ */
+export type CraftCategory = CraftCategoryEnum | (string & {});
+
+/**
  * Types of black box log entries.
  * @see RULE-BBOX-1 through RULE-BBOX-4
  */

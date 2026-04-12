@@ -1,3 +1,4 @@
+import type { CraftCategory } from "./enums.js";
 import { CraftStatus, SeatType, ControlMode, VectorStatus, BlackBoxEntryType } from "./enums.js";
 
 /**
@@ -51,7 +52,7 @@ export interface Pilot {
   /** Unique identifier for the pilot agent. @see RULE-PILOT-1 */
   readonly identifier: string;
   /** Craft categories this pilot is certified to fly. @see RULE-PILOT-2 */
-  readonly certifications: readonly string[];
+  readonly certifications: readonly CraftCategory[];
 }
 
 /**
@@ -107,7 +108,7 @@ export interface Craft {
   /** Description of the change and its scope. @see RULE-CRAFT-3 */
   readonly cargo: string;
   /** Determines pilot eligibility. @see RULE-CRAFT-4 */
-  readonly category: string;
+  readonly category: CraftCategory;
   /** Pilot-in-command. @see RULE-CRAFT-5, RULE-SEAT-1 */
   readonly captain: Pilot;
   /** Certified assistant pilots. @see RULE-SEAT-2 */
