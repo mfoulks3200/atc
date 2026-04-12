@@ -5,11 +5,12 @@ import { randomUUID } from "node:crypto";
 import { AgentStore } from "../state/agent-store.js";
 import { CraftStore } from "../state/craft-store.js";
 import { TowerStore } from "../state/tower-store.js";
+import { PilotStore } from "../state/pilot-store.js";
 import { AdapterRegistry } from "../adapters/registry.js";
 import { ChannelRegistry } from "./websocket/channels.js";
 import { HeartbeatTracker } from "./websocket/heartbeat.js";
 import { handleWsMessage } from "./websocket/handler.js";
-import type { PilotRecord, WsClientMessage, WsServerMessage } from "../types.js";
+import type { WsClientMessage, WsServerMessage } from "../types.js";
 import { healthRoutes } from "./routes/health.js";
 import { projectRoutes } from "./routes/projects.js";
 import { craftRoutes } from "./routes/crafts.js";
@@ -37,6 +38,8 @@ export interface AppOptions {
   craftStore?: CraftStore;
   /** Store for tower landing queues. */
   towerStore?: TowerStore;
+  /** Store for pilot records. */
+  pilotStore?: PilotStore;
   /** Registry of adapter implementations. */
   adapterRegistry?: AdapterRegistry;
   /** Pub/sub channel registry for WebSocket clients. */
@@ -61,10 +64,10 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   app.decorate("agentStore", options.agentStore ?? new AgentStore("/tmp/atc-default"));
   app.decorate("craftStore", options.craftStore ?? new CraftStore("/tmp/atc-default"));
   app.decorate("towerStore", options.towerStore ?? new TowerStore("/tmp/atc-default"));
+  app.decorate("pilotStore", options.pilotStore ?? new PilotStore("/tmp/atc-default"));
   app.decorate("adapterRegistry", options.adapterRegistry ?? new AdapterRegistry());
   app.decorate("channelRegistry", options.channelRegistry ?? new ChannelRegistry());
   app.decorate("globalConfigStore", options.globalConfigStore ?? null);
-  app.decorate("pilotStore", new Map<string, Map<string, PilotRecord>>());
 
   void app.register(websocket);
 
@@ -130,12 +133,12 @@ declare module "fastify" {
     craftStore: CraftStore;
     /** Store for tower landing queues. */
     towerStore: TowerStore;
+    /** Persistent store for pilot records. */
+    pilotStore: PilotStore;
     /** Registry of adapter implementations. */
     adapterRegistry: AdapterRegistry;
     /** Pub/sub channel registry for WebSocket clients. */
     channelRegistry: ChannelRegistry;
-    /** In-memory pilot store: project name -> pilot id -> PilotRecord. */
-    pilotStore: Map<string, Map<string, PilotRecord>>;
     /** Store for global configuration, if wired. */
     globalConfigStore: LayeredConfigStore<GlobalConfig> | null;
   }

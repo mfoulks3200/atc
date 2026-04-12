@@ -79,12 +79,13 @@ config routes, which return `{ "error": { "code": "...", "message": "...", ... }
 
 ### Pilots
 
-| Method | Path                                | Purpose         |
-| ------ | ----------------------------------- | --------------- |
-| POST   | `/api/v1/projects/:name/pilots`     | Create a pilot. |
-| GET    | `/api/v1/projects/:name/pilots`     | List pilots.    |
-| GET    | `/api/v1/projects/:name/pilots/:id` | Get one pilot.  |
-| PATCH  | `/api/v1/projects/:name/pilots/:id` | Update a pilot. |
+| Method | Path                                | Purpose          |
+| ------ | ----------------------------------- | ---------------- |
+| POST   | `/api/v1/projects/:name/pilots`     | Create a pilot.  |
+| GET    | `/api/v1/projects/:name/pilots`     | List pilots.     |
+| GET    | `/api/v1/projects/:name/pilots/:id` | Get one pilot.   |
+| PATCH  | `/api/v1/projects/:name/pilots/:id` | Update a pilot.  |
+| DELETE | `/api/v1/projects/:name/pilots/:id` | Delete a pilot.  |
 
 ### Intercom
 
@@ -513,8 +514,12 @@ Response:
 ## Pilots
 
 Implemented in `packages/daemon/src/server/routes/pilots.ts`. Pilot
-records are stored only in memory in a per-project `Map` decorated on the
-Fastify instance -- they are lost on restart.
+records are persisted by `PilotStore`
+(`packages/daemon/src/state/pilot-store.ts`), which backs a two-level
+`Map<project, Map<identifier, PilotRecord>>` with an atomic JSON file
+(`pilots.json`) in the state directory. Records are loaded on daemon
+startup and flushed alongside agents and crafts on the periodic state
+flush interval and on graceful shutdown.
 
 ### `POST /api/v1/projects/:name/pilots`
 
@@ -566,6 +571,15 @@ Request body:
 Response:
 
 - `200 OK` -- the updated `PilotRecord`.
+- `404 Not Found` -- pilot not found.
+
+### `DELETE /api/v1/projects/:name/pilots/:id`
+
+Remove a pilot record from the project.
+
+Response:
+
+- `204 No Content` -- pilot deleted.
 - `404 Not Found` -- pilot not found.
 
 ---

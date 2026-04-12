@@ -170,6 +170,8 @@ the profile-level [`adapter.config`](#profile-adapter) bag.
 
 The closest analogue to per-agent configuration is `PilotRecord`
 (`packages/daemon/src/types.ts`), which carries `certifications` and
-`mcpServers` per pilot but is not loaded from a config file — pilot records
-are managed in-memory by the daemon (and, per the known spec gaps in
-`CLAUDE.md`, are not yet persisted across restarts).
+`mcpServers` per pilot. Pilot records are persisted by `PilotStore`
+(`packages/daemon/src/state/pilot-store.ts`) to `<stateDir>/pilots.json`
+using the same atomic-write pattern as agents and crafts. They are loaded
+on daemon startup and flushed on the periodic state flush interval and on
+graceful shutdown.

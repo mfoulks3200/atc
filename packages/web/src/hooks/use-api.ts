@@ -135,6 +135,31 @@ export function useCreateProject() {
   });
 }
 
+export function usePilot(project: string, id: string) {
+  return useQuery({
+    queryKey: queryKeys.pilots.detail(project, id),
+    queryFn: () => apiClient.get<PilotRecord>(`/api/v1/projects/${project}/pilots/${id}`),
+    enabled: !!project && !!id,
+  });
+}
+
+export function useAllPilots() {
+  return useQuery({
+    queryKey: queryKeys.pilots.all(),
+    queryFn: async () => {
+      const projects = await apiClient.get<{ name: string }[]>("/api/v1/projects");
+      const allPilots: Array<PilotRecord & { project: string }> = [];
+      for (const p of projects) {
+        const pilots = await apiClient.get<PilotRecord[]>(`/api/v1/projects/${p.name}/pilots`);
+        for (const pilot of pilots) {
+          allPilots.push({ ...pilot, project: p.name });
+        }
+      }
+      return allPilots;
+    },
+  });
+}
+
 export function useCreatePilot(project: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -142,6 +167,36 @@ export function useCreatePilot(project: string) {
       apiClient.post<PilotRecord>(`/api/v1/projects/${project}/pilots`, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pilots.list(project) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pilots.all() });
+    },
+  });
+}
+
+export function useUpdatePilot(project: string, id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      certifications?: string[];
+      mcpServers?: Record<
+        string,
+        { command: string; args: string[]; env?: Record<string, string> }
+      >;
+    }) => apiClient.patch<PilotRecord>(`/api/v1/projects/${project}/pilots/${id}`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.pilots.detail(project, id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pilots.list(project) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pilots.all() });
+    },
+  });
+}
+
+export function useDeletePilot(project: string, id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiClient.delete(`/api/v1/projects/${project}/pilots/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.pilots.list(project) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pilots.all() });
     },
   });
 }

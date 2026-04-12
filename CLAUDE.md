@@ -99,4 +99,4 @@ The spec (`docs/specification.md`) covers the domain model and protocols but has
 - **`shareControls()` doesn't validate seat type.** A jumpseat pilot ID can be passed in shared areas, violating RULE-CTRL-2.
 - **`runChecklist()` has no authorization check.** RULE-LCHK-1 requires the executing pilot to hold controls — the function accepts no pilot/craft context.
 - **The spec doesn't cover the daemon, agents, web, or adapter packages.** Agent lifecycle (`AgentStatus`), the REST/WebSocket API, persistence, and the adapter interface are implementation-only concepts with no spec rules.
-- **Pilot persistence is missing.** Pilot records in the daemon are in-memory only and lost on restart.
+- **Pilot persistence is implemented.** Pilot records are backed by `PilotStore` with atomic JSON persistence, loaded on startup and flushed periodically alongside agents and crafts.

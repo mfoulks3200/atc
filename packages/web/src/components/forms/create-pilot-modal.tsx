@@ -7,6 +7,10 @@ interface CreatePilotModalProps {
   onClose: () => void;
   project: string;
   categories: string[];
+  /** When provided, shows a project selector (used from the global pilots list). */
+  projectNames?: string[];
+  /** Callback when the selected project changes (used with projectNames). */
+  onProjectChange?: (project: string) => void;
 }
 
 const inputStyle = {
@@ -17,7 +21,14 @@ const inputStyle = {
 
 const labelStyle = { color: "var(--text-muted)" };
 
-export function CreatePilotModal({ open, onClose, project, categories }: CreatePilotModalProps) {
+export function CreatePilotModal({
+  open,
+  onClose,
+  project,
+  categories,
+  projectNames,
+  onProjectChange,
+}: CreatePilotModalProps) {
   const createPilot = useCreatePilot(project);
   const [identifier, setIdentifier] = useState("");
   const [certifications, setCertifications] = useState<string[]>([]);
@@ -61,8 +72,36 @@ export function CreatePilotModal({ open, onClose, project, categories }: CreateP
       isPending={createPilot.isPending}
       error={createPilot.error?.message ?? null}
     >
+      {projectNames && projectNames.length > 0 && (
+        <div>
+          <label
+            className="mb-1 block text-[10px] uppercase tracking-wider"
+            style={labelStyle}
+          >
+            Project
+          </label>
+          <select
+            value={project}
+            onChange={(e) => {
+              onProjectChange?.(e.target.value);
+              setCertifications([]);
+            }}
+            className="w-full rounded-md border px-3 py-1.5 text-xs outline-none"
+            style={inputStyle}
+          >
+            {projectNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div>
-        <label className="mb-1 block text-[10px] uppercase tracking-wider" style={labelStyle}>
+        <label
+          className="mb-1 block text-[10px] uppercase tracking-wider"
+          style={labelStyle}
+        >
           Identifier
         </label>
         <input
@@ -75,7 +114,10 @@ export function CreatePilotModal({ open, onClose, project, categories }: CreateP
         />
       </div>
       <div>
-        <label className="mb-1 block text-[10px] uppercase tracking-wider" style={labelStyle}>
+        <label
+          className="mb-1 block text-[10px] uppercase tracking-wider"
+          style={labelStyle}
+        >
           Certifications
         </label>
         {categories.length === 0 && (
@@ -93,9 +135,15 @@ export function CreatePilotModal({ open, onClose, project, categories }: CreateP
                 onClick={() => toggleCertification(cat)}
                 className="rounded-sm px-2 py-1 text-[10px] transition-colors"
                 style={{
-                  backgroundColor: selected ? "rgba(0, 255, 136, 0.15)" : "var(--bg-elevated)",
-                  color: selected ? "var(--accent-green)" : "var(--text-muted)",
-                  border: selected ? "1px solid var(--accent-green)" : "1px solid transparent",
+                  backgroundColor: selected
+                    ? "rgba(0, 255, 136, 0.15)"
+                    : "var(--bg-elevated)",
+                  color: selected
+                    ? "var(--accent-green)"
+                    : "var(--text-muted)",
+                  border: selected
+                    ? "1px solid var(--accent-green)"
+                    : "1px solid transparent",
                 }}
               >
                 {cat}

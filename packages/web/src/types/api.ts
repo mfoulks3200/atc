@@ -102,6 +102,7 @@ export interface AgentRecord {
 export interface PilotRecord {
   identifier: string;
   certifications: string[];
+  mcpServers: Record<string, { command: string; args: string[]; env?: Record<string, string> }>;
 }
 
 export interface HealthResponse {

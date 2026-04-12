@@ -465,7 +465,6 @@ This section tracks how completely the current codebase enforces each rule group
 ### Not yet implemented
 
 - **RULE-TOWER-3, RULE-TMRG-2, RULE-TMRG-3** — Tower merge protocol steps 4–6 (verify branch up to date, execute merge, mark landed, go-around on merge conflict) have **no implementation anywhere**. `Tower` exposes the queue but never actually merges. RULE-LIFE-6 is consequently unenforceable end-to-end.
-- **Pilot persistence** — pilot records in the daemon are in-memory only and lost on restart. No spec rule covers this gap.
 - **`runChecklist` authorization** — there is no check that the executing pilot holds controls. The function accepts no pilot or craft context, so RULE-CHKL/legacy RULE-LCHK-1 (controls held to run checklist) is unenforced at the library level.
 
 ### Outside the spec entirely
@@ -474,7 +473,7 @@ The current spec does not cover the daemon, web dashboard, or adapter packages. 
 
 - Daemon agent lifecycle (`AgentStatus`: `running | paused | suspended | terminated`).
 - REST/WebSocket API surface and channel patterns.
-- State persistence (atomic JSON stores for agents, crafts, towers).
+- State persistence (atomic JSON stores for agents, crafts, pilots, towers).
 - Git worktree and bare-repo utilities.
 - The `AgentAdapter` interface and `buildSystemPrompt` helper in `@airtrafficcontrol/adapter-claude-agent-sdk`.
 - The web dashboard's read-only views over the daemon API.

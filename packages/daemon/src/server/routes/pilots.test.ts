@@ -4,6 +4,7 @@ import { createApp } from "../app.js";
 import { AgentStore } from "../../state/agent-store.js";
 import { CraftStore } from "../../state/craft-store.js";
 import { TowerStore } from "../../state/tower-store.js";
+import { PilotStore } from "../../state/pilot-store.js";
 import type { PilotRecord } from "../../types.js";
 
 describe("pilot routes", () => {
@@ -20,6 +21,7 @@ describe("pilot routes", () => {
       agentStore: new AgentStore("/tmp/atc-pilot-test"),
       craftStore: new CraftStore("/tmp/atc-pilot-test"),
       towerStore: new TowerStore("/tmp/atc-pilot-test"),
+      pilotStore: new PilotStore("/tmp/atc-pilot-test"),
     });
   });
 
@@ -99,6 +101,37 @@ describe("pilot routes", () => {
         method: "PATCH",
         url: `/api/v1/projects/${PROJECT}/pilots/ghost`,
         payload: { certifications: ["x"] },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe("DELETE /api/v1/projects/:name/pilots/:id", () => {
+    it("deletes a pilot and returns 204", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/pilots`,
+        payload: pilotBody,
+      });
+
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/v1/projects/${PROJECT}/pilots/pilot-1`,
+      });
+      expect(res.statusCode).toBe(204);
+
+      // Verify it's gone
+      const getRes = await app.inject({
+        method: "GET",
+        url: `/api/v1/projects/${PROJECT}/pilots/pilot-1`,
+      });
+      expect(getRes.statusCode).toBe(404);
+    });
+
+    it("returns 404 for unknown pilot", async () => {
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/v1/projects/${PROJECT}/pilots/ghost`,
       });
       expect(res.statusCode).toBe(404);
     });

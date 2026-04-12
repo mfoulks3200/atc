@@ -4,17 +4,17 @@ Upcoming work for ATC, organized by workstream. Items are unordered within each 
 
 ## Pilot Management
 
-- [ ] **Wire up pilot creation modal** — The `CreatePilotModal` component exists but is not accessible from the pilots list view. Add a trigger button to the list page that opens it. _Packages: web_
+- [x] **Wire up pilot creation modal** — The `CreatePilotModal` component exists but is not accessible from the pilots list view. Add a trigger button to the list page that opens it. _Packages: web_
 
-- [ ] **Add pilot delete endpoint** — The daemon has create, read, and update routes for pilots but no DELETE. Add `DELETE /api/v1/projects/:name/pilots/:id`. _Packages: daemon_
+- [x] **Add pilot delete endpoint** — The daemon has create, read, and update routes for pilots but no DELETE. Add `DELETE /api/v1/projects/:name/pilots/:id`. _Packages: daemon_
 
-- [ ] **Add pilot delete action to UI** — Expose the delete endpoint in the pilot detail view with a confirmation step. _Depends on: pilot delete endpoint. Packages: web_
+- [x] **Add pilot delete action to UI** — Expose the delete endpoint in the pilot detail view with a confirmation step. _Depends on: pilot delete endpoint. Packages: web_
 
-- [ ] **Build pilot detail edit interface** — The pilot detail view (`routes/pilots/detail.tsx`) is read-only, showing agent runtime info (status, PID, usage). Add an editable section for the pilot record: identifier (read-only), certifications (toggle chips like the creation modal), and MCP servers. _Packages: web_
+- [x] **Build pilot detail edit interface** — The pilot detail view (`routes/pilots/detail.tsx`) is read-only, showing agent runtime info (status, PID, usage). Add an editable section for the pilot record: identifier (read-only), certifications (toggle chips like the creation modal), and MCP servers. _Packages: web_
 
-- [ ] **Persist pilot records to disk** — Pilot records are stored in an in-memory `Map` and lost on daemon restart. Back them with an atomic JSON store like crafts and agents already use. _Packages: daemon_
+- [x] **Persist pilot records to disk** — Pilot records are stored in an in-memory `Map` and lost on daemon restart. Back them with an atomic JSON store like crafts and agents already use. _Packages: daemon_
 
-- [ ] **Decouple pilot records from agent runtime** — The web UI currently fetches pilot data through the agents API (`useAgents`, `useAgent`), conflating the reusable pilot template with the running agent instance. The pilots list should query the pilot CRUD routes, with the agent runtime info shown as a linked section on the detail view. _Packages: web_
+- [x] **Decouple pilot records from agent runtime** — The web UI currently fetches pilot data through the agents API (`useAgents`, `useAgent`), conflating the reusable pilot template with the running agent instance. The pilots list should query the pilot CRUD routes, with the agent runtime info shown as a linked section on the detail view. _Packages: web_
 
 ## Configuration
 

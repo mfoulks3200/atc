@@ -16,6 +16,7 @@ import { loadProfileConfig } from "./config/loader.js";
 import { AgentStore } from "./state/agent-store.js";
 import { CraftStore } from "./state/craft-store.js";
 import { TowerStore } from "./state/tower-store.js";
+import { PilotStore } from "./state/pilot-store.js";
 import { FlushScheduler } from "./state/persistence.js";
 import { createApp } from "./server/app.js";
 import { writePidFile, removePidFile } from "./process/pid.js";
@@ -54,6 +55,7 @@ export class Daemon {
   private _flushScheduler: FlushScheduler | null = null;
   private _agentStore: AgentStore | null = null;
   private _craftStore: CraftStore | null = null;
+  private _pilotStore: PilotStore | null = null;
 
   /**
    * @param profileDir - Absolute path to the profile directory. Must contain
@@ -104,8 +106,10 @@ export class Daemon {
     const agentStore = new AgentStore(stateDir);
     const craftStore = new CraftStore(stateDir);
     const towerStore = new TowerStore(stateDir);
+    const pilotStore = new PilotStore(stateDir);
 
     await agentStore.load();
+    await pilotStore.load();
 
     const channelRegistry = new ChannelRegistry();
     const logger = {
@@ -132,6 +136,7 @@ export class Daemon {
       agentStore,
       craftStore,
       towerStore,
+      pilotStore,
       channelRegistry,
       globalConfigStore,
     });
@@ -145,6 +150,7 @@ export class Daemon {
     const flushScheduler = new FlushScheduler(async () => {
       await agentStore.save();
       await craftStore.saveAll();
+      await pilotStore.save();
     }, flushIntervalSeconds);
 
     await writePidFile(join(this._profileDir, PID_FILE));
@@ -158,6 +164,7 @@ export class Daemon {
     this._flushScheduler = flushScheduler;
     this._agentStore = agentStore;
     this._craftStore = craftStore;
+    this._pilotStore = pilotStore;
     this._channelRegistry = channelRegistry;
     this._globalConfigStore = globalConfigStore;
     this._running = true;
@@ -186,6 +193,9 @@ export class Daemon {
     }
     if (this._craftStore !== null) {
       await this._craftStore.saveAll();
+    }
+    if (this._pilotStore !== null) {
+      await this._pilotStore.save();
     }
 
     this._flushScheduler?.stop();
