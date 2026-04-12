@@ -21,8 +21,10 @@ import { intercomRoutes } from "./routes/intercom.js";
 import { blackboxRoutes } from "./routes/blackbox.js";
 import { configRoutes } from "./routes/config.js";
 import { projectConfigRoutes } from "./routes/project-config.js";
+import { pilotConfigRoutes } from "./routes/pilot-config.js";
 import type { LayeredConfigStore } from "../config/layered-store.js";
 import type { GlobalConfig, ProjectMetadataConfig } from "../config/schema.js";
+import { PilotConfigStore } from "../config/pilot-config-store.js";
 
 /**
  * Options passed to {@link createApp}.
@@ -46,6 +48,8 @@ export interface AppOptions {
   globalConfigStore?: LayeredConfigStore<GlobalConfig>;
   /** Map of project name -> LayeredConfigStore for project config. */
   projectConfigStores?: Map<string, LayeredConfigStore<ProjectMetadataConfig>>;
+  /** Store for per-pilot configuration (in-memory). */
+  pilotConfigStore?: PilotConfigStore;
 }
 
 /**
@@ -72,6 +76,15 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
     options.projectConfigStores ?? new Map<string, LayeredConfigStore<ProjectMetadataConfig>>(),
   );
   app.decorate("pilotStore", new Map<string, Map<string, PilotRecord>>());
+  app.decorate(
+    "pilotConfigStore",
+    options.pilotConfigStore ??
+      new PilotConfigStore(
+        (options.channelRegistry ?? app.channelRegistry).publish.bind(
+          options.channelRegistry ?? app.channelRegistry,
+        ),
+      ),
+  );
 
   void app.register(websocket);
 
@@ -86,6 +99,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   void app.register(blackboxRoutes);
   void app.register(configRoutes);
   void app.register(projectConfigRoutes);
+  void app.register(pilotConfigRoutes);
 
   const heartbeat = new HeartbeatTracker(3);
 
@@ -148,5 +162,7 @@ declare module "fastify" {
     globalConfigStore: LayeredConfigStore<GlobalConfig> | null;
     /** Map of project name -> LayeredConfigStore for project config. */
     projectConfigStores: Map<string, LayeredConfigStore<ProjectMetadataConfig>>;
+    /** In-memory store for per-pilot config. */
+    pilotConfigStore: PilotConfigStore;
   }
 }

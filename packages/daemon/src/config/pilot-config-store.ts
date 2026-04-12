@@ -65,14 +65,16 @@ export class PilotConfigStore {
    *
    * @param pilotId - The pilot identifier.
    * @param partial - Partial config to merge in.
+   * @returns The fully-merged config after the patch.
    *
    * @see RULE-PILOT-1
    */
-  patch(pilotId: string, partial: Partial<PilotConfig>): void {
+  patch(pilotId: string, partial: Partial<PilotConfig>): PilotConfig {
     const existing = this._overrides.get(pilotId) ?? {};
     const merged = { ...existing, ...partial };
     this._overrides.set(pilotId, merged);
     this._emitChange(pilotId);
+    return this.get(pilotId);
   }
 
   /**
@@ -81,15 +83,17 @@ export class PilotConfigStore {
    *
    * @param pilotId - The pilot identifier.
    * @param config - The full replacement config.
+   * @returns The fully-merged config after the replace.
    * @throws {ConfigValidationError} If the config fails schema validation.
    *
    * @see RULE-PILOT-1
    */
-  replace(pilotId: string, config: PilotConfig): void {
+  replace(pilotId: string, config: PilotConfig): PilotConfig {
     const parsed = PILOT_CONFIG_SCHEMA.parse(config);
     const sparse = this._computeSparse(parsed);
     this._overrides.set(pilotId, sparse);
     this._emitChange(pilotId);
+    return this.get(pilotId);
   }
 
   /**
@@ -97,11 +101,12 @@ export class PilotConfigStore {
    *
    * @param pilotId - The pilot identifier.
    * @param key - The key to revert.
+   * @returns The fully-merged config after the unset.
    * @throws {UnknownConfigKeyError} If the key is not in the defaults.
    *
    * @see RULE-PILOT-1
    */
-  unset(pilotId: string, key: keyof PilotConfig): void {
+  unset(pilotId: string, key: keyof PilotConfig): PilotConfig {
     if (!this._isKnownKey(key as string)) {
       throw new UnknownConfigKeyError("agent", key as string);
     }
@@ -113,6 +118,7 @@ export class PilotConfigStore {
       this._overrides.set(pilotId, existing);
     }
     this._emitChange(pilotId);
+    return this.get(pilotId);
   }
 
   /**
