@@ -78,6 +78,44 @@ describe("shareControls", () => {
 
     expect(() => shareControls(areas)).toThrow();
   });
+
+  it("accepts shared controls when all pilots are Captain or FirstOfficer (RULE-CTRL-2)", () => {
+    const areas: SharedControlArea[] = [
+      { pilotIdentifier: "captain-1", area: "src/api/" },
+      { pilotIdentifier: "fo-1", area: "src/ui/" },
+    ];
+    const seats = new Map([
+      ["captain-1", SeatType.Captain],
+      ["fo-1", SeatType.FirstOfficer],
+    ]);
+    const controls = shareControls(areas, seats);
+
+    expect(controls.mode).toBe(ControlMode.Shared);
+    expect(controls.sharedAreas).toEqual(areas);
+  });
+
+  it("throws ControlsError when a Jumpseat pilot is in shared areas (RULE-CTRL-2)", () => {
+    const areas: SharedControlArea[] = [
+      { pilotIdentifier: "captain-1", area: "src/api/" },
+      { pilotIdentifier: "observer-1", area: "src/ui/" },
+    ];
+    const seats = new Map([
+      ["captain-1", SeatType.Captain],
+      ["observer-1", SeatType.Jumpseat],
+    ]);
+
+    expect(() => shareControls(areas, seats)).toThrow("RULE-CTRL-2");
+  });
+
+  it("skips seat validation when seatAssignments is not provided", () => {
+    const areas: SharedControlArea[] = [
+      { pilotIdentifier: "anyone-1", area: "src/api/" },
+    ];
+
+    // Should not throw even though we don't know seat types
+    const controls = shareControls(areas);
+    expect(controls.mode).toBe(ControlMode.Shared);
+  });
 });
 
 describe("isHoldingControls", () => {

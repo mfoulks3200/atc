@@ -49,14 +49,21 @@ export function claimExclusiveControls(
 /**
  * Creates a shared control state with non-overlapping areas of responsibility.
  *
- * Validates that areas are non-empty and no pilot appears more than once.
+ * Validates that areas are non-empty, no pilot appears more than once, and
+ * all pilots occupy a Captain or FirstOfficer seat (Jumpseat pilots cannot
+ * hold controls per RULE-CTRL-2).
  *
  * @param areas - The shared control area assignments. Must be non-empty with unique pilots.
+ * @param seatAssignments - Map from pilot identifier to their seat type on this craft.
+ *   Used to enforce RULE-CTRL-2. When omitted, seat-type validation is skipped.
  * @returns A new ControlState in Shared mode with the given areas.
- * @throws {ControlsError} If areas is empty or contains duplicate pilot identifiers.
- * @see RULE-CTRL-5
+ * @throws {ControlsError} If areas is empty, contains duplicate pilots, or includes a Jumpseat pilot.
+ * @see RULE-CTRL-2, RULE-CTRL-5
  */
-export function shareControls(areas: SharedControlArea[]): ControlState {
+export function shareControls(
+  areas: SharedControlArea[],
+  seatAssignments?: ReadonlyMap<string, SeatType>,
+): ControlState {
   if (areas.length === 0) {
     throw new ControlsError(
       "Shared controls require at least one area [RULE-CTRL-5]",
@@ -73,6 +80,16 @@ export function shareControls(areas: SharedControlArea[]): ControlState {
       );
     }
     pilotIds.add(area.pilotIdentifier);
+
+    if (seatAssignments) {
+      const seat = seatAssignments.get(area.pilotIdentifier);
+      if (seat === SeatType.Jumpseat) {
+        throw new ControlsError(
+          `Jumpseat pilot "${area.pilotIdentifier}" cannot hold controls [RULE-CTRL-2]`,
+          "RULE-CTRL-2",
+        );
+      }
+    }
   }
 
   return {
