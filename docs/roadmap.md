@@ -48,6 +48,10 @@ Upcoming work for ATC, organized by workstream. Items are unordered within each 
 
 - [ ] **Inject skills into agent context** — When launching a pilot as an agent, resolve their effective skill set and include skill metadata in the system prompt. The adapter's `buildSystemPrompt` should list available skills so the agent can activate them on demand following the AgentSkills progressive disclosure model. _Depends on: skill discovery and parsing, skill assignment API. Packages: adapter-claude-agent-sdk, daemon_
 
+## UI / UX
+
+- [ ] **Glossary modal with search** — Add a glossary modal accessible from a persistent icon in the global navigation bar. The glossary should contain all notable terms from `docs/specification.md` (Craft, Pilot, Captain, First Officer, Jumpseat, Vector, Flight Plan, Black Box, Tower, Controls, Clearance, Emergency, Intercom, Checklist, etc.) with their formal definitions and how they relate to other terms (e.g. a Pilot occupies a Seat on a Craft; a Flight Plan is an ordered sequence of Vectors). Include a lightweight client-side search/filter so users can quickly find terms by keyword. _Packages: web_
+
 ## Rule Enforcement
 
 - [x] **Type `CraftCategory` enum** — The `category` field on `Craft` is a plain `string`. Define a `CraftCategory` enum or const object in `@airtrafficcontrol/types` with the known categories so downstream code gets type-safe narrowing instead of arbitrary strings. _Packages: types, core, daemon_
