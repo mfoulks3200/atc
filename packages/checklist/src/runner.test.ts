@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { runChecklist } from "./runner.js";
-import { ChecklistItemSeverity, LifecycleEvent } from "@airtrafficcontrol/types";
-import type { ChecklistItemDef } from "@airtrafficcontrol/types";
+import { ChecklistItemSeverity, ControlMode, LifecycleEvent } from "@airtrafficcontrol/types";
+import type { ChecklistItemDef, ControlState } from "@airtrafficcontrol/types";
 import type { McpToolHandler } from "./executor/mcp-tool.js";
 
 const shellItem = (
@@ -96,6 +96,73 @@ describe("runChecklist", () => {
         items: [],
       }),
     ).rejects.toThrow("Checklist must contain at least one item");
+  });
+
+  it("throws ChecklistError when pilot does not hold exclusive controls (RULE-LCHK-1)", async () => {
+    const controls: ControlState = { mode: ControlMode.Exclusive, holder: "captain-1" };
+    await expect(
+      runChecklist({
+        checklistName: "Auth Test",
+        event: LifecycleEvent.BeforeLandingCheck,
+        craftCallsign: "ATC-1",
+        attempt: 1,
+        items: [shellItem("Echo", "echo ok")],
+        pilotId: "fo-1",
+        controls,
+      }),
+    ).rejects.toThrow("RULE-LCHK-1");
+  });
+
+  it("throws ChecklistError when pilot is not in any shared area (RULE-LCHK-1)", async () => {
+    const controls: ControlState = {
+      mode: ControlMode.Shared,
+      sharedAreas: [{ pilotIdentifier: "captain-1", area: "src/" }],
+    };
+    await expect(
+      runChecklist({
+        checklistName: "Auth Test",
+        event: LifecycleEvent.BeforeLandingCheck,
+        craftCallsign: "ATC-1",
+        attempt: 1,
+        items: [shellItem("Echo", "echo ok")],
+        pilotId: "observer-1",
+        controls,
+      }),
+    ).rejects.toThrow("RULE-LCHK-1");
+  });
+
+  it("succeeds when pilot holds exclusive controls (RULE-LCHK-1)", async () => {
+    const controls: ControlState = { mode: ControlMode.Exclusive, holder: "captain-1" };
+    const result = await runChecklist({
+      checklistName: "Auth Test",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "ATC-1",
+      attempt: 1,
+      items: [shellItem("Echo", "echo ok")],
+      pilotId: "captain-1",
+      controls,
+    });
+    expect(result.passed).toBe(true);
+  });
+
+  it("succeeds when pilot is in a shared area (RULE-LCHK-1)", async () => {
+    const controls: ControlState = {
+      mode: ControlMode.Shared,
+      sharedAreas: [
+        { pilotIdentifier: "captain-1", area: "src/api/" },
+        { pilotIdentifier: "fo-1", area: "src/ui/" },
+      ],
+    };
+    const result = await runChecklist({
+      checklistName: "Auth Test",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "ATC-1",
+      attempt: 1,
+      items: [shellItem("Echo", "echo ok")],
+      pilotId: "fo-1",
+      controls,
+    });
+    expect(result.passed).toBe(true);
   });
 
   it("handles MCP tool executor", async () => {

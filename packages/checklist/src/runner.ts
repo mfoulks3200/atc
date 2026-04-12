@@ -1,9 +1,10 @@
 import { ChecklistError } from "@airtrafficcontrol/errors";
-import { ChecklistItemSeverity } from "@airtrafficcontrol/types";
+import { ChecklistItemSeverity, ControlMode } from "@airtrafficcontrol/types";
 import type {
   ChecklistItemDef,
   ChecklistItemResult,
   ChecklistRunResult,
+  ControlState,
   LifecycleEvent,
 } from "@airtrafficcontrol/types";
 import { executeShell } from "./executor/shell.js";
@@ -20,6 +21,19 @@ export interface RunChecklistInput {
   readonly attempt: number;
   readonly items: readonly ChecklistItemDef[];
   readonly mcpHandler?: McpToolHandler;
+  /**
+   * Identifier of the pilot requesting the checklist run.
+   * When provided along with `controls`, authorization is enforced:
+   * the pilot must hold controls on the craft.
+   * @see RULE-LCHK-1
+   */
+  readonly pilotId?: string;
+  /**
+   * Current control state of the craft.
+   * Required together with `pilotId` for authorization.
+   * @see RULE-LCHK-1
+   */
+  readonly controls?: ControlState;
 }
 
 /**
@@ -35,7 +49,23 @@ export interface RunChecklistInput {
  * @see RULE-CHKL-7 — items execute sequentially in order.
  */
 export async function runChecklist(input: RunChecklistInput): Promise<ChecklistRunResult> {
-  const { checklistName, event, craftCallsign, attempt, items, mcpHandler } = input;
+  const { checklistName, event, craftCallsign, attempt, items, mcpHandler, pilotId, controls } =
+    input;
+
+  // RULE-LCHK-1: When pilot context is provided, verify the pilot holds controls.
+  if (pilotId !== undefined && controls !== undefined) {
+    const holding =
+      controls.mode === ControlMode.Exclusive
+        ? controls.holder === pilotId
+        : (controls.sharedAreas?.some((area) => area.pilotIdentifier === pilotId) ?? false);
+
+    if (!holding) {
+      throw new ChecklistError(
+        `Pilot "${pilotId}" does not hold controls on craft "${craftCallsign}" [RULE-LCHK-1]`,
+        "RULE-LCHK-1",
+      );
+    }
+  }
 
   if (items.length === 0) {
     throw new ChecklistError("Checklist must contain at least one item", "RULE-CHKL-4");
