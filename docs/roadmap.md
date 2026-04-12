@@ -50,7 +50,7 @@ Upcoming work for ATC, organized by workstream. Items are unordered within each 
 
 ## UI / UX
 
-- [ ] **Glossary modal with search** — Add a glossary modal accessible from a persistent icon in the global navigation bar. The glossary should contain all notable terms from `docs/specification.md` (Craft, Pilot, Captain, First Officer, Jumpseat, Vector, Flight Plan, Black Box, Tower, Controls, Clearance, Emergency, Intercom, Checklist, etc.) with their formal definitions and how they relate to other terms (e.g. a Pilot occupies a Seat on a Craft; a Flight Plan is an ordered sequence of Vectors). Include a lightweight client-side search/filter so users can quickly find terms by keyword. _Packages: web_
+- [ ] **Glossary & rules reference modal** — Add a reference modal accessible from a persistent icon in the global navigation bar. The modal has two tabs: (1) **Glossary** — all notable terms from `docs/specification.md` (Craft, Pilot, Captain, First Officer, Jumpseat, Vector, Flight Plan, Black Box, Tower, Controls, Clearance, Emergency, Intercom, Checklist, etc.) with their formal definitions and how they relate to other terms (e.g. a Pilot occupies a Seat on a Craft; a Flight Plan is an ordered sequence of Vectors), with a lightweight client-side search/filter. (2) **Rules** — a browsable list of all `RULE-*` identifiers from the spec with their descriptions, grouped by prefix (CRAFT, CTRL, LIFE, SEAT, VEC, LCHK, TOWER, TMRG, EMER, etc.), also with a lightweight search/filter. _Packages: web_
 
 ## Rule Enforcement
 
