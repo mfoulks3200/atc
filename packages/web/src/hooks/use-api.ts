@@ -12,6 +12,9 @@ import type {
   BlackBoxEntry,
   IntercomMessage,
   VectorState,
+  GlobalConfig,
+  PilotConfig,
+  ConfigResponse,
 } from "@/types/api";
 
 export function useHealth() {
@@ -195,5 +198,66 @@ export function useCraftChecklistRuns(project: string, callsign: string) {
       apiClient.get<ChecklistRunResult[]>(
         `/api/v1/projects/${project}/crafts/${callsign}/checklists`,
       ),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Config hooks
+// ---------------------------------------------------------------------------
+
+export function useGlobalConfig() {
+  return useQuery({
+    queryKey: queryKeys.config.global(),
+    queryFn: () => apiClient.get<ConfigResponse<GlobalConfig>>("/api/v1/config/global"),
+  });
+}
+
+export function usePatchGlobalConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Partial<GlobalConfig>) =>
+      apiClient.patch<{ config: GlobalConfig }>("/api/v1/config/global", body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.config.global() });
+    },
+  });
+}
+
+export function useProjectConfig(name: string) {
+  return useQuery({
+    queryKey: queryKeys.config.project(name),
+    queryFn: () =>
+      apiClient.get<ConfigResponse<ProjectMetadata>>(`/api/v1/projects/${name}/config`),
+  });
+}
+
+export function usePatchProjectConfig(name: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Partial<ProjectMetadata>) =>
+      apiClient.patch<{ config: ProjectMetadata }>(`/api/v1/projects/${name}/config`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.config.project(name) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(name) });
+    },
+  });
+}
+
+export function usePilotConfig(id: string) {
+  return useQuery({
+    queryKey: queryKeys.config.pilot(id),
+    queryFn: () =>
+      apiClient.get<ConfigResponse<PilotConfig>>(`/api/v1/projects/_/pilots/${id}/config`),
+  });
+}
+
+export function usePatchPilotConfig(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Partial<PilotConfig>) =>
+      apiClient.patch<{ config: PilotConfig }>(`/api/v1/projects/_/pilots/${id}/config`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.config.pilot(id) });
+    },
   });
 }
