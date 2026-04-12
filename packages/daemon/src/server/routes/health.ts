@@ -9,6 +9,7 @@ const VERSION = "0.0.1";
  * Routes:
  * - `GET /api/v1/health` — liveness check with version and uptime.
  * - `GET /api/v1/status` — runtime summary with profile and entity counts.
+ * - `GET /api/v1/about` — daemon version information.
  *
  * @param app - The Fastify instance to register routes on.
  */
@@ -39,5 +40,15 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
       crafts: 0,
       agents: 0,
     };
+  });
+
+  /**
+   * About endpoint.
+   *
+   * Returns the daemon version. Consumers (CLI, other services) can
+   * use this to check the running daemon version.
+   */
+  app.get("/api/v1/about", async (_request, _reply) => {
+    return { version: VERSION };
   });
 }

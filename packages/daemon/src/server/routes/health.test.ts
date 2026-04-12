@@ -65,4 +65,16 @@ describe("health routes", () => {
       expect(typeof body.agents).toBe("number");
     });
   });
+
+  describe("GET /api/v1/about", () => {
+    it("returns version string", async () => {
+      app = createApp();
+      const response = await app.inject({ method: "GET", url: "/api/v1/about" });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ version: string }>();
+      expect(typeof body.version).toBe("string");
+      expect(body.version.length).toBeGreaterThan(0);
+    });
+  });
 });
