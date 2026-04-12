@@ -31,9 +31,32 @@ git diff --stat main...HEAD
 git log main..HEAD --oneline
 ```
 
-Note which packages changed — you will need this list for step 5 (docs sync) and step 4 (review scope).
+Note which packages changed — you will need this list for step 2 (stubs), step 5 (review scope), and step 6 (docs sync).
 
-### 2. Validate tests and coverage
+### 2. Record stubs and deferred work
+
+Scan the branch diff for anything that was left as a stub, placeholder, or explicitly deferred. Search for patterns like:
+
+```bash
+git diff main...HEAD -U0 | grep -iE '(TODO|FIXME|HACK|stub|placeholder|not yet implemented|will be implemented|implement later|no-op|noop|unimplemented)'
+```
+
+Also read through any new files from the step 1 file list and look for:
+
+- Functions that return hardcoded values, throw `NotImplementedError`, or contain only a `// TODO` comment.
+- Doc comments or inline comments that say something "is not yet" done, "will be added", or "is a placeholder".
+- Test files with `it.skip`, `xit`, `xdescribe`, or `test.todo`.
+
+For every stub or deferred item found, add a roadmap entry to `docs/roadmap.md`:
+
+1. Read the current `docs/roadmap.md` to find the right section (or create a new section if none fits).
+2. Write a checklist item (`- [ ]`) with a bolded short title, a one-sentence description of what needs to be implemented, and an italicized `_Packages:_` tag listing the affected packages — matching the format already used in the roadmap.
+3. If a stub references a `RULE-*` identifier, include that rule ID in the description.
+4. Do not duplicate items already present in the roadmap — if an existing entry already covers the deferred work, skip it.
+
+If no stubs or deferred work are found, note that in the report and move on.
+
+### 3. Validate tests and coverage
 
 ```bash
 pnpm run test -- --coverage
@@ -42,9 +65,9 @@ pnpm run test -- --coverage
 Requirements (per `docs/contributing.md`):
 
 - All tests pass.
-- **90% coverage minimum on changed files.** Cross-reference the coverage report against the file list from step 1. If any changed file is below 90%, add tests before continuing — do not proceed to step 3.
+- **90% coverage minimum on changed files.** Cross-reference the coverage report against the file list from step 1. If any changed file is below 90%, add tests before continuing — do not proceed to step 4.
 
-### 3. Validate lint and types
+### 4. Validate lint and types
 
 Run in parallel:
 
@@ -55,7 +78,7 @@ pnpm run build
 
 `pnpm run build` runs `tsc --build`, which is the type check. Both must exit clean. Fix issues at the root cause — do not disable rules or add `any` to silence errors.
 
-### 4. Dispatch a review subagent
+### 5. Dispatch a review subagent
 
 Spawn a subagent (subagent_type `feature-dev:code-reviewer` if available, else `general-purpose`) with a self-contained prompt. The subagent has no conversation context — brief it fully.
 
@@ -69,7 +92,7 @@ The prompt must include:
 
 Address every blocking issue the reviewer raises before moving on. Nits are optional.
 
-### 5. Sync `@airtrafficcontrol/docs`
+### 6. Sync `@airtrafficcontrol/docs`
 
 The `packages/docs` package documents the system and must match the branch's behavior. For each changed package from step 1:
 
@@ -84,15 +107,16 @@ The `packages/docs` package documents the system and must match the branch's beh
 
 Do not invent documentation for behavior that doesn't exist. Do not leave stale references to removed APIs.
 
-### 6. Re-validate after doc/review changes
+### 7. Re-validate after doc/review changes
 
-If step 4 or step 5 caused any code edits, re-run step 2 and step 3. Coverage, lint, and types must still be green on the final tree.
+If step 5 or step 6 caused any code edits, re-run step 3 and step 4. Coverage, lint, and types must still be green on the final tree.
 
-### 7. Report
+### 8. Report
 
 Summarize in ≤150 words:
 
 - Test/coverage/lint/type status (with actual numbers where relevant).
+- Stubs and deferred work found in step 2, and whether they were added to the roadmap or already tracked.
 - Reviewer's blocking findings and how each was resolved.
 - Which docs files were updated and why.
 - Anything the user should decide before merging (spec gaps, semver bumps needed per `CLAUDE.md`, `CHANGELOG.md` entries for public API changes).
