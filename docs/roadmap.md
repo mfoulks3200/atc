@@ -47,3 +47,17 @@ Upcoming work for ATC, organized by workstream. Items are unordered within each 
 - [ ] **Skill content viewer** — Allow viewing and editing SKILL.md contents from the UI. Show parsed metadata (name, description, compatibility) and the instruction body. Support browsing referenced files (scripts/, references/, assets/). _Depends on: skills management UI. Packages: web, daemon_
 
 - [ ] **Inject skills into agent context** — When launching a pilot as an agent, resolve their effective skill set and include skill metadata in the system prompt. The adapter's `buildSystemPrompt` should list available skills so the agent can activate them on demand following the AgentSkills progressive disclosure model. _Depends on: skill discovery and parsing, skill assignment API. Packages: adapter-claude-agent-sdk, daemon_
+
+## Rule Enforcement
+
+- [ ] **Type `CraftCategory` enum** — The `category` field on `Craft` is a plain `string`. Define a `CraftCategory` enum or const object in `@airtrafficcontrol/types` with the known categories so downstream code gets type-safe narrowing instead of arbitrary strings. _Packages: types, core, daemon_
+
+- [ ] **Enforce RULE-EMER-1 in core `transitionCraft`** — The captain-only check for emergency declarations is only enforced in the daemon route handler and `Tower.declareEmergency`, not in `transitionCraft()`. Add a pilot/seat-type parameter to the core transition path so RULE-EMER-1 is enforced at the library level, not just the HTTP layer. _Packages: core, tower_
+
+- [ ] **Reconcile checklist runner early-exit behavior** — The daemon's shell-based checklist runner exits on the first `required` failure, while the core `runChecklist` in `@airtrafficcontrol/checklist` runs all items regardless of severity. Decide on one behavior and align both implementations. _Packages: checklist, daemon_
+
+- [ ] **Add pilot authorization to `runChecklist`** — RULE-LCHK-1 requires the executing pilot to hold controls, but `runChecklist()` accepts no pilot or craft context. Add parameters so the authorization check can be enforced at the library level. _Packages: checklist, core_
+
+- [ ] **Enforce remaining lifecycle preconditions in core** — `transitionCraft()` only checks RULE-LIFE-4 (all vectors passed) and RULE-LIFE-7 (emergency in bbox). RULE-LIFE-3 (checklist pass), RULE-LIFE-5 (clearance), and RULE-LIFE-6 (queue position) are daemon-only. Move these checks into core so library consumers get the same guarantees. _Packages: core, types_
+
+- [ ] **Validate seat type in `shareControls`** — `shareControls()` does not verify that the pilot IDs passed for shared areas belong to Captain or FirstOfficer seats, allowing a Jumpseat pilot to be granted shared controls in violation of RULE-CTRL-2. Add seat-type validation. _Packages: core, validation_
