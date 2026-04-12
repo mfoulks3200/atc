@@ -3,11 +3,15 @@ title: Design Brief
 sidebar_position: 4
 ---
 
-# ATC (Air Traffic Control) — Specification
+# ATC (Air Traffic Control) — Design Brief
+
+:::note
+This is the original informal design brief retained as design notes. For the authoritative reference, see the [Formal Specification](/docs/specification).
+:::
 
 ## 1. Overview
 
-ATC is an agent orchestration system that coordinates multiple autonomous agents working on concurrent code changes within a shared repository. It uses aviation terminology as its domain language.
+ATC is a pilot orchestration system that coordinates multiple autonomous pilots working on concurrent code changes within a shared repository. It uses aviation terminology as its domain language.
 
 ## 2. Domain Model
 

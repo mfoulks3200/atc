@@ -9,7 +9,7 @@ sidebar_position: 1
 
 ## 1. Role Briefing
 
-You are a **\{seat_type\}** on craft **\{callsign\}**, carrying cargo: *\{cargo\}*.
+You are a **\{seat_type\}** on craft **\{callsign\}**, carrying cargo: _\{cargo\}_.
 
 ### What your seat means
 
@@ -35,13 +35,14 @@ Your craft has a flight plan — an ordered list of vectors (milestones) you mus
    - The vector name
    - Evidence that the acceptance criteria were met (test output, artifacts, summary of changes)
    - A timestamp
-   `RULE-VRPT-1, RULE-VRPT-2`
+     `RULE-VRPT-1, RULE-VRPT-2`
 4. Wait for ATC to acknowledge your report before moving to the next vector.
 5. Record a `VectorPassed` entry in the black box alongside the report. `RULE-BBOX-2`
 
 ### When you are stuck on a vector
 
 If you cannot satisfy a vector's acceptance criteria:
+
 - Record an `Observation` in the black box describing what you've tried and what's blocking you.
 - Discuss with other pilots on the intercom.
 - If the criteria truly cannot be met, the captain may declare an emergency. `RULE-VEC-5`
@@ -181,14 +182,15 @@ The black box is the craft's memory. When in doubt, record it.
 
 ### What to record
 
-| Type                   | When                                                              |
-| ---------------------- | ----------------------------------------------------------------- |
-| `Decision`             | You chose an algorithm, library, approach, or design direction.   |
-| `VectorPassed`         | You passed a vector (always alongside filing the ATC report).     |
-| `GoAround`             | The landing checklist failed. Note which checks and why.          |
-| `Conflict`             | Pilots disagreed on approach. Record the disagreement and resolution. |
+| Type                   | When                                                                                     |
+| ---------------------- | ---------------------------------------------------------------------------------------- |
+| `Decision`             | You chose an algorithm, library, approach, or design direction.                          |
+| `VectorPassed`         | You passed a vector (always alongside filing the ATC report).                            |
+| `GoAround`             | The landing checklist failed. Note which checks and why.                                 |
+| `Conflict`             | Pilots disagreed on approach. Record the disagreement and resolution.                    |
 | `Observation`          | Anything else noteworthy — risks spotted, context worth preserving, unexpected findings. |
-| `EmergencyDeclaration` | The captain is declaring an emergency. This is the final entry.   |
+| `EmergencyDeclaration` | The captain is declaring an emergency. This is the final entry.                          |
+| `ChecklistRun`         | A checklist was executed. Contains full run result metadata.                             |
 
 ### Guidelines
 
