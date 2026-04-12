@@ -11,3 +11,4 @@ export { EmergencyError } from "./emergency.js";
 export { TowerError } from "./tower.js";
 export { ConfigValidationError, UnknownConfigKeyError } from "./config.js";
 export type { ConfigScope, ConfigIssue } from "./config.js";
+export { TfrError } from "./tfr.js";
