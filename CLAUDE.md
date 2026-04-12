@@ -52,7 +52,7 @@ This is a pnpm monorepo with TypeScript (ES2022, Node16 module resolution, stric
 ### Key Documents
 
 - **`docs/specification.md`** — The authoritative formal spec. Defines every entity, rule, and protocol with numbered `RULE-*` identifiers (62 total). Implementation must match this spec. If they diverge, surface the discrepancy before merging.
-- **`docs/spec.md`** — The original informal design brief. Retained as design notes.
+- **`docs/overview.md`** — The original informal design brief. Retained as design notes.
 - **`docs/agent/operating-manual.md`** — Behavioral guidance for agents operating as pilots within ATC. Written in second person with placeholder tokens (`{seat_type}`, `{callsign}`, `{cargo}`).
 - **`docs/contributing.md`** — Full validation checklist. Must be followed for every change.
 

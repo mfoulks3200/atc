@@ -8,7 +8,7 @@ sidebar_position: 2
 **Version:** 0.1.0
 **Status:** Draft
 **Date:** 2026-03-26
-**Brief:** [`docs/spec.md`](design-brief.md)
+**Brief:** [`docs/overview.md`](design-brief.md)
 
 ## 1. Overview
 

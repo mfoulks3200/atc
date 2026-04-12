@@ -76,7 +76,7 @@ The visibility this framing creates can be used by the harness to provide numero
 | Landing       | A successful merge into main                                     |
 | Black Box     | An append-only log of decisions and events                       |
 
-For the full domain model, see the [design brief](docs/spec.md) or the [formal specification](docs/specification.md).
+For the full domain model, see the [design brief](docs/overview.md) or the [formal specification](docs/specification.md).
 
 ## Project Structure
 
@@ -92,7 +92,7 @@ packages/
   adapter-claude-agent-sdk/ @airtrafficcontrol/adapter-claude-agent-sdk — Claude Agent SDK integration
 
 docs/
-  spec.md              Original design brief
+  overview.md          Original design brief
   specification.md     Formal specification with RULE-* identifiers
   agent/
     operating-manual.md  Behavioral guidance injected into agent contexts
@@ -151,7 +151,7 @@ Adapter bridging ATC's agent interface to the Claude Agent SDK. Provides `Claude
 
 ## Documentation
 
-- **[Design Brief](docs/spec.md)** — Informal design notes describing the system using aviation metaphors
+- **[Design Brief](docs/overview.md)** — Informal design notes describing the system using aviation metaphors
 - **[Formal Specification](docs/specification.md)** — Authoritative reference with typed property tables, state machine definitions, protocol descriptions, and 62 numbered `RULE-*` identifiers
 - **[Agent Operating Manual](docs/agent/operating-manual.md)** — Second-person behavioral guidance for agents, covering vector navigation, controls protocol, radio discipline, landing procedures, and emergency declarations
 
