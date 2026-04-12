@@ -219,19 +219,25 @@ function RadarSvg({ crafts }: { crafts: FlatCraft[] }) {
       )}
 
       <g className="tracks" filter="url(#radar-glow)">
-        {tracks.map(({ flat, track }) => (
-          <CraftGroup
-            key={`${flat.project}:${flat.craft.callsign}`}
-            flat={flat}
-            track={track}
-            dimmed={hoveredCallsign !== null && hoveredCallsign !== flat.craft.callsign}
-            onEnter={() => setHoveredCallsign(flat.craft.callsign)}
-            onLeave={() => setHoveredCallsign(null)}
-            onActivate={() =>
-              navigate(`/projects/${flat.project}/crafts/${flat.craft.callsign}`)
-            }
-          />
-        ))}
+        {[...tracks]
+          .sort(
+            (a, b) =>
+              Number(a.flat.craft.status === "Emergency") -
+              Number(b.flat.craft.status === "Emergency"),
+          )
+          .map(({ flat, track }) => (
+            <CraftGroup
+              key={`${flat.project}:${flat.craft.callsign}`}
+              flat={flat}
+              track={track}
+              dimmed={hoveredCallsign !== null && hoveredCallsign !== flat.craft.callsign}
+              onEnter={() => setHoveredCallsign(flat.craft.callsign)}
+              onLeave={() => setHoveredCallsign(null)}
+              onActivate={() =>
+                navigate(`/projects/${flat.project}/crafts/${flat.craft.callsign}`)
+              }
+            />
+          ))}
       </g>
 
       <g className="labels">
