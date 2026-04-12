@@ -40,7 +40,7 @@ const sidebars: SidebarsConfig = {
     {
       type: "category",
       label: "Reference",
-      items: ["specification", "design-brief"],
+      items: ["specification", "design-brief", "reference/config", "reference/rest-api"],
     },
     {
       type: "category",

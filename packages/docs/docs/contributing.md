@@ -139,13 +139,16 @@ If any change modifies the **public API surface** of a package (exported types, 
 ## [0.1.0] - 2026-03-26
 
 ### Added
+
 - `SomeNewType` interface for representing X.
 - `someFunction()` for doing Y.
 
 ### Changed
+
 - `ExistingType.field` type changed from `string` to `string[]`.
 
 ### Removed
+
 - `DeprecatedType` — replaced by `NewType`.
 ```
 
@@ -159,11 +162,11 @@ pnpm run build
 
 ## Quick Reference
 
-| Step | Command | Must Pass |
-|---|---|---|
-| Format | `pnpm run format` | No diff after running |
-| Lint | `pnpm run lint` | Zero errors, zero warnings |
-| Type check | `pnpm run build` | Zero errors |
-| Tests | `pnpm run test` | All passing |
-| Coverage | `pnpm run test -- --coverage` | 90% minimum on changed files |
+| Step            | Command                                | Must Pass                         |
+| --------------- | -------------------------------------- | --------------------------------- |
+| Format          | `pnpm run format`                      | No diff after running             |
+| Lint            | `pnpm run lint`                        | Zero errors, zero warnings        |
+| Type check      | `pnpm run build`                       | Zero errors                       |
+| Tests           | `pnpm run test`                        | All passing                       |
+| Coverage        | `pnpm run test -- --coverage`          | 90% minimum on changed files      |
 | Spec compliance | Review against `docs/specification.md` | No discrepancies, or spec updated |
