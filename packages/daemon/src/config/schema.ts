@@ -78,6 +78,34 @@ export const PROJECT_METADATA_DEFAULTS: ProjectMetadataConfig = {
 };
 
 /**
+ * Schema for per-pilot configuration.
+ *
+ * Separate from the pilot identity record — this covers operational
+ * configuration that can be modified independently.
+ *
+ * @see RULE-PILOT-1
+ */
+export const PILOT_CONFIG_SCHEMA = z
+  .object({
+    certifications: z.array(z.string()),
+    mcpServers: z.record(MCP_SERVER_CONFIG_SCHEMA),
+    skills: z.array(z.string()),
+  })
+  .passthrough();
+
+/** Inferred TypeScript type for pilot config. */
+export type PilotConfig = z.infer<typeof PILOT_CONFIG_SCHEMA>;
+
+/**
+ * Default pilot configuration. Used when a pilot has no config overrides.
+ */
+export const PILOT_CONFIG_DEFAULTS: PilotConfig = {
+  certifications: [],
+  mcpServers: {},
+  skills: [],
+};
+
+/**
  * Schema for a single profile's runtime configuration persisted at
  * `<profileDir>/config.json`.
  */
