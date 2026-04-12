@@ -11,11 +11,11 @@ export function Component() {
   const { id } = useParams<{ id: string }>();
   const wsManager = useWsManager();
   useSubscription(wsManager, `agent:${id}`);
-  const { data: agent } = useAgent(id!);
+  const { data: pilot } = useAgent(id!);
   const { data: usage } = useAgentUsage(id!);
-  const { data: craft } = useCraft(agent?.projectName ?? "", agent?.callsign ?? "");
+  const { data: craft } = useCraft(pilot?.projectName ?? "", pilot?.callsign ?? "");
 
-  if (!agent) {
+  if (!pilot) {
     return <div className="py-8 text-center text-xs" style={{ color: "var(--text-dim)" }}>Loading...</div>;
   }
 
@@ -23,17 +23,17 @@ export function Component() {
 
   return (
     <div>
-      <PageHeader crumbs={[{ label: "Agents", to: "/agents" }, { label: id! }]} />
+      <PageHeader crumbs={[{ label: "Pilots", to: "/pilots" }, { label: id! }]} />
       <div className="mt-5 flex items-start justify-between border-b pb-4" style={{ borderColor: "var(--border)" }}>
         <div>
           <div className="flex items-center gap-3">
-            <span className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>{agent.id}</span>
-            <StatusBadge status={agent.status} variant="agent" />
+            <span className="text-xl font-bold" style={{ color: "var(--text-primary)" }}>{pilot.id}</span>
+            <StatusBadge status={pilot.status} variant="agent" />
           </div>
           <div className="mt-1 text-[11px]" style={{ color: "var(--text-dim)" }}>
-            adapter: {agent.adapterType} · project: {agent.projectName} · craft: {agent.callsign}
+            adapter: {pilot.adapterType} · project: {pilot.projectName} · craft: {pilot.callsign}
           </div>
-          {agent.pid && <div className="mt-0.5 text-[10px]" style={{ color: "var(--text-dim)" }}>PID: {agent.pid}</div>}
+          {pilot.pid && <div className="mt-0.5 text-[10px]" style={{ color: "var(--text-dim)" }}>PID: {pilot.pid}</div>}
         </div>
       </div>
       {craft && (
@@ -44,7 +44,7 @@ export function Component() {
           >
             ASSIGNED CRAFT
           </div>
-          <FlightStrip craft={craft} project={agent.projectName} />
+          <FlightStrip craft={craft} project={pilot.projectName} />
         </div>
       )}
       {latestUsage && (

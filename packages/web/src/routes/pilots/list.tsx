@@ -8,26 +8,26 @@ import { StatusBadge } from "@/components/base/status-badge";
 export function Component() {
   const wsManager = useWsManager();
   useSubscription(wsManager, "agent:*");
-  const { data: agents, isLoading } = useAgents();
+  const { data: pilots, isLoading } = useAgents();
 
   return (
     <div>
-      <PageHeader crumbs={[{ label: "Agents" }]} />
+      <PageHeader crumbs={[{ label: "Pilots" }]} />
       <div className="mt-5">
         {isLoading && <div className="py-8 text-center text-xs" style={{ color: "var(--text-dim)" }}>Loading...</div>}
-        {agents && agents.length === 0 && <div className="py-8 text-center text-xs" style={{ color: "var(--text-dim)" }}>No agents registered.</div>}
+        {pilots && pilots.length === 0 && <div className="py-8 text-center text-xs" style={{ color: "var(--text-dim)" }}>No pilots registered.</div>}
         <div className="space-y-2">
-          {agents?.map((agent) => (
-            <Link key={agent.id} to={`/agents/${agent.id}`} className="block rounded-md border p-3.5 no-underline" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}>
+          {pilots?.map((pilot) => (
+            <Link key={pilot.id} to={`/pilots/${pilot.id}`} className="block rounded-md border p-3.5 no-underline" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{agent.id}</span>
-                  <StatusBadge status={agent.status} variant="agent" />
+                  <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{pilot.id}</span>
+                  <StatusBadge status={pilot.status} variant="agent" />
                 </div>
-                <div className="text-[10px]" style={{ color: "var(--text-dim)" }}>{agent.adapterType}</div>
+                <div className="text-[10px]" style={{ color: "var(--text-dim)" }}>{pilot.adapterType}</div>
               </div>
               <div className="mt-1 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                project: {agent.projectName} · craft: {agent.callsign}
+                project: {pilot.projectName} · craft: {pilot.callsign}
               </div>
             </Link>
           ))}

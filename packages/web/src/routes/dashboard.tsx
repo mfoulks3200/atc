@@ -37,7 +37,7 @@ export function Component() {
       <div className="mt-5 grid grid-cols-4 gap-3">
         <StatCard label="ACTIVE CRAFTS" value={status?.crafts ?? 0} color="var(--accent-green)" />
         <StatCard label="TOWER QUEUE" value={0} color="var(--accent-yellow)" />
-        <StatCard label="AGENTS" value={status?.agents ?? 0} color="var(--accent-purple)" />
+        <StatCard label="PILOTS" value={status?.agents ?? 0} color="var(--accent-purple)" />
         <StatCard label="EMERGENCIES" value={0} color="var(--accent-red)" />
       </div>
       <div className="mt-5 grid grid-cols-2 gap-4">
