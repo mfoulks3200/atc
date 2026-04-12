@@ -68,8 +68,8 @@ describe("CraftCategoryEnum", () => {
 });
 
 describe("BlackBoxEntryType", () => {
-  it("has exactly 7 entry types", () => {
-    expect(Object.values(BlackBoxEntryType)).toHaveLength(7);
+  it("has exactly 9 entry types", () => {
+    expect(Object.values(BlackBoxEntryType)).toHaveLength(9);
   });
 
   it("contains all entry types", () => {
@@ -79,6 +79,8 @@ describe("BlackBoxEntryType", () => {
     expect(BlackBoxEntryType.Conflict).toBe("Conflict");
     expect(BlackBoxEntryType.Observation).toBe("Observation");
     expect(BlackBoxEntryType.EmergencyDeclaration).toBe("EmergencyDeclaration");
+    expect(BlackBoxEntryType.TFRIssued).toBe("TFRIssued");
+    expect(BlackBoxEntryType.TFRLifted).toBe("TFRLifted");
   });
 
   it("includes ChecklistRun entry type (RULE-CHKL-5)", () => {

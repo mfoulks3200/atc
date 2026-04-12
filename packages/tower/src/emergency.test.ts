@@ -40,6 +40,7 @@ function makeCraft(overrides: Partial<Craft> = {}): Craft {
       },
     ],
     controls: { mode: ControlMode.Exclusive, holder: "pilot-a" },
+    holdingPattern: false,
     status: CraftStatus.Emergency,
     ...overrides,
   };

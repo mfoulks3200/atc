@@ -34,3 +34,6 @@ export type {
   ChecklistItemResult,
   ChecklistRunResult,
 } from "./checklist.js";
+
+export { TfrScope, TfrMode } from "./tfr.js";
+export type { TfrIssuer, TemporaryFlightRestriction } from "./tfr.js";

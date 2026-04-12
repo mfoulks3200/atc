@@ -75,6 +75,7 @@ export function createCraft(params: CreateCraftParams): Craft {
     flightPlan,
     blackBox: [],
     controls: createInitialControls(params.captain.identifier),
+    holdingPattern: false,
     status: CraftStatus.Taxiing,
   };
 }

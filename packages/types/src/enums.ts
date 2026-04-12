@@ -107,4 +107,8 @@ export enum BlackBoxEntryType {
   EmergencyDeclaration = "EmergencyDeclaration",
   /** A checklist was executed. Contains full ChecklistRunResult metadata. @see RULE-CHKL-5 */
   ChecklistRun = "ChecklistRun",
+  /** A Temporary Flight Restriction has taken effect on this craft. @see RULE-TFRP-5 */
+  TFRIssued = "TFRIssued",
+  /** A Temporary Flight Restriction affecting this craft has been lifted. @see RULE-TFRP-5 */
+  TFRLifted = "TFRLifted",
 }
