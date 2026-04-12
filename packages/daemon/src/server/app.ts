@@ -21,7 +21,7 @@ import { intercomRoutes } from "./routes/intercom.js";
 import { blackboxRoutes } from "./routes/blackbox.js";
 import { configRoutes } from "./routes/config.js";
 import type { LayeredConfigStore } from "../config/layered-store.js";
-import type { GlobalConfig } from "../config/schema.js";
+import type { GlobalConfig, ProjectMetadataConfig } from "../config/schema.js";
 
 /**
  * Options passed to {@link createApp}.
@@ -43,6 +43,8 @@ export interface AppOptions {
   channelRegistry?: ChannelRegistry;
   /** Store for global configuration. */
   globalConfigStore?: LayeredConfigStore<GlobalConfig>;
+  /** Map of project name -> LayeredConfigStore for project config. */
+  projectConfigStores?: Map<string, LayeredConfigStore<ProjectMetadataConfig>>;
 }
 
 /**
@@ -64,6 +66,10 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   app.decorate("adapterRegistry", options.adapterRegistry ?? new AdapterRegistry());
   app.decorate("channelRegistry", options.channelRegistry ?? new ChannelRegistry());
   app.decorate("globalConfigStore", options.globalConfigStore ?? null);
+  app.decorate(
+    "projectConfigStores",
+    options.projectConfigStores ?? new Map<string, LayeredConfigStore<ProjectMetadataConfig>>(),
+  );
   app.decorate("pilotStore", new Map<string, Map<string, PilotRecord>>());
 
   void app.register(websocket);
@@ -138,5 +144,7 @@ declare module "fastify" {
     pilotStore: Map<string, Map<string, PilotRecord>>;
     /** Store for global configuration, if wired. */
     globalConfigStore: LayeredConfigStore<GlobalConfig> | null;
+    /** Map of project name -> LayeredConfigStore for project config. */
+    projectConfigStores: Map<string, LayeredConfigStore<ProjectMetadataConfig>>;
   }
 }
