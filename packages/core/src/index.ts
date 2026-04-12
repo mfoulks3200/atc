@@ -23,3 +23,4 @@ export {
   isTerminalState,
   mapTransitionToEvents,
 } from "./lifecycle.js";
+export type { TransitionContext } from "./lifecycle.js";

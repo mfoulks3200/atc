@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   CraftStatus,
+  SeatType,
   ControlMode,
   VectorStatus,
   BlackBoxEntryType,
@@ -164,6 +165,33 @@ describe("transitionCraft", () => {
     });
 
     expect(() => transitionCraft(craft, CraftStatus.ReturnToOrigin)).toThrow("RULE-LIFE-7");
+  });
+
+  it("transitions GoAround -> Emergency when requested by the captain (RULE-EMER-1)", () => {
+    const craft = makeCraft({ status: CraftStatus.GoAround });
+    const updated = transitionCraft(craft, CraftStatus.Emergency, {
+      pilotId: "captain-1",
+      seatType: SeatType.Captain,
+    });
+
+    expect(updated.status).toBe(CraftStatus.Emergency);
+  });
+
+  it("throws LifecycleError for GoAround -> Emergency without TransitionContext (RULE-EMER-1)", () => {
+    const craft = makeCraft({ status: CraftStatus.GoAround });
+
+    expect(() => transitionCraft(craft, CraftStatus.Emergency)).toThrow("RULE-EMER-1");
+  });
+
+  it("throws LifecycleError for GoAround -> Emergency when requested by a non-captain (RULE-EMER-1)", () => {
+    const craft = makeCraft({ status: CraftStatus.GoAround });
+
+    expect(() =>
+      transitionCraft(craft, CraftStatus.Emergency, {
+        pilotId: "fo-1",
+        seatType: SeatType.FirstOfficer,
+      }),
+    ).toThrow("RULE-EMER-1");
   });
 });
 

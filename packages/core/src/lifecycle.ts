@@ -1,12 +1,26 @@
 import type { Craft } from "@airtrafficcontrol/types";
 import {
   CraftStatus,
+  SeatType,
   VectorStatus,
   BlackBoxEntryType,
   LifecycleEvent,
 } from "@airtrafficcontrol/types";
 import { TRANSITIONS, TERMINAL_STATES } from "@airtrafficcontrol/types";
 import { LifecycleError } from "@airtrafficcontrol/errors";
+
+/**
+ * Optional context for a lifecycle transition.
+ *
+ * Required for transitions that have authorization preconditions
+ * (e.g., GoAround → Emergency requires the captain).
+ */
+export interface TransitionContext {
+  /** Identifier of the pilot requesting the transition. */
+  readonly pilotId: string;
+  /** Seat type the pilot occupies on this craft. */
+  readonly seatType: SeatType;
+}
 
 /**
  * Checks whether a state transition is valid in the craft lifecycle.
@@ -44,11 +58,13 @@ export function isTerminalState(status: CraftStatus): boolean {
  *
  * @param craft - The craft to transition.
  * @param to - The target lifecycle state.
+ * @param context - Optional transition context with pilot identity. Required for
+ *   transitions that have authorization preconditions (e.g., GoAround → Emergency).
  * @returns A new Craft with the updated status.
  * @throws {LifecycleError} If the transition is invalid or preconditions are not met.
- * @see RULE-LIFE-2 through RULE-LIFE-8
+ * @see RULE-LIFE-2 through RULE-LIFE-8, RULE-EMER-1
  */
-export function transitionCraft(craft: Craft, to: CraftStatus): Craft {
+export function transitionCraft(craft: Craft, to: CraftStatus, context?: TransitionContext): Craft {
   const from = craft.status;
 
   if (isTerminalState(from)) {
@@ -66,7 +82,7 @@ export function transitionCraft(craft: Craft, to: CraftStatus): Craft {
   }
 
   // Check preconditions for specific transitions
-  checkPreconditions(craft, to);
+  checkPreconditions(craft, to, context);
 
   return { ...craft, status: to };
 }
@@ -109,9 +125,10 @@ export function mapTransitionToEvents(
  *
  * @param craft - The craft being transitioned.
  * @param to - The target state.
+ * @param context - Optional pilot context for authorization checks.
  * @throws {LifecycleError} If preconditions are not met.
  */
-function checkPreconditions(craft: Craft, to: CraftStatus): void {
+function checkPreconditions(craft: Craft, to: CraftStatus, context?: TransitionContext): void {
   const from = craft.status;
 
   // RULE-LIFE-4: InFlight -> LandingChecklist requires all vectors passed
@@ -121,6 +138,22 @@ function checkPreconditions(craft: Craft, to: CraftStatus): void {
       throw new LifecycleError(
         "All vectors must be passed before entering LandingChecklist [RULE-LIFE-4]",
         "RULE-LIFE-4",
+      );
+    }
+  }
+
+  // RULE-EMER-1: GoAround -> Emergency requires the captain
+  if (from === CraftStatus.GoAround && to === CraftStatus.Emergency) {
+    if (!context) {
+      throw new LifecycleError(
+        "Transition to Emergency requires a TransitionContext with pilot identity [RULE-EMER-1]",
+        "RULE-EMER-1",
+      );
+    }
+    if (context.seatType !== SeatType.Captain) {
+      throw new LifecycleError(
+        `Only the captain may declare an emergency, got seat type "${context.seatType}" [RULE-EMER-1]`,
+        "RULE-EMER-1",
       );
     }
   }
