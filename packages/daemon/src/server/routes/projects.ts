@@ -6,16 +6,20 @@
  * `metadata.json` file and a `crafts/` subdirectory. A bare git clone of
  * the remote is stored alongside for worktree-based craft isolation.
  *
+ * All reads and writes go through the {@link LayeredConfigStore} instances
+ * registered on `app.projectConfigStores` — raw file I/O is only used for
+ * directory creation and deletion.
+ *
  * @see RULE-CRAFT-1 for craft-to-branch and project correspondence.
  */
 
-import { mkdir, readdir, rm } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
-import { loadProjectMetadata } from "../../config/loader.js";
-import { atomicWriteJson } from "../../state/persistence.js";
 import { cloneBareRepo, fetchBareRepo } from "../../git/bare-repo.js";
-import type { ProjectMetadata } from "../../types.js";
+import { createProjectConfigStore } from "../../config/project-store.js";
+import type { ProjectMetadataConfig } from "../../config/schema.js";
+import type { ConfigLogger } from "../../config/layered-store.js";
 
 // ---------------------------------------------------------------------------
 // Request body types
@@ -44,9 +48,9 @@ interface PatchProjectBody {
  * Registers project CRUD and sync routes as a Fastify plugin.
  *
  * All routes operate under `/api/v1/projects` and read/write project state
- * from `app.profileDir/projects/`. The bare git clone is attempted at
- * creation time but failures are tolerated — directory structure is always
- * created regardless.
+ * through the `LayeredConfigStore` instances in `app.projectConfigStores`.
+ * The bare git clone is attempted at creation time but failures are tolerated
+ * — directory structure and the config store are always created regardless.
  *
  * Routes:
  * - `POST   /api/v1/projects`             — create a new project
@@ -68,9 +72,9 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
   /**
    * Create a new project.
    *
-   * Creates the project directory, writes metadata.json, initializes the
-   * crafts/ subdirectory, and attempts to clone the bare repo from the
-   * provided remoteUrl (clone failure is non-fatal).
+   * Creates the project directory, initializes the crafts/ subdirectory,
+   * writes metadata through a LayeredConfigStore, and attempts to clone
+   * the bare repo from the provided remoteUrl (clone failure is non-fatal).
    */
   app.post<{ Body: CreateProjectBody }>("/api/v1/projects", async (request, reply) => {
     const { name, remoteUrl, categories, checklist, mcpServers } = request.body;
@@ -81,7 +85,22 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
 
     await mkdir(craftsDir, { recursive: true });
 
-    const metadata: ProjectMetadata = {
+    const logger: ConfigLogger = {
+      warn: (msg) => console.warn(msg),
+      info: (msg) => console.info(msg),
+      error: (msg, err) => console.error(msg, err),
+    };
+
+    const store = createProjectConfigStore(
+      name,
+      projectDir,
+      (channel, data) => app.channelRegistry.publish(channel, data),
+      logger,
+    );
+
+    await store.load();
+
+    const metadata: ProjectMetadataConfig = {
       name,
       remoteUrl,
       categories,
@@ -89,16 +108,19 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
       mcpServers: mcpServers ?? {},
     };
 
-    await atomicWriteJson(join(projectDir, "metadata.json"), metadata);
+    await store.replace(metadata);
+    store.start();
+
+    app.projectConfigStores.set(name, store);
 
     // Clone is best-effort — local test paths and offline environments are ok
     try {
       await cloneBareRepo(remoteUrl, bareDir);
     } catch {
-      // Non-fatal: directory structure is the important part
+      // Non-fatal: directory structure and config store are the important parts
     }
 
-    return reply.code(201).send(metadata);
+    return reply.code(201).send(store.get());
   });
 
   // -------------------------------------------------------------------------
@@ -108,30 +130,13 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
   /**
    * List all registered projects.
    *
-   * Reads each subdirectory of `profileDir/projects/` and loads its
-   * metadata.json. Directories without valid metadata are silently skipped.
+   * Reads from in-memory `app.projectConfigStores` — no disk I/O needed.
    */
   app.get("/api/v1/projects", async (_request, reply) => {
-    const projectsDir = join(app.profileDir, "projects");
-
-    let entries: string[] = [];
-    try {
-      entries = await readdir(projectsDir);
-    } catch {
-      // No projects dir yet — return empty list
-      return reply.send([]);
+    const projects: ProjectMetadataConfig[] = [];
+    for (const store of app.projectConfigStores.values()) {
+      projects.push(store.get());
     }
-
-    const projects: ProjectMetadata[] = [];
-    for (const entry of entries) {
-      try {
-        const metadata = await loadProjectMetadata(join(projectsDir, entry));
-        projects.push(metadata);
-      } catch {
-        // Skip dirs without valid metadata
-      }
-    }
-
     return reply.send(projects);
   });
 
@@ -142,19 +147,15 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
   /**
    * Retrieve a single project by name.
    *
-   * Returns 404 if the project directory does not exist or has no valid
-   * metadata.json.
+   * Returns 404 if no store is registered for the given name.
    */
   app.get<{ Params: { name: string } }>("/api/v1/projects/:name", async (request, reply) => {
     const { name } = request.params;
-    const projectDir = join(app.profileDir, "projects", name);
-
-    try {
-      const metadata = await loadProjectMetadata(projectDir);
-      return reply.send(metadata);
-    } catch {
+    const store = app.projectConfigStores.get(name);
+    if (!store) {
       return reply.code(404).send({ error: `Project not found: ${name}` });
     }
+    return reply.send(store.get());
   });
 
   // -------------------------------------------------------------------------
@@ -164,12 +165,19 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
   /**
    * Remove a project and all its stored state.
    *
-   * Deletes the entire project directory recursively. Returns 204 on success.
+   * Stops and deregisters the config store, then deletes the entire project
+   * directory recursively. Returns 204 on success.
    */
   app.delete<{ Params: { name: string } }>("/api/v1/projects/:name", async (request, reply) => {
     const { name } = request.params;
-    const projectDir = join(app.profileDir, "projects", name);
 
+    const store = app.projectConfigStores.get(name);
+    if (store) {
+      await store.stop();
+      app.projectConfigStores.delete(name);
+    }
+
+    const projectDir = join(app.profileDir, "projects", name);
     await rm(projectDir, { recursive: true, force: true });
 
     return reply.code(204).send();
@@ -182,30 +190,20 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
   /**
    * Partially update a project's metadata.
    *
-   * Merges the request body into the existing metadata, preserving the
-   * project name. Returns 404 if the project does not exist.
+   * Merges the request body into the existing metadata via the store's
+   * `patch()` method, always preserving the project name. Returns 404 if
+   * no store is registered for the given name.
    */
   app.patch<{ Params: { name: string }; Body: PatchProjectBody }>(
     "/api/v1/projects/:name",
     async (request, reply) => {
       const { name } = request.params;
-      const projectDir = join(app.profileDir, "projects", name);
-
-      let existing: ProjectMetadata;
-      try {
-        existing = await loadProjectMetadata(projectDir);
-      } catch {
+      const store = app.projectConfigStores.get(name);
+      if (!store) {
         return reply.code(404).send({ error: `Project not found: ${name}` });
       }
 
-      const updated: ProjectMetadata = {
-        ...existing,
-        ...request.body,
-        name, // always preserve name
-      };
-
-      await atomicWriteJson(join(projectDir, "metadata.json"), updated);
-
+      const updated = await store.patch({ ...request.body, name });
       return reply.send(updated);
     },
   );
@@ -218,18 +216,16 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
    * Synchronize a project's bare repo with its remote.
    *
    * Runs `git fetch --all` in the project's bare repo directory. Returns 404
-   * if the project does not exist.
+   * if no store is registered for the given name.
    */
   app.post<{ Params: { name: string } }>("/api/v1/projects/:name/sync", async (request, reply) => {
     const { name } = request.params;
-    const projectDir = join(app.profileDir, "projects", name);
 
-    try {
-      await loadProjectMetadata(projectDir);
-    } catch {
+    if (!app.projectConfigStores.has(name)) {
       return reply.code(404).send({ error: `Project not found: ${name}` });
     }
 
+    const projectDir = join(app.profileDir, "projects", name);
     const bareDir = join(projectDir, "repo.git");
     await fetchBareRepo(bareDir);
 
