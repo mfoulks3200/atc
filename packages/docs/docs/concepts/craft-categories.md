@@ -19,17 +19,17 @@ Every craft is assigned a category at creation. This category determines which p
 
 Categories are project-configurable. Here are typical examples:
 
-| Category | Description |
-|---|---|
-| Backend Engineering | REST APIs, server-side logic, database changes |
-| Frontend Engineering | UI components, client-side logic, styling |
-| Infrastructure | CI/CD, deployment, cloud configuration |
-| Documentation | Non-code documentation changes |
+| Category             | Description                                    |
+| -------------------- | ---------------------------------------------- |
+| Backend Engineering  | REST APIs, server-side logic, database changes |
+| Frontend Engineering | UI components, client-side logic, styling      |
+| Infrastructure       | CI/CD, deployment, cloud configuration         |
+| Documentation        | Non-code documentation changes                 |
 
 ## Certification Matching
 
 ```
-Pilot: agent-alpha
+Pilot: pilot-alpha
   Certifications: [Backend Engineering, Infrastructure]
 
 Can captain/FO:

@@ -11,12 +11,24 @@ A craft has a single set of **controls** that govern which pilot(s) are actively
 
 In a real cockpit, only one pilot flies the aircraft at a time. When the captain wants the first officer to take over, they say "your controls." The first officer confirms "my controls." This explicit handoff prevents two pilots from fighting over the flight stick. ATC uses the same protocol.
 
+## Control State
+
+The `ControlState` interface tracks the current mode and holders:
+
+| Field         | Type                   | Description                                                                        |
+| ------------- | ---------------------- | ---------------------------------------------------------------------------------- |
+| `mode`        | `ControlMode`          | `Exclusive` or `Shared`                                                            |
+| `holder`      | `string?`              | In Exclusive mode, the single pilot holding controls. Undefined in Shared mode.    |
+| `sharedAreas` | `SharedControlArea[]?` | In Shared mode, the non-overlapping area assignments. Undefined in Exclusive mode. |
+
+Each `SharedControlArea` has a `pilotIdentifier` and an `area` (description of the file, module, or concern).
+
 ## Control Modes
 
-| Mode | Description |
-|---|---|
-| **Exclusive** | A single pilot holds the controls. Everyone else must wait until controls are released. |
-| **Shared** | Two or more pilots hold controls simultaneously, each with explicit non-overlapping areas of responsibility. |
+| Mode          | Description                                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Exclusive** | A single pilot holds the controls. Everyone else must wait until controls are released.                      |
+| **Shared**    | Two or more pilots hold controls simultaneously, each with explicit non-overlapping areas of responsibility. |
 
 ### When to Use Each Mode
 
@@ -56,14 +68,14 @@ Craft: feat-auth-flow
 Status: InFlight
 
 Timeline:
-  1. Captain agent-alpha holds exclusive controls (default)
-  2. agent-alpha: "agent-bravo, my controls" (handing off)
-     agent-bravo: "my controls" (accepting)
-     → agent-bravo now holds exclusive controls
+  1. Captain pilot-alpha holds exclusive controls (default)
+  2. pilot-alpha: "pilot-bravo, my controls" (handing off)
+     pilot-bravo: "my controls" (accepting)
+     → pilot-bravo now holds exclusive controls
 
   3. Switching to shared mode:
-     agent-alpha: "Shared controls — I'll take src/auth/, you take src/db/"
-     agent-bravo: "Confirmed — I have src/db/, you have src/auth/"
+     pilot-alpha: "Shared controls — I'll take src/auth/, you take src/db/"
+     pilot-bravo: "Confirmed — I have src/db/, you have src/auth/"
      → Both pilots can modify code in their declared areas
 ```
 

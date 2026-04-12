@@ -13,22 +13,35 @@ In a real cockpit, the captain sits in the left seat with ultimate authority, th
 
 ## Pilot Properties
 
-| Property | Type | Description |
-|---|---|---|
-| Identifier | `string` | Unique across the system |
+| Property       | Type       | Description                                |
+| -------------- | ---------- | ------------------------------------------ |
+| Identifier     | `string`   | Unique across the system                   |
 | Certifications | `string[]` | List of craft categories the pilot can fly |
 
 ## Seat Types
 
-| Seat | Certification Required | Can Modify Code | Can Hold Controls | Cardinality |
-|---|---|---|---|---|
-| **Captain** | Yes | Yes | Yes | Exactly 1 per craft |
-| **First Officer** | Yes | Yes | Yes | 0 or more |
-| **Jumpseat** | No | **No** | **No** | 0 or more |
+| Seat              | Certification Required | Can Modify Code | Can Hold Controls | Cardinality         |
+| ----------------- | ---------------------- | --------------- | ----------------- | ------------------- |
+| **Captain**       | Yes                    | Yes             | Yes               | Exactly 1 per craft |
+| **First Officer** | Yes                    | Yes             | Yes               | 0 or more           |
+| **Jumpseat**      | No                     | **No**          | **No**            | 0 or more           |
+
+### Permissions Matrix
+
+The `PERMISSIONS` constant in `@airtrafficcontrol/types` defines the full action matrix:
+
+| Action                    | Captain | First Officer | Jumpseat |
+| ------------------------- | ------- | ------------- | -------- |
+| Modify code               | Yes     | Yes           | No       |
+| Hold controls             | Yes     | Yes           | No       |
+| Write black box           | Yes     | Yes           | Yes      |
+| File vector report        | Yes     | Yes           | No       |
+| Declare emergency         | Yes     | No            | No       |
+| Request landing clearance | Yes     | Yes           | No       |
 
 ### Captain
 
-The captain is the pilot-in-command. They have final authority on all decisions, hold controls by default, and are the only one who can declare an emergency or communicate with the tower for landing clearance.
+The captain is the pilot-in-command. They have final authority on all decisions, hold controls by default, and are the only one who can declare an emergency.
 
 ### First Officer
 
@@ -36,7 +49,7 @@ A certified co-pilot who assists the captain. First officers can modify code, ho
 
 ### Jumpseat
 
-An observer and advisor. Jumpseaters **cannot modify code** and **cannot hold controls**. They can provide input, suggestions, and review. They can (and should) write to the black box when they observe something noteworthy.
+An observer and advisor. Jumpseaters **cannot modify code**, **cannot hold controls**, **cannot file vector reports**, and **cannot request landing clearance**. They can provide input, suggestions, and review. They can (and should) write to the black box when they observe something noteworthy.
 
 ## Rules
 
@@ -52,13 +65,13 @@ An observer and advisor. Jumpseaters **cannot modify code** and **cannot hold co
 ```
 Craft: feat-auth-flow (Category: Backend Engineering)
 
-  Captain: agent-alpha
+  Captain: pilot-alpha
     Certifications: [Backend Engineering, Infrastructure]
 
-  First Officer: agent-bravo
+  First Officer: pilot-bravo
     Certifications: [Backend Engineering, Frontend Engineering]
 
-  Jumpseat: agent-gamma
+  Jumpseat: pilot-gamma
     Certifications: [Frontend Engineering]
     (Not certified for Backend Engineering — can only observe)
 ```

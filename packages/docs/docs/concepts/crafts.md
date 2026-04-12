@@ -13,19 +13,20 @@ In aviation, an aircraft carries cargo from one airport to another along a plann
 
 ## Properties
 
-| Property | Type | Description |
-|---|---|---|
-| Callsign | `string` | Unique, immutable identifier for the craft |
-| Branch | `string` | The git branch associated with this craft (1:1) |
-| Cargo | `string` | Description of the change and its scope |
-| Category | `CraftCategory` | Type of change — determines pilot eligibility |
-| Captain | `Pilot` | The pilot-in-command; exactly one per craft |
-| First Officers | `Pilot[]` | Zero or more certified co-pilots |
-| Jumpseaters | `Pilot[]` | Zero or more observers (no code modification) |
-| Flight Plan | `Vector[]` | Ordered sequence of milestones to complete |
-| Black Box | `BlackBoxEntry[]` | Append-only event log |
-| Controls | `ControlState` | Who can currently modify code |
-| Status | `CraftStatus` | Current lifecycle state |
+| Property       | Type                               | Description                                                          |
+| -------------- | ---------------------------------- | -------------------------------------------------------------------- |
+| Callsign       | `string`                           | Unique, immutable identifier for the craft                           |
+| Created At     | `Date`                             | Timestamp when the craft entered the Taxiing phase                   |
+| Branch         | `string`                           | The git branch associated with this craft (1:1)                      |
+| Cargo          | `string`                           | Description of the change and its scope                              |
+| Category       | `string`                           | Type of change — determines pilot eligibility (project-configurable) |
+| Captain        | `Pilot`                            | The pilot-in-command; exactly one per craft                          |
+| First Officers | `readonly Pilot[]`                 | Zero or more certified co-pilots                                     |
+| Jumpseaters    | `readonly Pilot[]`                 | Zero or more observers (no code modification)                        |
+| Flight Plan    | `FlightPlan` (`readonly Vector[]`) | Ordered sequence of milestones to complete                           |
+| Black Box      | `readonly BlackBoxEntry[]`         | Append-only event log                                                |
+| Controls       | `ControlState`                     | Who can currently modify code                                        |
+| Status         | `CraftStatus`                      | Current lifecycle state                                              |
 
 ## Rules
 
@@ -34,6 +35,7 @@ In aviation, an aircraft carries cargo from one airport to another along a plann
 - **RULE-CRAFT-3:** Every craft must have a cargo description assigned at creation — you can't fly without knowing what you're carrying.
 - **RULE-CRAFT-4:** Every craft must have a category assigned at creation, which determines which pilots are certified to fly it.
 - **RULE-CRAFT-5:** Every craft must have exactly one captain at all times. No craft flies without a pilot-in-command.
+- **RULE-CRAFT-6:** Every craft records a creation timestamp when it enters the Taxiing phase.
 
 ## Example
 
@@ -43,9 +45,9 @@ Craft:
   Branch: fix/rate-limiter-bypass
   Cargo: "Fix rate limiter bypass when X-Forwarded-For header contains multiple IPs"
   Category: Backend Engineering
-  Captain: agent-bravo
-  First Officers: [agent-charlie]
-  Jumpseaters: [agent-delta]
+  Captain: pilot-bravo
+  First Officers: [pilot-charlie]
+  Jumpseaters: [pilot-delta]
   Status: InFlight
 ```
 

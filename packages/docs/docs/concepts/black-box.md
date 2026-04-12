@@ -15,23 +15,24 @@ In aviation, the flight data recorder (black box) captures everything that happe
 
 Each black box entry contains:
 
-| Field | Type | Description |
-|---|---|---|
-| Timestamp | `Date` | When the entry was recorded |
-| Author | `string` | The pilot who recorded the entry |
-| Type | `BlackBoxEntryType` | The kind of event (see below) |
-| Content | `string` | Description of the decision, event, or observation |
+| Field     | Type                | Description                                        |
+| --------- | ------------------- | -------------------------------------------------- |
+| Timestamp | `Date`              | When the entry was recorded                        |
+| Author    | `string`            | The pilot who recorded the entry                   |
+| Type      | `BlackBoxEntryType` | The kind of event (see below)                      |
+| Content   | `string`            | Description of the decision, event, or observation |
 
 ## Entry Types
 
-| Type | When to Record |
-|---|---|
-| `Decision` | An implementation decision — algorithm choice, library selection, approach taken |
-| `VectorPassed` | A vector's acceptance criteria were met (alongside the vector report) |
-| `GoAround` | The landing checklist failed and a go-around was initiated |
-| `Conflict` | A disagreement between pilots and how it was resolved |
-| `Observation` | Any other noteworthy event, risk, or context worth preserving |
-| `EmergencyDeclaration` | The captain has declared an emergency (final entry before origin handoff) |
+| Type                   | When to Record                                                                               |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `Decision`             | An implementation decision — algorithm choice, library selection, approach taken             |
+| `VectorPassed`         | A vector's acceptance criteria were met (alongside the vector report)                        |
+| `GoAround`             | The landing checklist failed and a go-around was initiated                                   |
+| `Conflict`             | A disagreement between pilots and how it was resolved                                        |
+| `Observation`          | Any other noteworthy event, risk, or context worth preserving                                |
+| `EmergencyDeclaration` | The captain has declared an emergency (final entry before origin handoff)                    |
+| `ChecklistRun`         | A checklist was executed — contains the full `ChecklistRunResult` metadata (see RULE-CHKL-5) |
 
 ## Key Properties
 
@@ -59,20 +60,20 @@ When an emergency is declared, the complete black box is handed to the origin ai
 ```
 Black Box for craft feat-auth-flow:
 
-[2026-03-30T09:00:00Z] agent-alpha (Decision)
+[2026-03-30T09:00:00Z] pilot-alpha (Decision)
   "Using passport.js for OAuth2 — mature library, good Google provider support."
 
-[2026-03-30T10:15:00Z] agent-alpha (VectorPassed)
+[2026-03-30T10:15:00Z] pilot-alpha (VectorPassed)
   "Vector 'Design auth schema' passed. Types exported from src/auth/types.ts."
 
-[2026-03-30T11:30:00Z] agent-gamma (Observation)
+[2026-03-30T11:30:00Z] pilot-gamma (Observation)
   "The session token format doesn't include the provider name. May cause issues
    if we add more OAuth providers later. Consider adding a 'provider' field."
 
-[2026-03-30T14:00:00Z] agent-alpha (Decision)
-  "Added 'provider' field to session token per agent-gamma's observation."
+[2026-03-30T14:00:00Z] pilot-alpha (Decision)
+  "Added 'provider' field to session token per pilot-gamma's observation."
 
-[2026-03-30T16:00:00Z] agent-alpha (GoAround)
+[2026-03-30T16:00:00Z] pilot-alpha (GoAround)
   "Landing checklist failed — lint errors in src/auth/callback.ts. Fixing."
 ```
 

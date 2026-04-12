@@ -9,7 +9,18 @@ The **intercom** is a shared communication channel for all pilots aboard a craft
 
 ## Aviation Analogy
 
-In aviation, cockpit communication follows strict radio discipline — pilots identify themselves, state who they're addressing, and keep transmissions short and clear. ATC adopts the same discipline to prevent miscommunication between autonomous agents.
+In aviation, cockpit communication follows strict radio discipline — pilots identify themselves, state who they're addressing, and keep transmissions short and clear. ATC adopts the same discipline to prevent miscommunication between pilots.
+
+## Implementation
+
+In the daemon, each craft maintains an intercom message history as an array of `IntercomMessage` entries. The REST API exposes two endpoints per craft:
+
+- `GET /api/v1/projects/:name/crafts/:callsign/intercom` — list all messages
+- `POST /api/v1/projects/:name/crafts/:callsign/intercom` — send a message
+
+Each message records the sender (`from`), their seat type (`seat`), the message content, and a timestamp.
+
+The daemon also provides real-time delivery via WebSocket pub/sub. Clients subscribe to channel patterns (exact match, prefix glob like `"craft:*"`, or the `"*"` firehose) through a `ChannelRegistry` and receive published messages when patterns match. System notifications (e.g., checklist results) are also broadcast to intercom subscribers.
 
 ## Radio Discipline
 
@@ -22,7 +33,7 @@ Every transmission must include:
 3. **Where you are** — your current context in the codebase
 
 ```
-"agent-bravo, agent-alpha, I'm in src/auth/oauth.ts working on the callback handler."
+"pilot-bravo, pilot-alpha, I'm in src/auth/oauth.ts working on the callback handler."
 ```
 
 ### Readback
@@ -30,8 +41,8 @@ Every transmission must include:
 Safety-critical exchanges — especially control handoffs — must be explicitly read back by the receiving pilot to confirm understanding:
 
 ```
-agent-alpha: "agent-bravo, agent-alpha, your controls."
-agent-bravo: "agent-alpha, agent-bravo, my controls. Confirmed."
+pilot-alpha: "pilot-bravo, pilot-alpha, your controls."
+pilot-bravo: "pilot-alpha, pilot-bravo, my controls. Confirmed."
 ```
 
 ### Transmission Etiquette
@@ -53,15 +64,15 @@ agent-bravo: "agent-alpha, agent-bravo, my controls. Confirmed."
 ```
 Craft: feat-auth-flow (InFlight, shared controls)
 
-agent-alpha: "agent-bravo, agent-alpha, I'm in src/auth/session.ts.
+pilot-alpha: "pilot-bravo, pilot-alpha, I'm in src/auth/session.ts.
   I need to add a dependency on your token validation function in src/auth/tokens.ts.
   Can we coordinate? Over."
 
-agent-bravo: "agent-alpha, agent-bravo, I'm wrapping up the token refresh logic
+pilot-bravo: "pilot-alpha, pilot-bravo, I'm wrapping up the token refresh logic
   in src/auth/tokens.ts. Give me five minutes and I'll export the validator.
   I'll call you when it's ready. Over."
 
-agent-alpha: "agent-bravo, agent-alpha, copy. Standing by. Out."
+pilot-alpha: "pilot-bravo, pilot-alpha, copy. Standing by. Out."
 ```
 
 ## Related Concepts

@@ -13,15 +13,28 @@ In aviation, a flight plan defines the route an aircraft will follow, with waypo
 
 ## Vector Properties
 
-| Property | Type | Description |
-|---|---|---|
-| Name | `string` | Short, descriptive identifier for the milestone |
-| Acceptance Criteria | `string` | Specific, verifiable conditions that must be met |
-| Status | `VectorStatus` | One of: `Pending`, `Passed`, `Failed` |
+| Property            | Type           | Description                                      |
+| ------------------- | -------------- | ------------------------------------------------ |
+| Name                | `string`       | Short, descriptive identifier for the milestone  |
+| Acceptance Criteria | `string`       | Specific, verifiable conditions that must be met |
+| Status              | `VectorStatus` | `Pending`, `Passed`, or `Failed`                 |
+
+## Vector Reports
+
+When a pilot passes a vector, they must file a `VectorReport` containing:
+
+| Field                | Type     | Description                             |
+| -------------------- | -------- | --------------------------------------- |
+| `craftCallsign`      | `string` | The craft that passed the vector        |
+| `vectorName`         | `string` | The vector that was passed              |
+| `acceptanceEvidence` | `string` | Proof that acceptance criteria were met |
+| `timestamp`          | `Date`   | When the vector was passed              |
+
+See RULE-VRPT-1 through RULE-VRPT-4 for vector reporting requirements.
 
 ## Flight Plan
 
-A flight plan is the ordered list of vectors that defines the complete work required for a craft. It is assigned at creation (during the Taxiing phase) and cannot be reordered after assignment.
+The `FlightPlan` type is a `readonly Vector[]` — an ordered list of vectors that defines the complete work required for a craft. It is assigned at creation (during the Taxiing phase) and cannot be reordered after assignment.
 
 ### Key Constraints
 
@@ -48,7 +61,7 @@ Flight Plan:
   2. [Passed]  "Implement OAuth callback"
      Criteria: "OAuth callback endpoint handles Google provider, returns session token"
 
-  3. [Active]  "Add session management"
+  3. [Pending] "Add session management"
      Criteria: "Sessions stored in database, expire after 24h, refresh token support"
 
   4. [Pending] "Write integration tests"
@@ -59,5 +72,5 @@ Flight Plan:
 
 - [Crafts](/docs/concepts/crafts) — every craft has a flight plan
 - [Vector Reporting](/docs/protocols/vector-reporting) — how to report a passed vector
-- [Craft Lifecycle](/docs/lifecycle/craft-lifecycle) — vectors drive the InFlight → LandingChecklist transition
+- [Craft Lifecycle](/docs/lifecycle/craft-lifecycle) — vectors drive the InFlight to LandingChecklist transition
 - [Emergency Declaration](/docs/protocols/emergency-declaration) — what to do when a vector can't be met

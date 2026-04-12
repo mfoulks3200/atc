@@ -23,20 +23,24 @@ Every craft originates from a design decision. The origin airport is where someo
 
 When a captain [declares an emergency](/docs/protocols/emergency-declaration), the craft is sent back to the origin airport. The origin receives:
 
-- The craft's **callsign**
-- The **cargo** description
-- The **flight plan** (showing which vectors were passed and which weren't)
-- The complete **black box** (the full audit trail)
+The `EmergencyReport` interface (from `@airtrafficcontrol/tower`) contains:
+
+| Field        | Type                       | Description                                                |
+| ------------ | -------------------------- | ---------------------------------------------------------- |
+| `callsign`   | `string`                   | The craft's unique identifier                              |
+| `cargo`      | `string`                   | Description of the change and its scope                    |
+| `flightPlan` | `FlightPlan`               | The ordered sequence of vectors (showing pass/fail status) |
+| `blackBox`   | `readonly BlackBoxEntry[]` | The complete append-only event log                         |
 
 ### Re-evaluation
 
 Using the black box to understand what went wrong, the origin airport decides one of three outcomes:
 
-| Outcome | Description |
-|---|---|
-| **Re-plan** | The change is still needed but the approach was wrong. Create a new craft with a revised flight plan. |
-| **Re-scope** | The change was too ambitious. Break it into smaller crafts. |
-| **Abandon** | The change is no longer needed or feasible. No new craft is filed. |
+| Outcome      | Description                                                                                           |
+| ------------ | ----------------------------------------------------------------------------------------------------- |
+| **Re-plan**  | The change is still needed but the approach was wrong. Create a new craft with a revised flight plan. |
+| **Re-scope** | The change was too ambitious. Break it into smaller crafts.                                           |
+| **Abandon**  | The change is no longer needed or feasible. No new craft is filed.                                    |
 
 ## Rules
 
