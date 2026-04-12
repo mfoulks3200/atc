@@ -20,6 +20,7 @@ import { pilotRoutes } from "./routes/pilots.js";
 import { intercomRoutes } from "./routes/intercom.js";
 import { blackboxRoutes } from "./routes/blackbox.js";
 import { configRoutes } from "./routes/config.js";
+import { projectConfigRoutes } from "./routes/project-config.js";
 import type { LayeredConfigStore } from "../config/layered-store.js";
 import type { GlobalConfig, ProjectMetadataConfig } from "../config/schema.js";
 
@@ -84,6 +85,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   void app.register(intercomRoutes);
   void app.register(blackboxRoutes);
   void app.register(configRoutes);
+  void app.register(projectConfigRoutes);
 
   const heartbeat = new HeartbeatTracker(3);
 
