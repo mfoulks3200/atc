@@ -69,6 +69,7 @@ Creates the Fastify application with all REST routes and WebSocket support.
 | Pilots | `/pilots` | Pilot registration and assignment |
 | Intercom | `/intercom` | Inter-pilot messaging |
 | Black Box | `/blackbox` | Append-only event logging |
+| Config | `/api/v1/config/global` | Read, replace, patch, and unset keys on the global config store |
 
 ### Adapter System
 
@@ -130,26 +131,56 @@ Persists tower/merge queue state.
 
 ### Configuration
 
-#### `loadGlobalConfig(): Promise<GlobalConfig>`
+Config schemas are validated with [Zod](https://zod.dev). Global, profile, project, and agent scopes share the same layered-store abstraction: in-memory merged view, sparse on-disk diff against defaults, atomic writes, and a single apply path for REST, WebSocket, and file-watch mutations.
 
-Loads the global ATC configuration.
+#### `LayeredConfigStore<T>`
 
-#### `loadProfileConfig(profileDir: string): Promise<ProfileConfig>`
+Generic, runtime-editable config store for a single scope. Owns in-memory state, persists only the sparse diff against defaults, and funnels all mutations through one internal apply path so REST, WebSocket, and file-watcher writes stay consistent. Free of daemon-specific wiring — project and agent scopes can reuse it by instantiating with a different schema, defaults, file path, and channel.
 
-Loads profile-specific configuration from a profile directory.
+| Method | Description |
+|---|---|
+| `load()` | One-shot read of the backing file. Populates in-memory state and emits a single `change` event with source `"init"`. |
+| `get()` | Returns the fully-merged view (defaults + overrides). |
+| `getOverrides()` | Returns only the sparse on-disk shape. |
+| `replace(next)` | Full replace. Missing known fields revert to default. Throws `ConfigValidationError` on schema failure. |
+| `patch(partial)` | Partial merge. Omitted fields are left untouched. |
+| `unset(key)` | Revert one known key to its default. Throws `UnknownConfigKeyError` if the key is not in the schema. |
+| `start()` | Begin watching the backing file for external edits (debounced `fs.watch` with mtime + sha256 fingerprinting to skip self-writes). |
+| `stop()` | Stop watching and await any in-flight write. |
+| `on("change", fn)` | Subscribe to change events: `(merged, source: "api" \| "file" \| "init") => void`. |
+| `on("invalid_external_edit", fn)` | Subscribe to invalid-external-edit events; fires when a file-watch reload fails validation. In-memory state is preserved. |
 
-#### `loadProjectMetadata(): Promise<ProjectMetadata>`
+Every mutation is also published on the store's configured pub/sub channel (e.g. `config:global`) so WebSocket subscribers see the same change stream.
 
-Loads project metadata for the current working directory.
+#### `createGlobalConfigStore(atcDir, publish, logger)`
 
-#### `resolveProfilePath(profileName: string): string`
+Factory that wires a `LayeredConfigStore<GlobalConfig>` to `GLOBAL_CONFIG_SCHEMA`, `GLOBAL_CONFIG_DEFAULTS`, `<atcDir>/config.json`, and the `config:global` channel. The daemon constructs one during bootstrap and exposes it on the Fastify instance as `app.globalConfigStore` so REST and WebSocket handlers share a single instance.
 
-Resolves the filesystem path for a named profile.
+#### Legacy Loaders
+
+- `loadGlobalConfig(): Promise<GlobalConfig>` — one-shot read of the global config, used at bootstrap before the store is constructed.
+- `loadProfileConfig(profileDir: string): Promise<ProfileConfig>` — loads profile-specific configuration from a profile directory.
+- `loadProjectMetadata(): Promise<ProjectMetadata>` — loads project metadata for the current working directory.
+- `resolveProfilePath(profileName: string): string` — resolves the filesystem path for a named profile.
+
+All loaders parse through Zod and surface structured issues via `ConfigValidationError` from `@airtrafficcontrol/errors`.
 
 #### Config Defaults
 
 - `GLOBAL_CONFIG_DEFAULTS` — Default values for global configuration
 - `PROFILE_CONFIG_DEFAULTS` — Default values for profile configuration
+
+#### WebSocket Config Dispatch
+
+Clients can mutate the global config through the WebSocket surface as well as REST. Messages are routed to the same `app.globalConfigStore` and receive a `config.ack` reply.
+
+| Client message | Handler |
+|---|---|
+| `config.patch` | `store.patch(body)` |
+| `config.replace` | `store.replace(body)` |
+| `config.unset` | `store.unset(key)` |
+
+Validation failures return `config.ack` frames with structured error details (`INVALID_CONFIG` or `UNKNOWN_CONFIG_KEY`).
 
 ### Git Utilities
 
@@ -235,6 +266,7 @@ Checks whether a process is alive by PID.
 | `@airtrafficcontrol/checklist` | Landing checklist |
 | `fastify` | HTTP server framework |
 | `@fastify/websocket` | WebSocket support |
+| `zod` | Config schema validation |
 
 ## Related Packages
 

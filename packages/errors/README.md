@@ -14,15 +14,17 @@ This is an internal workspace package (`workspace:*`).
 
 ```
 AtcError (base)
-  ├── CraftError           RULE-CRAFT-*
-  ├── SeatAssignmentError  RULE-SEAT-*
-  ├── ControlsError        RULE-CTRL-*
-  ├── BlackBoxError         RULE-BBOX-*
-  ├── LifecycleError       RULE-LIFE-*
-  ├── VectorError          RULE-VEC-*, RULE-VRPT-*
-  ├── ChecklistError       RULE-LCHK-*
-  ├── EmergencyError       RULE-EMER-*
-  └── TowerError           RULE-TOWER-*, RULE-TMRG-*
+  ├── CraftError             RULE-CRAFT-*
+  ├── SeatAssignmentError    RULE-SEAT-*
+  ├── ControlsError          RULE-CTRL-*
+  ├── BlackBoxError          RULE-BBOX-*
+  ├── LifecycleError         RULE-LIFE-*
+  ├── VectorError            RULE-VEC-*, RULE-VRPT-*
+  ├── ChecklistError         RULE-LCHK-*
+  ├── EmergencyError         RULE-EMER-*
+  ├── TowerError             RULE-TOWER-*, RULE-TMRG-*
+  ├── ConfigValidationError  RULE-CFG-1 (placeholder)
+  └── UnknownConfigKeyError  RULE-CFG-1 (placeholder)
 ```
 
 ## API Reference
@@ -88,6 +90,44 @@ Thrown when a `RULE-EMER-*` invariant is violated. Covers emergency declaration 
 
 Thrown when a `RULE-TOWER-*` or `RULE-TMRG-*` invariant is violated. Covers tower merge coordination: vector report verification, branch freshness, merge sequencing.
 
+### `ConfigValidationError`
+
+Thrown when a config payload fails schema validation. Used by the daemon's layered config stores to surface Zod issues to REST and WebSocket clients.
+
+```typescript
+new ConfigValidationError(scope: ConfigScope, issues: readonly ConfigIssue[], message?: string)
+```
+
+| Property | Type | Description |
+|---|---|---|
+| `scope` | `ConfigScope` | Which configuration tier failed validation (`"global" \| "profile" \| "project" \| "agent"`) |
+| `issues` | `readonly ConfigIssue[]` | Zod-compatible issue list describing each failure |
+
+Tagged with the placeholder rule id `RULE-CFG-1` pending a formal rule family in `docs/specification.md`.
+
+### `UnknownConfigKeyError`
+
+Thrown when `LayeredConfigStore.unset()` or a `DELETE /config/.../:key` call names a key that is not part of the target scope's declared schema.
+
+```typescript
+new UnknownConfigKeyError(scope: ConfigScope, key: string)
+```
+
+| Property | Type | Description |
+|---|---|---|
+| `scope` | `ConfigScope` | Which configuration tier owns the unknown key |
+| `key` | `string` | The offending key |
+
+Tagged with the placeholder rule id `RULE-CFG-1`.
+
+### `ConfigScope`
+
+Type alias — `"global" | "profile" | "project" | "agent"`. Matches the tiers in the layered config system.
+
+### `ConfigIssue`
+
+Minimal `{ code, path, message }` shape compatible with Zod issues. Declared locally so this package remains free of a runtime `zod` dependency.
+
 ## Usage
 
 ```typescript
@@ -129,6 +169,7 @@ try {
 | `src/checklist.ts` | `ChecklistError` |
 | `src/emergency.ts` | `EmergencyError` |
 | `src/tower.ts` | `TowerError` |
+| `src/config.ts` | `ConfigValidationError`, `UnknownConfigKeyError`, `ConfigScope`, `ConfigIssue` |
 
 ## Related Packages
 
@@ -136,3 +177,4 @@ try {
 - [`@airtrafficcontrol/core`](../core/) — Throws these errors when rules are violated
 - [`@airtrafficcontrol/validation`](../validation/) — Throws `SeatAssignmentError` on invalid assignments
 - [`@airtrafficcontrol/tower`](../tower/) — Throws `TowerError` and `EmergencyError`
+- [`@airtrafficcontrol/daemon`](../daemon/) — Throws `ConfigValidationError` and `UnknownConfigKeyError` from its layered config stores
