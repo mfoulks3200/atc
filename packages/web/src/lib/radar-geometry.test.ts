@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fnv1a, bearingFor, jitterFor, computeCraftTrack } from "./radar-geometry.js";
-import type { TrackPoint, CraftTrack } from "./radar-geometry.js";
+import type { TrackPoint } from "./radar-geometry.js";
 
 describe("fnv1a", () => {
   it("is stable for the same input", () => {
@@ -203,7 +203,7 @@ describe("computeCraftTrack", () => {
 });
 
 import { resolveLabelPlacements } from "./radar-geometry.js";
-import type { LabelInput, RouteSegment, ResolvedLabel } from "./radar-geometry.js";
+import type { LabelInput, RouteSegment } from "./radar-geometry.js";
 
 describe("resolveLabelPlacements", () => {
   const bbox = { width: 60, height: 14 };
@@ -234,9 +234,7 @@ describe("resolveLabelPlacements", () => {
     ];
     // A vertical segment immediately above the anchor belonging to craft "B"
     // blocks the preferred perpendicular.
-    const segments: RouteSegment[] = [
-      { callsign: "B", x1: 180, y1: 100, x2: 220, y2: 180 },
-    ];
+    const segments: RouteSegment[] = [{ callsign: "B", x1: 180, y1: 100, x2: 220, y2: 180 }];
     const out = resolveLabelPlacements(inputs, segments);
     // Label should not be at the initial 36 px offset directly above.
     const dy = out[0].y - 200;

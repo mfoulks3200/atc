@@ -1,5 +1,10 @@
 import type { Craft } from "@airtrafficcontrol/types";
-import { CraftStatus, VectorStatus, BlackBoxEntryType, LifecycleEvent } from "@airtrafficcontrol/types";
+import {
+  CraftStatus,
+  VectorStatus,
+  BlackBoxEntryType,
+  LifecycleEvent,
+} from "@airtrafficcontrol/types";
 import { TRANSITIONS, TERMINAL_STATES } from "@airtrafficcontrol/types";
 import { LifecycleError } from "@airtrafficcontrol/errors";
 

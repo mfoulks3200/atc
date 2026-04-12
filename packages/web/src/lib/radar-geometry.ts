@@ -208,9 +208,7 @@ export function resolveLabelPlacements(
         };
         if (placed.some((other) => boxesOverlap(box, other))) continue;
         if (
-          segments.some(
-            (seg) => seg.callsign !== label.callsign && segmentIntersectsBox(seg, box),
-          )
+          segments.some((seg) => seg.callsign !== label.callsign && segmentIntersectsBox(seg, box))
         ) {
           continue;
         }

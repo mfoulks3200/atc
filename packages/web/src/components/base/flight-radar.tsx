@@ -90,7 +90,6 @@ function FlightRadarInner({ projectNames }: { projectNames: string[] }) {
     });
     out.sort((a, b) => a.craft.callsign.localeCompare(b.craft.callsign));
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contentKey]);
 
   return <RadarSvg crafts={activeCrafts} />;
@@ -379,6 +378,5 @@ const warned = new Set<string>();
 function warnOnce(callsign: string): void {
   if (warned.has(callsign)) return;
   warned.add(callsign);
-  // eslint-disable-next-line no-console
   console.warn(`[FlightRadar] skipping ${callsign}: zero vectors`);
 }
