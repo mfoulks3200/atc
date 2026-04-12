@@ -126,6 +126,8 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
             instance.channelRegistry,
             heartbeat,
             instance.globalConfigStore,
+            instance.projectConfigStores,
+            instance.pilotConfigStore,
           );
         } catch {
           // ignore malformed messages
