@@ -183,6 +183,88 @@ describe("transitionCraft", () => {
     expect(() => transitionCraft(craft, CraftStatus.Emergency)).toThrow("RULE-EMER-1");
   });
 
+  it("throws LifecycleError for Taxiing -> InFlight with empty flight plan (RULE-LIFE-3)", () => {
+    const craft = makeCraft({ status: CraftStatus.Taxiing, flightPlan: [] });
+
+    expect(() => transitionCraft(craft, CraftStatus.InFlight)).toThrow("RULE-LIFE-3");
+  });
+
+  it("transitions LandingChecklist -> ClearedToLand with checklist passed and clearance (RULE-LIFE-5)", () => {
+    const craft = makeCraft({ status: CraftStatus.LandingChecklist });
+    const updated = transitionCraft(craft, CraftStatus.ClearedToLand, {
+      checklistPassed: true,
+      clearanceGranted: true,
+    });
+
+    expect(updated.status).toBe(CraftStatus.ClearedToLand);
+  });
+
+  it("throws LifecycleError for LandingChecklist -> ClearedToLand without context (RULE-LIFE-5)", () => {
+    const craft = makeCraft({ status: CraftStatus.LandingChecklist });
+
+    expect(() => transitionCraft(craft, CraftStatus.ClearedToLand)).toThrow("RULE-LIFE-5");
+  });
+
+  it("throws LifecycleError for LandingChecklist -> ClearedToLand when checklist failed (RULE-LIFE-5)", () => {
+    const craft = makeCraft({ status: CraftStatus.LandingChecklist });
+
+    expect(() =>
+      transitionCraft(craft, CraftStatus.ClearedToLand, {
+        checklistPassed: false,
+        clearanceGranted: true,
+      }),
+    ).toThrow("RULE-LIFE-5");
+  });
+
+  it("throws LifecycleError for LandingChecklist -> ClearedToLand without clearance (RULE-LIFE-5)", () => {
+    const craft = makeCraft({ status: CraftStatus.LandingChecklist });
+
+    expect(() =>
+      transitionCraft(craft, CraftStatus.ClearedToLand, {
+        checklistPassed: true,
+        clearanceGranted: false,
+      }),
+    ).toThrow("RULE-LIFE-5");
+  });
+
+  it("transitions ClearedToLand -> Landed with branch up to date and merge executed (RULE-LIFE-6)", () => {
+    const craft = makeCraft({ status: CraftStatus.ClearedToLand });
+    const updated = transitionCraft(craft, CraftStatus.Landed, {
+      branchUpToDate: true,
+      mergeExecuted: true,
+    });
+
+    expect(updated.status).toBe(CraftStatus.Landed);
+  });
+
+  it("throws LifecycleError for ClearedToLand -> Landed without context (RULE-LIFE-6)", () => {
+    const craft = makeCraft({ status: CraftStatus.ClearedToLand });
+
+    expect(() => transitionCraft(craft, CraftStatus.Landed)).toThrow("RULE-LIFE-6");
+  });
+
+  it("throws LifecycleError for ClearedToLand -> Landed when branch not up to date (RULE-LIFE-6)", () => {
+    const craft = makeCraft({ status: CraftStatus.ClearedToLand });
+
+    expect(() =>
+      transitionCraft(craft, CraftStatus.Landed, {
+        branchUpToDate: false,
+        mergeExecuted: true,
+      }),
+    ).toThrow("RULE-LIFE-6");
+  });
+
+  it("throws LifecycleError for ClearedToLand -> Landed when merge not executed (RULE-LIFE-6)", () => {
+    const craft = makeCraft({ status: CraftStatus.ClearedToLand });
+
+    expect(() =>
+      transitionCraft(craft, CraftStatus.Landed, {
+        branchUpToDate: true,
+        mergeExecuted: false,
+      }),
+    ).toThrow("RULE-LIFE-6");
+  });
+
   it("throws LifecycleError for GoAround -> Emergency when requested by a non-captain (RULE-EMER-1)", () => {
     const craft = makeCraft({ status: CraftStatus.GoAround });
 
