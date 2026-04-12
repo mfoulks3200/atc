@@ -29,6 +29,55 @@ export const ADAPTER_CONFIG_SCHEMA = z.object({
 });
 
 /**
+ * Schema for a single checklist step configuration.
+ */
+export const CHECKLIST_ITEM_CONFIG_SCHEMA = z.object({
+  name: z.string(),
+  command: z.string(),
+  timeout: z.number().optional(),
+});
+
+/**
+ * Schema for an MCP server configuration block.
+ */
+export const MCP_SERVER_CONFIG_SCHEMA = z.object({
+  command: z.string(),
+  args: z.array(z.string()),
+  env: z.record(z.string()).optional(),
+});
+
+/**
+ * Schema for project-level metadata persisted at
+ * `<profileDir>/projects/<name>/metadata.json`.
+ *
+ * @see RULE-CRAFT-1
+ */
+export const PROJECT_METADATA_SCHEMA = z
+  .object({
+    name: z.string(),
+    remoteUrl: z.string(),
+    categories: z.array(z.string()),
+    checklist: z.array(CHECKLIST_ITEM_CONFIG_SCHEMA),
+    mcpServers: z.record(MCP_SERVER_CONFIG_SCHEMA),
+  })
+  .passthrough();
+
+/** Inferred TypeScript type for project metadata (from Zod). */
+export type ProjectMetadataConfig = z.infer<typeof PROJECT_METADATA_SCHEMA>;
+
+/**
+ * Default project metadata. Used when a project's metadata.json is absent
+ * or any field is omitted.
+ */
+export const PROJECT_METADATA_DEFAULTS: ProjectMetadataConfig = {
+  name: "",
+  remoteUrl: "",
+  categories: [],
+  checklist: [],
+  mcpServers: {},
+};
+
+/**
  * Schema for a single profile's runtime configuration persisted at
  * `<profileDir>/config.json`.
  */
