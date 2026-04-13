@@ -12,7 +12,7 @@
     "@airtrafficcontrol/types": "workspace:*",
     "@airtrafficcontrol/errors": "workspace:*",
     "@airtrafficcontrol/daemon": "workspace:*",
-    "@anthropic-ai/sdk": "^0.52.0"
+    "@anthropic-ai/sdk": "^0.88.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.3"
