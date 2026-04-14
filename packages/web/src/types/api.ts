@@ -182,3 +182,18 @@ export type WsClientMessage =
   | { type: "unsubscribe"; channel: string }
   | { type: "ping" }
   | { type: "pong" };
+
+/**
+ * Daemon representation of a Temporary Flight Restriction.
+ * Mirrors the TfrState interface in @airtrafficcontrol/daemon.
+ */
+export interface TfrState {
+  identifier: string;
+  scope: "global" | "project" | "craft";
+  target: string | null;
+  mode: "graceful" | "immediate";
+  reason: string;
+  issuedBy: "user" | "tower";
+  issuedAt: string;
+  liftedAt: string | null;
+}
