@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { CraftStatus, SeatType, ControlMode, VectorStatus, BlackBoxEntryType, CraftCategoryEnum } from "./enums.js";
+import {
+  CraftStatus,
+  SeatType,
+  ControlMode,
+  VectorStatus,
+  BlackBoxEntryType,
+  CraftCategoryEnum,
+} from "./enums.js";
 
 describe("CraftStatus", () => {
   it("has exactly 8 states", () => {

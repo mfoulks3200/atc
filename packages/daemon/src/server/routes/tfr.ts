@@ -75,9 +75,7 @@ export async function tfrRoutes(app: FastifyInstance): Promise<void> {
         .send({ error: "Project-scoped TFR must specify a target (RULE-TFR-2)" });
     }
     if (scope === "craft" && !target) {
-      return reply
-        .code(400)
-        .send({ error: "Craft-scoped TFR must specify a target (RULE-TFR-2)" });
+      return reply.code(400).send({ error: "Craft-scoped TFR must specify a target (RULE-TFR-2)" });
     }
 
     const tfr: TfrState = {
