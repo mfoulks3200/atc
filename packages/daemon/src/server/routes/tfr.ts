@@ -95,6 +95,17 @@ export async function tfrRoutes(app: FastifyInstance): Promise<void> {
     // RULE-TFRP-5: Record TFRIssued in black box
     applyTfrToCrafts(app, tfr, projectName);
 
+    // Publish to the tfr:global channel so clients can react in real time
+    if (tfr.scope === "global") {
+      app.channelRegistry.publish("tfr:global", {
+        type: "event",
+        channel: "tfr:global",
+        event: "tfr.issued",
+        timestamp: new Date().toISOString(),
+        data: { tfr },
+      });
+    }
+
     return reply.code(201).send(tfr);
   });
 
@@ -137,6 +148,17 @@ export async function tfrRoutes(app: FastifyInstance): Promise<void> {
       // RULE-TFR-8: Clear holdingPattern on crafts not subject to another active TFR
       // RULE-TFRP-5: Record TFRLifted in black box
       clearTfrFromCrafts(app, lifted, projectName);
+
+      // Publish to the tfr:global channel so clients can react in real time
+      if (lifted.scope === "global") {
+        app.channelRegistry.publish("tfr:global", {
+          type: "event",
+          channel: "tfr:global",
+          event: "tfr.lifted",
+          timestamp: new Date().toISOString(),
+          data: { tfr: lifted },
+        });
+      }
 
       return reply.send(lifted);
     },

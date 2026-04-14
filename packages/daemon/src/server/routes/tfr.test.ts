@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "../app.js";
 import { CraftStore } from "../../state/craft-store.js";
@@ -255,6 +255,89 @@ describe("tfr routes", () => {
         url: "/api/v1/tfrs/tfr-1/lift",
       });
       expect(res.statusCode).toBe(409);
+    });
+  });
+
+  describe("WebSocket publish on tfr:global", () => {
+    it("publishes tfr.issued on the tfr:global channel for global-scoped TFRs", async () => {
+      const publish = vi.fn();
+      (app as unknown as { channelRegistry: { publish: typeof publish } }).channelRegistry.publish = publish;
+
+      await app.inject({
+        method: "POST",
+        url: "/api/v1/tfrs",
+        payload: {
+          scope: "global",
+          target: null,
+          mode: "immediate",
+          reason: "test",
+          issuedBy: "user",
+        },
+      });
+
+      expect(publish).toHaveBeenCalledWith(
+        "tfr:global",
+        expect.objectContaining({
+          type: "event",
+          channel: "tfr:global",
+          event: "tfr.issued",
+          data: expect.objectContaining({
+            tfr: expect.objectContaining({ scope: "global" }),
+          }),
+        }),
+      );
+    });
+
+    it("does not publish on tfr:global for project-scoped TFRs", async () => {
+      const publish = vi.fn();
+      (app as unknown as { channelRegistry: { publish: typeof publish } }).channelRegistry.publish = publish;
+
+      await app.inject({
+        method: "POST",
+        url: "/api/v1/tfrs",
+        payload: {
+          scope: "project",
+          target: "some-project",
+          mode: "immediate",
+          reason: "test",
+          issuedBy: "user",
+        },
+      });
+
+      expect(publish).not.toHaveBeenCalledWith("tfr:global", expect.anything());
+    });
+
+    it("publishes tfr.lifted on the tfr:global channel when a global TFR is lifted", async () => {
+      const publish = vi.fn();
+      (app as unknown as { channelRegistry: { publish: typeof publish } }).channelRegistry.publish = publish;
+
+      tfrStore.set({
+        identifier: "tfr-global-1",
+        scope: "global",
+        target: null,
+        mode: "immediate",
+        reason: "test",
+        issuedBy: "user",
+        issuedAt: new Date().toISOString(),
+        liftedAt: null,
+      });
+
+      await app.inject({
+        method: "POST",
+        url: "/api/v1/tfrs/tfr-global-1/lift",
+      });
+
+      expect(publish).toHaveBeenCalledWith(
+        "tfr:global",
+        expect.objectContaining({
+          type: "event",
+          channel: "tfr:global",
+          event: "tfr.lifted",
+          data: expect.objectContaining({
+            tfr: expect.objectContaining({ identifier: "tfr-global-1", scope: "global" }),
+          }),
+        }),
+      );
     });
   });
 });
