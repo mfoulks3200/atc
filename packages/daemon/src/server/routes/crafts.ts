@@ -15,6 +15,7 @@ import { CraftStatus, BlackBoxEntryType } from "@airtrafficcontrol/types";
 import { createWorktree } from "../../git/worktree.js";
 import { loadProjectMetadata } from "../../config/loader.js";
 import { runChecklist } from "../../checklist/runner.js";
+import { publishCraftEvent, publishCraftRemoved } from "./broadcast.js";
 import type { CraftState, VectorState, BlackBoxEntry } from "../../types.js";
 
 // ---------------------------------------------------------------------------
@@ -100,6 +101,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       };
 
       app.craftStore.set(name, craft);
+      publishCraftEvent(app, name, craft, "craft.created");
 
       // Attempt worktree creation — non-fatal in tests without a real bare repo
       try {
@@ -160,6 +162,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const { name, callsign } = request.params;
       app.craftStore.remove(name, callsign);
+      publishCraftRemoved(app, name, callsign);
       return reply.code(204).send();
     },
   );
@@ -198,6 +201,10 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
 
       craft.status = CraftStatus.InFlight;
       app.craftStore.set(name, craft);
+      publishCraftEvent(app, name, craft, "craft.launched", {
+        from: CraftStatus.Taxiing,
+        to: CraftStatus.InFlight,
+      });
 
       return reply.send(craft);
     },
@@ -237,8 +244,13 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       }
 
       // Transition to LandingChecklist before running
+      const entryStatus = craft.status;
       craft.status = CraftStatus.LandingChecklist;
       app.craftStore.set(name, craft);
+      publishCraftEvent(app, name, craft, "craft.checklist.started", {
+        from: entryStatus,
+        to: CraftStatus.LandingChecklist,
+      });
 
       let metadata;
       try {
@@ -254,6 +266,13 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       // RULE-LCHK-3: failure -> GoAround, success -> ClearedToLand
       craft.status = result.passed ? CraftStatus.ClearedToLand : CraftStatus.GoAround;
       app.craftStore.set(name, craft);
+      publishCraftEvent(
+        app,
+        name,
+        craft,
+        result.passed ? "craft.checklist.passed" : "craft.checklist.failed",
+        { from: CraftStatus.LandingChecklist, to: craft.status, result },
+      );
 
       return reply.send({ ...result, status: craft.status });
     },
@@ -303,6 +322,11 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       craft.blackBox.push(entry);
       craft.status = CraftStatus.Emergency;
       app.craftStore.set(name, craft);
+      publishCraftEvent(app, name, craft, "craft.emergency.declared", {
+        from: CraftStatus.GoAround,
+        to: CraftStatus.Emergency,
+        entry,
+      });
 
       return reply.send(craft);
     },

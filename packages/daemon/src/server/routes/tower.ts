@@ -9,6 +9,8 @@
  */
 
 import type { FastifyInstance } from "fastify";
+import { publishCraftEvent } from "./broadcast.js";
+import type { WsEvent } from "../../types.js";
 
 // ---------------------------------------------------------------------------
 // Request types
@@ -71,6 +73,17 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
       }
 
       app.towerStore.enqueue(name, callsign);
+      publishCraftEvent(app, name, craft, "craft.clearance.granted");
+
+      // Notify tower queue subscribers so list views refresh.
+      const towerEvent: WsEvent = {
+        type: "event",
+        channel: `tower:${name}`,
+        event: "tower.queue.changed",
+        timestamp: new Date().toISOString(),
+        data: { project: name, queue: app.towerStore.getQueue(name) },
+      };
+      app.channelRegistry.publish(towerEvent.channel, towerEvent);
 
       return reply.send({ granted: true });
     },

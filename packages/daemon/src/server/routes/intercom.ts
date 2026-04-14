@@ -8,6 +8,7 @@
  */
 
 import type { FastifyInstance } from "fastify";
+import { publishCraftEvent } from "./broadcast.js";
 import type { IntercomMessage } from "../../types.js";
 
 // ---------------------------------------------------------------------------
@@ -82,6 +83,10 @@ export async function intercomRoutes(app: FastifyInstance): Promise<void> {
       };
 
       app.craftStore.appendIntercom(name, callsign, message);
+      const updated = app.craftStore.get(name, callsign);
+      if (updated) {
+        publishCraftEvent(app, name, updated, "craft.intercom.posted", { message });
+      }
       return reply.send(message);
     },
   );

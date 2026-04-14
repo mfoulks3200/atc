@@ -9,6 +9,7 @@
  */
 
 import type { FastifyInstance } from "fastify";
+import { publishCraftEvent } from "./broadcast.js";
 
 // ---------------------------------------------------------------------------
 // Request types
@@ -95,6 +96,7 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
       vector.evidence = evidence;
       vector.reportedAt = new Date().toISOString();
       app.craftStore.set(name, craft);
+      publishCraftEvent(app, name, craft, "craft.vector.reported", { vector });
 
       return reply.send(craft.flightPlan);
     },
