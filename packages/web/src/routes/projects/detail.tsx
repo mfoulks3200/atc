@@ -28,6 +28,13 @@ export function Component() {
         crumbs={[{ label: "Projects", to: "/projects" }, { label: name! }]}
         right={
           <div className="flex gap-2">
+            <Link
+              to={`/settings/project/${name}`}
+              className="rounded-md px-3 py-1.5 text-xs no-underline"
+              style={{ backgroundColor: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+            >
+              Settings
+            </Link>
             <button
               onClick={() => setShowCreatePilot(true)}
               className="rounded-md px-3 py-1.5 text-xs"

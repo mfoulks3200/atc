@@ -92,10 +92,49 @@ function SettingsNav() {
   );
 }
 
+function ProjectSettingsNav({ name }: { name: string }) {
+  return (
+    <nav className="border-t px-4 py-3" style={{ borderColor: "var(--border)" }}>
+      <div className="mb-2 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
+        PROJECT SETTINGS: {name.toUpperCase()}
+      </div>
+      <NavLink
+        to="/settings"
+        className="mb-2 block px-2 py-1 text-xs no-underline opacity-50"
+        style={{ color: "var(--text-muted)" }}
+      >
+        ← Back to Settings
+      </NavLink>
+      <NavLink
+        to={`/settings/project/${name}/general`}
+        className="mb-1 block rounded-md px-2 py-1.5 text-xs no-underline"
+        style={({ isActive }) => ({
+          color: isActive ? "var(--accent-green)" : "var(--text-muted)",
+          backgroundColor: isActive ? "var(--bg-elevated)" : "transparent",
+        })}
+      >
+        General
+      </NavLink>
+      <NavLink
+        to={`/settings/project/${name}/mcp-servers`}
+        className="mb-1 block rounded-md px-2 py-1.5 text-xs no-underline"
+        style={({ isActive }) => ({
+          color: isActive ? "var(--accent-green)" : "var(--text-muted)",
+          backgroundColor: isActive ? "var(--bg-elevated)" : "transparent",
+        })}
+      >
+        MCP Servers
+      </NavLink>
+    </nav>
+  );
+}
+
 export function Sidebar() {
   const projectMatch = useMatch("/projects/:name/*");
   const projectName = projectMatch?.params.name;
   const settingsMatch = useMatch("/settings/*");
+  const projectSettingsMatch = useMatch("/settings/project/:name/*");
+  const projectSettingsName = projectSettingsMatch?.params.name;
 
   return (
     <aside
@@ -137,7 +176,11 @@ export function Sidebar() {
         ))}
       </nav>
       {projectName && <ProjectNav name={projectName} />}
-      {settingsMatch && <SettingsNav />}
+      {projectSettingsName ? (
+        <ProjectSettingsNav name={projectSettingsName} />
+      ) : (
+        settingsMatch && <SettingsNav />
+      )}
     </aside>
   );
 }
