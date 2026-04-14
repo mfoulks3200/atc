@@ -196,6 +196,32 @@ export interface CraftState {
   intercom: IntercomMessage[];
   /** Current controls state. */
   controls: ControlState;
+  /** Whether this craft is paused by a TFR. @see RULE-TFR-5 */
+  holdingPattern: boolean;
+}
+
+/**
+ * Persisted state of a Temporary Flight Restriction, as maintained by the daemon.
+ *
+ * @see RULE-TFR-1 through RULE-TFR-8
+ */
+export interface TfrState {
+  /** Unique TFR identifier. */
+  identifier: string;
+  /** Scope: "global", "project", or "craft". */
+  scope: "global" | "project" | "craft";
+  /** Project name (scope=project) or callsign (scope=craft). Null for global. */
+  target: string | null;
+  /** Enforcement mode: "graceful" or "immediate". */
+  mode: "graceful" | "immediate";
+  /** Why the TFR was issued. */
+  reason: string;
+  /** Who issued the TFR: "user" or "tower". */
+  issuedBy: "user" | "tower";
+  /** ISO-8601 timestamp when the TFR was issued. */
+  issuedAt: string;
+  /** ISO-8601 timestamp when the TFR was lifted. Null while active. */
+  liftedAt: string | null;
 }
 
 // ---------------------------------------------------------------------------

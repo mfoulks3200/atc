@@ -32,6 +32,7 @@ describe("vector routes", () => {
       blackBox: [],
       intercom: [],
       controls: { mode: "exclusive", holder: "pilot-1" },
+      holdingPattern: false,
     };
     craftStore.set(PROJECT, craft);
   }

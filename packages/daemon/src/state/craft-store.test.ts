@@ -27,6 +27,7 @@ function makeCraft(callsign: string): CraftState {
     blackBox: [],
     intercom: [],
     controls: { mode: "exclusive", holder: "pilot-1" },
+    holdingPattern: false,
   };
 }
 
