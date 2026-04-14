@@ -6,6 +6,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
+    "clean:shadow": "rm -f scripts/contributors.js scripts/contributors.js.map scripts/contributors.d.ts scripts/contributors.d.ts.map",
+    "prebuild": "pnpm clean:shadow",
     "build": "tsc --build",
     "codegen:contributors": "tsx scripts/contributors.ts"
   },

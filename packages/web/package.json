@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "clean:shadow": "rm -f vite.config.js vite.config.js.map vite.config.d.ts vite.config.d.ts.map",
+    "predev": "pnpm clean:shadow",
+    "prebuild": "pnpm clean:shadow",
+    "prepreview": "pnpm clean:shadow",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
