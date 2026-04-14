@@ -111,3 +111,23 @@ export type { ChecklistResult, ChecklistItemResult } from "./checklist/runner.js
 // ---------------------------------------------------------------------------
 
 export { writePidFile, readPidFile, removePidFile, isProcessAlive } from "./process/pid.js";
+export { AgentManager } from "./process/agent-manager.js";
+export type {
+  AgentManagerDeps,
+  AgentManagerLaunchOptions,
+  LivenessProbe,
+} from "./process/agent-manager.js";
+
+// ---------------------------------------------------------------------------
+// First-run seeding
+// ---------------------------------------------------------------------------
+
+export {
+  seedDemo,
+  defaultProfileDir,
+  DEMO_PROJECT_NAME,
+  DEMO_PILOT_ID,
+  DEMO_CALLSIGN,
+  DEMO_BRANCH,
+} from "./seed-demo.js";
+export type { SeedDemoOptions, SeedDemoResult } from "./seed-demo.js";

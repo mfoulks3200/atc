@@ -7,7 +7,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc --build",
-    "start": "node --import tsx src/start.ts"
+    "start": "node --import tsx src/start.ts",
+    "seed:demo": "node --import tsx src/seed-demo-cli.ts"
   },
   "dependencies": {
     "@airtrafficcontrol/checklist": "workspace:*",

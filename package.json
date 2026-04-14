@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n daemon,web -c blue,green \"pnpm --filter @airtrafficcontrol/daemon start\" \"pnpm --filter @airtrafficcontrol/web dev\"",
+    "seed:demo": "pnpm --filter @airtrafficcontrol/daemon run seed:demo",
     "build": "tsc --build",
     "test": "vitest run",
     "test:watch": "vitest",
