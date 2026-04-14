@@ -12,6 +12,14 @@
 - REST routes under `/api/v1/config/global`: `GET` (returns merged config and sparse overrides), `PUT` (full replace), `PATCH` (partial merge), `DELETE /:key` (revert one known key to default). `ConfigValidationError` maps to `400 INVALID_CONFIG` with Zod issues attached; `UnknownConfigKeyError` maps to `404 UNKNOWN_CONFIG_KEY`; absence of the store returns `503 UNAVAILABLE`.
 - WebSocket client messages `config.patch`, `config.replace`, and `config.unset` dispatch to the same store, returning `config.ack` frames with either the merged result or a structured error.
 - Integration smoke test covering the global-config HTTP and WebSocket surface end-to-end.
+- `TfrStore` — in-memory store for Temporary Flight Restrictions backed by atomic JSON persistence at `<stateDir>/tfrs.json`. Supports `get`, `set`, `list`, `listActive`, `findAffecting(projectName, callsign)` (RULE-TFR-7), plus `save`/`load`. Active and lifted TFRs are retained together for audit (RULE-TFRP-7).
+- `TfrState` interface — daemon representation of a TFR with ISO-8601 timestamps and lowercase scope/mode strings.
+- `CraftState.holdingPattern: boolean` — overlay flag set on affected crafts while a TFR is active. @see RULE-TFR-5
+- REST routes for TFRs:
+  - `POST /api/v1/tfrs` — issues a new TFR. Validates scope/target (RULE-TFR-2, returns 400) and rejects tower-issued global TFRs (RULE-TFR-4, returns 403). Accepts an optional `projectName` to scope the fan-out; sets `holdingPattern: true` and records a `TFRIssued` black box entry on every affected craft (RULE-TFRP-5).
+  - `GET /api/v1/tfrs` — lists all TFRs; `?active=true` filters to only non-lifted records.
+  - `POST /api/v1/tfrs/:id/lift` — lifts an active TFR (RULE-TFRP-3). Returns 404 if missing, 409 if already lifted. Clears `holdingPattern` on affected crafts only when no other active TFR still applies (RULE-TFR-8) and records a `TFRLifted` black box entry (RULE-TFRP-5).
+- `app.tfrStore` decoration — exposes the TfrStore to route handlers.
 
 ### Changed
 

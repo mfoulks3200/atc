@@ -184,6 +184,8 @@ The black box is the craft's memory. When in doubt, record it.
 | `Conflict`             | Pilots disagreed on approach. Record the disagreement and resolution. |
 | `Observation`          | Anything else noteworthy — risks spotted, context worth preserving, unexpected findings. |
 | `EmergencyDeclaration` | The captain is declaring an emergency. This is the final entry.   |
+| `TFRIssued`            | A Temporary Flight Restriction has taken effect on this craft (recorded by the system). |
+| `TFRLifted`            | A Temporary Flight Restriction affecting this craft has been lifted (recorded by the system). |
 
 ### Guidelines
 
@@ -191,3 +193,41 @@ The black box is the craft's memory. When in doubt, record it.
 - **Decision vs. Observation:** If it changes the direction of the code, it's a `Decision`. If it's context that might matter later but doesn't change direction, it's an `Observation`.
 - **Every pilot can write.** Jumpseaters included. If you see something, record it. `RULE-BBOX-3`
 - **Entries are permanent.** You cannot edit or delete a black box entry once written. `RULE-BBOX-2`
+
+## 8. Temporary Flight Restrictions (TFRs)
+
+A **Temporary Flight Restriction (TFR)** is an externally imposed pause on agent activity. The user or tower may issue one to halt work while diagnosing an issue, reconfiguring, or preventing token burn. TFRs do not change your craft's lifecycle state — they set a `holdingPattern` flag as an overlay. `RULE-TFR-5`
+
+### How a TFR affects you
+
+If your craft's `holdingPattern` flag is `true`, you **must not take any action** on this craft: `RULE-TFR-6`
+
+- No code modifications.
+- No vector reports.
+- No checklist executions.
+- No intercom messages.
+- No control transfers.
+
+### Graceful vs. immediate mode
+
+TFRs come in two modes:
+
+- **Graceful** (default): You are given a brief wind-down window to reach a safe stopping point. Before the hold takes effect, you **must** record your current state as an `Observation` in the black box — what you were working on, any half-finished edits, any context the next session will need to resume cleanly. `RULE-TFRP-1`
+- **Immediate**: The hold takes effect instantly with no wind-down. The system records `TFRIssued` on your behalf; you cannot act. `RULE-TFRP-2`
+
+### When a TFR lifts
+
+Only the user may lift a TFR, regardless of who issued it. `RULE-TFRP-3` When lifted, your craft's `holdingPattern` is cleared (unless another TFR still applies), a `TFRLifted` entry is recorded in the black box, and you **automatically resume from your prior state**. `RULE-TFR-8, RULE-TFRP-4` Read back the black box before resuming — the `Observation` you recorded during wind-down tells you where to pick up.
+
+### What you will see
+
+- A `TFRIssued` entry in the black box with the scope, mode, reason, and issuer.
+- A system notification on the intercom announcing the hold. `RULE-TFRP-6`
+- When lifted: a `TFRLifted` entry and a matching intercom notification.
+
+### Rules to remember
+
+- `holdingPattern: true` means **stop everything immediately**, no matter what you were doing. `RULE-TFR-6`
+- In graceful mode, use the wind-down window to record state, then stop. `RULE-TFRP-1`
+- You cannot lift your own TFR, and the tower cannot either if the user issued it. `RULE-TFRP-3`
+- Multiple TFRs may be active on the same craft. Lifting one does not release you if another still applies. `RULE-TFR-7, RULE-TFR-8`

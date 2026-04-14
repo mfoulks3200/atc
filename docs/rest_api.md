@@ -457,6 +457,70 @@ Response:
 
 ---
 
+## Temporary Flight Restrictions
+
+Implemented in `packages/daemon/src/server/routes/tfr.ts`. TFRs pause
+agent activity on affected crafts by setting a `holdingPattern` flag as
+an overlay — they do not alter lifecycle state.
+See `docs/specification.md` §2.6 and §4.5.
+
+### POST `/api/v1/tfrs`
+
+Issue a new Temporary Flight Restriction. The system persists the TFR,
+sets `holdingPattern: true` on every affected craft (RULE-TFR-5), and
+records a `TFRIssued` entry in each affected craft's black box
+(RULE-TFRP-5).
+
+Request body:
+
+```ts
+{
+  scope: "global" | "project" | "craft";
+  target: string | null;                 // project name or callsign; null for global
+  mode: "graceful" | "immediate";
+  reason: string;
+  issuedBy: "user" | "tower";
+  projectName?: string;                  // scopes the craft fan-out for affected-craft updates
+}
+```
+
+Response:
+
+- `201 Created` — the created `TfrState` with `identifier`, `issuedAt`, and `liftedAt: null`.
+- `400 Bad Request` — scope/target mismatch (RULE-TFR-2): global TFR with non-null target, or project/craft TFR missing a target.
+- `403 Forbidden` — tower attempted to issue a global TFR (RULE-TFR-4).
+
+### GET `/api/v1/tfrs`
+
+List all Temporary Flight Restrictions. By default returns both active
+and lifted records (RULE-TFRP-7).
+
+Query parameters:
+
+- `active` — if `true`, return only TFRs where `liftedAt` is null.
+
+Response (`200 OK`): an array of `TfrState` objects.
+
+### POST `/api/v1/tfrs/:id/lift`
+
+Lift an active TFR (RULE-TFRP-3). Sets `liftedAt` on the record and
+records a `TFRLifted` entry on every craft the TFR was affecting
+(RULE-TFRP-5). `holdingPattern` is cleared only on crafts where no other
+active TFR still applies (RULE-TFR-8).
+
+Query parameters:
+
+- `projectName` — scopes the craft fan-out to this project when updating
+  `holdingPattern` and black box entries.
+
+Response:
+
+- `200 OK` — the updated `TfrState` with `liftedAt` set.
+- `404 Not Found` — TFR with the given id does not exist.
+- `409 Conflict` — TFR is already lifted.
+
+---
+
 ## Agents
 
 Implemented in `packages/daemon/src/server/routes/agents.ts`. Agent
