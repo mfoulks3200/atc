@@ -15,8 +15,9 @@ preconditions drawn from the [specification](../specification.md) (referenced
 inline by `RULE-*` identifier where applicable).
 
 Request and response bodies are JSON unless otherwise noted. Error
-responses use the shape `{ "error": "<message>" }` except for the global
-config routes, which return `{ "error": { "code": "...", "message": "...", ... } }`.
+responses use the shape `{ "error": "<message>" }` except for the config
+routes (global, project, and pilot), which return
+`{ "error": { "code": "...", "message": "...", ... } }`.
 
 ## Endpoint Index
 
@@ -26,6 +27,7 @@ config routes, which return `{ "error": { "code": "...", "message": "...", ... }
 | ------ | ---------------- | -------------------------------- |
 | GET    | `/api/v1/health` | Liveness check, version, uptime. |
 | GET    | `/api/v1/status` | Profile name and entity counts.  |
+| GET    | `/api/v1/about`  | Daemon version.                  |
 
 ### Projects
 
@@ -109,6 +111,32 @@ config routes, which return `{ "error": { "code": "...", "message": "...", ... }
 | PATCH  | `/api/v1/config/global`      | Patch (merge) global config overrides.   |
 | DELETE | `/api/v1/config/global/:key` | Unset a single global config override.   |
 
+### Project Config
+
+| Method | Path                                 | Purpose                                   |
+| ------ | ------------------------------------ | ----------------------------------------- |
+| GET    | `/api/v1/projects/:name/config`      | Read merged project config and overrides. |
+| PUT    | `/api/v1/projects/:name/config`      | Replace the project config overrides.     |
+| PATCH  | `/api/v1/projects/:name/config`      | Patch (merge) project config overrides.   |
+| DELETE | `/api/v1/projects/:name/config/:key` | Unset a single project config override.   |
+
+### Pilot Config
+
+| Method | Path                                            | Purpose                                 |
+| ------ | ----------------------------------------------- | --------------------------------------- |
+| GET    | `/api/v1/projects/:name/pilots/:id/config`      | Read merged pilot config and overrides. |
+| PUT    | `/api/v1/projects/:name/pilots/:id/config`      | Replace the pilot config overrides.     |
+| PATCH  | `/api/v1/projects/:name/pilots/:id/config`      | Patch (merge) pilot config overrides.   |
+| DELETE | `/api/v1/projects/:name/pilots/:id/config/:key` | Unset a single pilot config override.   |
+
+### Temporary Flight Restrictions
+
+| Method | Path                    | Purpose                                     |
+| ------ | ----------------------- | ------------------------------------------- |
+| POST   | `/api/v1/tfrs`          | Issue a new TFR.                            |
+| GET    | `/api/v1/tfrs`          | List TFRs (optional `?active=true` filter). |
+| POST   | `/api/v1/tfrs/:id/lift` | Lift an active TFR.                         |
+
 ---
 
 ## Health
@@ -142,6 +170,19 @@ Response (`200 OK`):
   projects: number,  // placeholder, always 0
   crafts: number,    // placeholder, always 0
   agents: number     // placeholder, always 0
+}
+```
+
+### `GET /api/v1/about`
+
+Daemon version endpoint. Returns the running daemon's version string
+(hard-coded in `packages/daemon/src/server/routes/health.ts`).
+
+Response (`200 OK`):
+
+```ts
+{
+  version: string
 }
 ```
 
@@ -708,3 +749,133 @@ Response:
 - `200 OK` -- `{ config: GlobalConfig }` (the merged result).
 - `404 Not Found` -- unknown config key.
 - `400`, `500` -- see error mapping above.
+
+---
+
+## Project Config
+
+Implemented in `packages/daemon/src/server/routes/project-config.ts`.
+Each registered project is backed by its own
+`LayeredConfigStore<ProjectMetadataConfig>` created by
+`createProjectConfigStore` (see
+`packages/daemon/src/config/project-store.ts`). The store atomically
+persists the sparse override diff against defaults to
+`<profileDir>/projects/<name>/metadata.json` and broadcasts change events
+on the `config:project:<name>` WebSocket channel.
+
+If the project has no registered config store, every route in this
+section short-circuits with `404 Not Found` and the body
+`{ "error": { "code": "PROJECT_NOT_FOUND", "message": "Project not found: <name>" } }`.
+
+Errors from the underlying store are mapped the same way as global
+config routes (`INVALID_CONFIG` -> 400, `UNKNOWN_CONFIG_KEY` -> 404,
+anything else -> 500).
+
+### `GET /api/v1/projects/:name/config`
+
+Read the merged effective project config and the sparse overrides
+currently set on top of defaults.
+
+Response (`200 OK`):
+
+```ts
+{
+  config: ProjectMetadataConfig,            // merged defaults + overrides
+  overrides: Partial<ProjectMetadataConfig> // raw override map persisted to disk
+}
+```
+
+### `PUT /api/v1/projects/:name/config`
+
+Replace all overrides with the supplied object. Validates the resulting
+config against `PROJECT_METADATA_SCHEMA`.
+
+Request body: a `ProjectMetadataConfig` (object).
+
+Response:
+
+- `200 OK` -- `{ config: ProjectMetadataConfig }`.
+- `400`, `404`, `500` -- see error mapping above.
+
+### `PATCH /api/v1/projects/:name/config`
+
+Patch the overrides by shallow-merging the request body into the current
+overrides. Validates the resulting config.
+
+Request body: `Partial<ProjectMetadataConfig>`.
+
+Response:
+
+- `200 OK` -- `{ config: ProjectMetadataConfig }`.
+- `400`, `404`, `500` -- see error mapping above.
+
+### `DELETE /api/v1/projects/:name/config/:key`
+
+Unset a single override key, falling back to its default. The `:key`
+path parameter must be a known top-level key of `ProjectMetadataConfig`.
+
+Response:
+
+- `200 OK` -- `{ config: ProjectMetadataConfig }`.
+- `404 Not Found` -- unknown config key or unknown project.
+- `400`, `500` -- see error mapping above.
+
+---
+
+## Pilot Config
+
+Implemented in `packages/daemon/src/server/routes/pilot-config.ts`.
+Backed by the in-memory `PilotConfigStore`
+(`packages/daemon/src/config/pilot-config-store.ts`) keyed by pilot id.
+The store provides the same surface as `LayeredConfigStore` but has no
+file persistence -- overrides are lost on daemon restart. Changes
+broadcast on the `config:pilot:<id>` WebSocket channel.
+
+The `:name` path parameter is accepted but unused; pilot config is keyed
+only by `:id`. Unknown pilots return the config defaults for a fresh
+pilot (no 404).
+
+### `GET /api/v1/projects/:name/pilots/:id/config`
+
+Read the merged pilot config and sparse overrides.
+
+Response (`200 OK`):
+
+```ts
+{
+  config: PilotConfig,            // merged defaults + overrides
+  overrides: Partial<PilotConfig> // raw override map in memory
+}
+```
+
+### `PUT /api/v1/projects/:name/pilots/:id/config`
+
+Replace all overrides with the supplied object. Validates the resulting
+config against `PILOT_CONFIG_SCHEMA`.
+
+Request body: a `PilotConfig` (object).
+
+Response:
+
+- `200 OK` -- `{ config: PilotConfig }`.
+- `400 Bad Request` -- `{ "error": { "code": "INVALID_CONFIG", "message": ... } }`.
+
+### `PATCH /api/v1/projects/:name/pilots/:id/config`
+
+Patch the overrides by shallow-merging the request body into the current
+overrides.
+
+Request body: `Partial<PilotConfig>`.
+
+Response (`200 OK`): `{ config: PilotConfig }`.
+
+### `DELETE /api/v1/projects/:name/pilots/:id/config/:key`
+
+Unset a single override key, falling back to its default. The `:key`
+path parameter must be a known top-level key of `PilotConfig`.
+
+Response:
+
+- `200 OK` -- `{ config: PilotConfig }`.
+- `404 Not Found` -- unknown config key.
+- `500 Internal Server Error` -- anything else.

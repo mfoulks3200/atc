@@ -18,21 +18,21 @@ Upcoming work for ATC, organized by workstream. Items are unordered within each 
 
 ## Configuration
 
-- [ ] **Add project config REST routes** — The daemon serves global config via `/api/v1/config/global` (GET, PUT, PATCH, DELETE key) but project-level config (`ProjectMetadata`: categories, checklist, MCP servers) is read-only at boot. Add CRUD routes under `/api/v1/projects/:name/config` with the same pattern as global config. _Packages: daemon_
+- [x] **Add project config REST routes** — The daemon now wraps each project in a `LayeredConfigStore<ProjectMetadataConfig>` and exposes CRUD routes under `/api/v1/projects/:name/config` with the same pattern as global config. _Packages: daemon_
 
-- [ ] **Add pilot config REST routes** — Expose per-pilot configuration (certifications, MCP servers, skills) through dedicated config endpoints, separate from the existing pilot CRUD routes which handle identity. _Depends on: project config routes (for consistency). Packages: daemon_
+- [x] **Add pilot config REST routes** — Per-pilot configuration (certifications, MCP servers, skills) is exposed under `/api/v1/projects/:name/pilots/:id/config`. Currently backed by an in-memory `PilotConfigStore` — see the pilot config persistence item below. _Packages: daemon_
 
-- [ ] **Build global settings UI** — A settings screen for global daemon configuration: default profile, and profile-level settings (port, host, log level, auto-recover, heartbeat/flush intervals, adapter config). _Packages: web_
+- [x] **Build global settings UI** — Settings screens at `/settings/general` (default profile) and `/settings/profile` (port, host, log level, auto-recover, heartbeat/flush intervals, read-only). Adapter config is intentionally excluded from the UI for now. _Packages: web_
 
-- [ ] **Build project settings UI** — A settings screen scoped to a project: categories, checklist items, project-level MCP servers, and project-level skills. Accessible from the project detail view. _Depends on: project config routes. Packages: web_
+- [x] **Build project settings UI** — Project settings screens at `/settings/project/:name/general` (categories, checklist) and `/settings/project/:name/mcp-servers`, accessible from the project detail view. _Packages: web_
 
-- [ ] **Build pilot settings UI** — A settings panel on the pilot detail view for per-pilot configuration: certifications, MCP servers, and assigned skills. _Depends on: pilot config routes, pilot detail edit interface. Packages: web_
+- [x] **Build pilot settings UI** — Pilot settings screens at `/settings/pilot/:id/general` (certifications toggle chips) and `/settings/pilot/:id/mcp-servers`. Skills UI is deferred to the Skills roadmap. _Packages: web_
 
-- [ ] **About page in global settings** — Add an "About" section to the global settings area showing the current ATC version, recent changelog entries, and a list of contributors. Version and changelog can be derived from package.json and CHANGELOG.md at build time; contributors from git history or a maintained list. _Packages: web, daemon_
+- [x] **About page in global settings** — `/settings/about` with version and changelog baked in at build time via a Vite `define` block reading the web package's `package.json` and `CHANGELOG.md`. A companion `GET /api/v1/about` endpoint was added on the daemon for other consumers. _Packages: web, daemon_
 
-- [ ] **WebSocket broadcasting for project and pilot config changes** — Global config changes already broadcast on `config:global`. Extend this pattern to project and pilot config so the UI can react in real time. _Depends on: project and pilot config routes. Packages: daemon_
+- [x] **WebSocket broadcasting for project and pilot config changes** — Project config changes broadcast on `config:project:<name>` and pilot config changes on `config:pilot:<id>`. The WebSocket client message type supports `scope: "project"` and `scope: "pilot"` for mutations. The web UI subscribes to these channels from the settings pages. _Packages: daemon, web_
 
-- [ ] **Upgrade pilot config routes to LayeredConfigStore** — The pilot config routes are initially backed by an in-memory store since pilot persistence is not yet implemented. Once pilot records are persisted to disk (see Pilot Management), upgrade the pilot config backing store to a `LayeredConfigStore<PilotConfig>` per pilot, bringing file-watching, sparse diffs, and durable persistence. _Depends on: pilot config routes, persist pilot records to disk. Packages: daemon_
+- [ ] **Upgrade pilot config routes to LayeredConfigStore** — The pilot config routes are initially backed by an in-memory store since pilot-config persistence has not been implemented. Once pilot records are extended to carry durable per-pilot configuration, upgrade the pilot config backing store to a `LayeredConfigStore<PilotConfig>` per pilot, bringing file-watching, sparse diffs, and durable persistence. _Packages: daemon_
 
 ## Skills
 

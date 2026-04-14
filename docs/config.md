@@ -1,16 +1,16 @@
 # ATC Configuration Reference
 
 This document enumerates every configuration option recognized by the ATC
-daemon. Configuration is layered into three scopes: **global**, **project**
-(per-profile), and **agent**. Each scope has its own backing JSON file and is
+daemon. Configuration is layered into four scopes: **global**, **profile**,
+**project**, and **pilot**. Most scopes have their own backing JSON file
 loaded by `LayeredConfigStore` (see
 `packages/daemon/src/config/layered-store.ts`), which persists only the sparse
-diff against defaults and broadcasts change events on a pub/sub channel.
+diff against defaults and broadcasts change events on a pub/sub channel. Pilot
+configuration is currently in-memory only and will be upgraded to a
+`LayeredConfigStore` once pilot-config persistence lands (see the roadmap).
 
 The canonical schemas and defaults live in
-`packages/daemon/src/config/schema.ts`. Project metadata (per-project, not
-per-profile) lives alongside the profile and is defined in
-`packages/daemon/src/types.ts`.
+`packages/daemon/src/config/schema.ts`.
 
 <h2 id="global-settings">Global Settings</h2>
 
@@ -34,24 +34,13 @@ so unknown top-level fields are preserved across writes.
 - **Used in:** `packages/daemon/src/config/loader.ts`
   (`resolveProfilePath`), `packages/daemon/src/start.ts`
 
-<h2 id="project-settings">Project Settings</h2>
+<h2 id="profile-settings">Profile Settings</h2>
 
-ATC distinguishes two file-backed configurations at the project tier:
-
-1. **Profile config** — per-profile daemon runtime settings persisted at
-   `<profileDir>/config.json`. Loaded once at boot by `loadProfileConfig`
-   (`packages/daemon/src/config/loader.ts`). Schema is `PROFILE_CONFIG_SCHEMA`
-   with passthrough enabled.
-2. **Project metadata** — per-project descriptors persisted at
-   `<projectDir>/metadata.json`. Loaded by `loadProjectMetadata`
-   (`packages/daemon/src/config/loader.ts`). Type is `ProjectMetadata`
-   (`packages/daemon/src/types.ts`).
-
-The `ConfigScope` enum in `packages/errors/src/config.ts` reserves a `project`
-scope, but no `LayeredConfigStore` for it has been wired yet — project
-metadata is read-only at boot.
-
-### Profile config (`<profileDir>/config.json`)
+Profile config is per-profile daemon runtime settings persisted at
+`<profileDir>/config.json`. Loaded once at boot by `loadProfileConfig`
+(`packages/daemon/src/config/loader.ts`). Schema is `PROFILE_CONFIG_SCHEMA`
+with passthrough enabled. Profile config is currently read-only at runtime —
+mutations require a daemon restart.
 
 <h3 id="profile-port">port</h3>
 
@@ -111,29 +100,43 @@ metadata is read-only at boot.
 - **Defined in:** `packages/daemon/src/config/schema.ts`
 - **Used in:** `packages/daemon/src/adapters/registry.ts`
 
-### Project metadata (`<projectDir>/metadata.json`)
+<h2 id="project-settings">Project Settings</h2>
 
-`ProjectMetadata` is required and has no defaults — `loadProjectMetadata`
-throws if the file is missing.
+Project metadata is per-project descriptors persisted at
+`<projectDir>/metadata.json`. Each registered project gets its own
+`LayeredConfigStore<ProjectMetadataConfig>` (see
+`createProjectConfigStore` in `packages/daemon/src/config/project-store.ts`)
+which atomically persists sparse overrides, watches the file for external
+edits, and broadcasts changes on the `config:project:<name>` channel. The
+daemon loads one store per project at startup and creates a new one on
+`POST /api/v1/projects`. Schema is `PROJECT_METADATA_SCHEMA` with passthrough
+enabled.
+
+Mutated via the `/api/v1/projects/:name/config` REST routes
+(`packages/daemon/src/server/routes/project-config.ts`) or via the WebSocket
+handler with `scope: "project"`.
 
 <h3 id="project-name">name</h3>
 
 - **Type:** `string`
-- **Default:** _required_
-- **Description:** Human-readable project name.
-- **Defined in:** `packages/daemon/src/types.ts`
+- **Default:** `""` (seeded with the project name when the store is
+  created via `createProjectConfigStore(projectName, ...)`)
+- **Description:** Human-readable project name. Preserved across PATCH
+  mutations.
+- **Defined in:** `packages/daemon/src/config/schema.ts`
+  (`PROJECT_METADATA_DEFAULTS`)
 
 <h3 id="project-remoteUrl">remoteUrl</h3>
 
 - **Type:** `string`
-- **Default:** _required_
+- **Default:** `""`
 - **Description:** Git remote URL for the project repository. Used by the
   bare-repo and worktree git utilities (`packages/daemon/src/git/`).
 
 <h3 id="project-categories">categories</h3>
 
 - **Type:** `string[]`
-- **Default:** _required_
+- **Default:** `[]`
 - **Description:** Category tags used to match incoming crafts to this
   project.
 
@@ -141,7 +144,7 @@ throws if the file is missing.
 
 - **Type:** `ChecklistItemConfig[]` — each item is
   `{ name: string; command: string; timeout?: number }`
-- **Default:** _required_
+- **Default:** `[]`
 - **Description:** Ordered shell commands the tower runs as the landing
   checklist before merging a craft. `timeout` is in milliseconds. See
   `packages/daemon/src/checklist/runner.ts` and RULE-LCHK-4.
@@ -150,20 +153,63 @@ throws if the file is missing.
 
 - **Type:** `Record<string, McpServerConfig>` — each entry is
   `{ command: string; args: string[]; env?: Record<string, string> }`
-- **Default:** _required_ (may be an empty object)
+- **Default:** `{}`
 - **Description:** Named MCP (Model Context Protocol) server processes
   available to agents working on this project.
 
+<h2 id="pilot-settings">Pilot Settings</h2>
+
+Per-pilot configuration is held in an in-memory `PilotConfigStore`
+(`packages/daemon/src/config/pilot-config-store.ts`) keyed by pilot id. It
+provides the same `get`/`getOverrides`/`patch`/`replace`/`unset` surface as
+`LayeredConfigStore` so REST routes and the WebSocket handler can treat it
+interchangeably, but it has no file backing yet — overrides are lost on
+daemon restart. Once pilot-config persistence is implemented (see the
+roadmap), this store will be upgraded to a `LayeredConfigStore<PilotConfig>`
+per pilot.
+
+Mutated via the `/api/v1/projects/:name/pilots/:id/config` REST routes
+(`packages/daemon/src/server/routes/pilot-config.ts`) or via the WebSocket
+handler with `scope: "pilot"`. Changes broadcast on the `config:pilot:<id>`
+channel. Schema is `PILOT_CONFIG_SCHEMA` with passthrough enabled.
+
+Note: the daemon separately persists `PilotRecord` (pilot identity, including
+`identifier`, `certifications`, `mcpServers`) via `PilotStore`
+(`packages/daemon/src/state/pilot-store.ts`). `PilotConfig` is the mutable
+operational configuration layered on top of that identity record.
+
+<h3 id="pilot-certifications">certifications</h3>
+
+- **Type:** `string[]`
+- **Default:** `[]`
+- **Description:** Craft categories the pilot is certified to captain or
+  first-officer. Used by `canHoldControls` / `isPilotCertified` (RULE-PILOT-2,
+  RULE-SEAT-2).
+- **Defined in:** `packages/daemon/src/config/schema.ts`
+  (`PILOT_CONFIG_DEFAULTS`)
+
+<h3 id="pilot-mcpServers">mcpServers</h3>
+
+- **Type:** `Record<string, McpServerConfig>`
+- **Default:** `{}`
+- **Description:** Pilot-specific MCP server configurations layered on top of
+  any project-level MCP servers.
+
+<h3 id="pilot-skills">skills</h3>
+
+- **Type:** `string[]`
+- **Default:** `[]`
+- **Description:** Assigned skill identifiers for this pilot. Placeholder for
+  the Skills roadmap — not yet consumed by the adapter.
+
 <h2 id="agent-settings">Agent Settings</h2>
 
-There is currently no file-backed agent configuration store. The
+There is currently no file-backed per-agent configuration store. The
 `ConfigScope` enum in `packages/errors/src/config.ts` reserves an `agent`
-scope, but no schema, defaults, or `LayeredConfigStore` instance for it has
+scope but no schema, defaults, or `LayeredConfigStore` instance for it has
 been wired in the daemon. Adapter-specific agent options are passed through
 the profile-level [`adapter.config`](#profile-adapter) bag.
 
-The closest analogue to per-agent configuration is `PilotRecord`
-(`packages/daemon/src/types.ts`), which carries `certifications` and
-`mcpServers` per pilot but is not loaded from a config file — pilot records
-are managed in-memory by the daemon (and, per the known spec gaps in
-`CLAUDE.md`, are not yet persisted across restarts).
+Per-pilot configuration (see [Pilot Settings](#pilot-settings)) is the
+closest analogue to per-agent configuration and is how operational options
+are scoped to individual pilots today.
