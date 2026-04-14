@@ -6,6 +6,7 @@ import { AgentStore } from "../state/agent-store.js";
 import { CraftStore } from "../state/craft-store.js";
 import { TowerStore } from "../state/tower-store.js";
 import { PilotStore } from "../state/pilot-store.js";
+import { TfrStore } from "../state/tfr-store.js";
 import { AdapterRegistry } from "../adapters/registry.js";
 import { ChannelRegistry } from "./websocket/channels.js";
 import { HeartbeatTracker } from "./websocket/heartbeat.js";
@@ -21,6 +22,7 @@ import { pilotRoutes } from "./routes/pilots.js";
 import { intercomRoutes } from "./routes/intercom.js";
 import { blackboxRoutes } from "./routes/blackbox.js";
 import { configRoutes } from "./routes/config.js";
+import { tfrRoutes } from "./routes/tfr.js";
 import type { LayeredConfigStore } from "../config/layered-store.js";
 import type { GlobalConfig } from "../config/schema.js";
 
@@ -40,6 +42,8 @@ export interface AppOptions {
   towerStore?: TowerStore;
   /** Store for pilot records. */
   pilotStore?: PilotStore;
+  /** Store for Temporary Flight Restrictions. */
+  tfrStore?: TfrStore;
   /** Registry of adapter implementations. */
   adapterRegistry?: AdapterRegistry;
   /** Pub/sub channel registry for WebSocket clients. */
@@ -65,6 +69,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   app.decorate("craftStore", options.craftStore ?? new CraftStore("/tmp/atc-default"));
   app.decorate("towerStore", options.towerStore ?? new TowerStore("/tmp/atc-default"));
   app.decorate("pilotStore", options.pilotStore ?? new PilotStore("/tmp/atc-default"));
+  app.decorate("tfrStore", options.tfrStore ?? new TfrStore("/tmp/atc-default"));
   app.decorate("adapterRegistry", options.adapterRegistry ?? new AdapterRegistry());
   app.decorate("channelRegistry", options.channelRegistry ?? new ChannelRegistry());
   app.decorate("globalConfigStore", options.globalConfigStore ?? null);
@@ -81,6 +86,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   void app.register(intercomRoutes);
   void app.register(blackboxRoutes);
   void app.register(configRoutes);
+  void app.register(tfrRoutes);
 
   const heartbeat = new HeartbeatTracker(3);
 
@@ -135,6 +141,8 @@ declare module "fastify" {
     towerStore: TowerStore;
     /** Persistent store for pilot records. */
     pilotStore: PilotStore;
+    /** Store for Temporary Flight Restrictions. */
+    tfrStore: TfrStore;
     /** Registry of adapter implementations. */
     adapterRegistry: AdapterRegistry;
     /** Pub/sub channel registry for WebSocket clients. */
