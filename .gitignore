@@ -5,6 +5,10 @@ packages/web/vite.config.js
 packages/web/vite.config.js.map
 packages/web/vite.config.d.ts
 packages/web/vite.config.d.ts.map
+packages/core/scripts/contributors.js
+packages/core/scripts/contributors.js.map
+packages/core/scripts/contributors.d.ts
+packages/core/scripts/contributors.d.ts.map
 .worktrees
 .superpowers
 .claude/worktrees
