@@ -8,6 +8,7 @@
  */
 
 import { readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import type { AgentRecord } from "../../types.js";
@@ -21,6 +22,13 @@ interface CreateAgentBody {
   adapterType: string;
   projectName: string;
   callsign: string;
+}
+
+interface LaunchAgentBody {
+  projectName: string;
+  callsign: string;
+  adapterType: string;
+  adapterConfig?: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -45,6 +53,75 @@ interface CreateAgentBody {
  * @see RULE-PILOT-1
  */
 export async function agentRoutes(app: FastifyInstance): Promise<void> {
+  // -------------------------------------------------------------------------
+  // POST /api/v1/agents/launch
+  // -------------------------------------------------------------------------
+
+  /**
+   * Launch a new agent for a craft through the AgentManager.
+   *
+   * Resolves the craft's captain pilot, delegates to the registered adapter,
+   * and persists the returned handle as an AgentRecord. Returns 404 when the
+   * craft or captain cannot be found, 400 when the adapter is not registered.
+   *
+   * @see RULE-PILOT-1
+   */
+  app.post<{ Body: LaunchAgentBody }>("/api/v1/agents/launch", async (request, reply) => {
+    const { projectName, callsign, adapterType, adapterConfig } = request.body;
+    const manager = app.agentManager;
+    if (manager === null) {
+      return reply.code(503).send({ error: "Agent manager is not configured" });
+    }
+
+    const craft = app.craftStore.get(projectName, callsign);
+    if (!craft) {
+      return reply.code(404).send({ error: `Craft not found: ${callsign}` });
+    }
+    if (!craft.captain) {
+      return reply.code(400).send({ error: "Craft has no captain assigned" });
+    }
+    const captain = app.pilotStore.get(projectName, craft.captain);
+    if (!captain) {
+      return reply.code(404).send({ error: `Captain pilot not found: ${craft.captain}` });
+    }
+    if (app.adapterRegistry.get(adapterType) === undefined) {
+      return reply.code(400).send({ error: `Unknown adapter type: ${adapterType}` });
+    }
+
+    const agentId = randomUUID();
+    const worktreePath = join(
+      app.profileDir,
+      "projects",
+      projectName,
+      "crafts",
+      callsign,
+      "worktree",
+    );
+
+    try {
+      const record = await manager.launch({
+        agentId,
+        adapterType,
+        projectName,
+        callsign,
+        launchOptions: {
+          agentId,
+          worktreePath,
+          craft,
+          systemPrompt: "",
+          intercomHistory: craft.intercom,
+          adapterConfig: adapterConfig ?? {},
+          mcpServers: captain.mcpServers,
+        },
+      });
+      return reply.code(201).send(record);
+    } catch (err) {
+      return reply
+        .code(500)
+        .send({ error: err instanceof Error ? err.message : "Failed to launch agent" });
+    }
+  });
+
   // -------------------------------------------------------------------------
   // POST /api/v1/agents
   // -------------------------------------------------------------------------
@@ -135,7 +212,11 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
     if (!agent) {
       return reply.code(404).send({ error: `Agent not found: ${request.params.id}` });
     }
-    app.agentStore.updateStatus(request.params.id, "terminated");
+    if (app.agentManager !== null) {
+      await app.agentManager.stop(request.params.id);
+    } else {
+      app.agentStore.updateStatus(request.params.id, "terminated");
+    }
     app.agentStore.remove(request.params.id);
     return reply.code(204).send();
   });

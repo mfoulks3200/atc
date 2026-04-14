@@ -18,6 +18,8 @@ import { CraftStore } from "./state/craft-store.js";
 import { TowerStore } from "./state/tower-store.js";
 import { PilotStore } from "./state/pilot-store.js";
 import { FlushScheduler } from "./state/persistence.js";
+import { AdapterRegistry } from "./adapters/registry.js";
+import { AgentManager } from "./process/agent-manager.js";
 import { createApp } from "./server/app.js";
 import { writePidFile, removePidFile } from "./process/pid.js";
 import { createShutdownHandler, registerSignalHandlers } from "./process/signals.js";
@@ -57,6 +59,7 @@ export class Daemon {
   private _agentStore: AgentStore | null = null;
   private _craftStore: CraftStore | null = null;
   private _pilotStore: PilotStore | null = null;
+  private _agentManager: AgentManager | null = null;
   private _projectConfigStores: Map<string, LayeredConfigStore<ProjectMetadataConfig>> = new Map();
 
   /**
@@ -113,6 +116,10 @@ export class Daemon {
     await agentStore.load();
     await pilotStore.load();
 
+    const adapterRegistry = new AdapterRegistry();
+    const agentManager = new AgentManager({ adapterRegistry, agentStore });
+    agentManager.reattach();
+
     const channelRegistry = new ChannelRegistry();
     const logger = {
       warn: (msg: string) => {
@@ -165,6 +172,8 @@ export class Daemon {
       craftStore,
       towerStore,
       pilotStore,
+      adapterRegistry,
+      agentManager,
       channelRegistry,
       globalConfigStore,
       projectConfigStores,
@@ -194,6 +203,7 @@ export class Daemon {
     this._agentStore = agentStore;
     this._craftStore = craftStore;
     this._pilotStore = pilotStore;
+    this._agentManager = agentManager;
     this._channelRegistry = channelRegistry;
     this._globalConfigStore = globalConfigStore;
     this._projectConfigStores = projectConfigStores;

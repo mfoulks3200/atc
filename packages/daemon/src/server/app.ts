@@ -8,6 +8,7 @@ import { TowerStore } from "../state/tower-store.js";
 import { PilotStore } from "../state/pilot-store.js";
 import { TfrStore } from "../state/tfr-store.js";
 import { AdapterRegistry } from "../adapters/registry.js";
+import { AgentManager } from "../process/agent-manager.js";
 import { ChannelRegistry } from "./websocket/channels.js";
 import { HeartbeatTracker } from "./websocket/heartbeat.js";
 import { handleWsMessage } from "./websocket/handler.js";
@@ -49,6 +50,8 @@ export interface AppOptions {
   tfrStore?: TfrStore;
   /** Registry of adapter implementations. */
   adapterRegistry?: AdapterRegistry;
+  /** Manager for agent subprocess lifecycles. */
+  agentManager?: AgentManager | null;
   /** Pub/sub channel registry for WebSocket clients. */
   channelRegistry?: ChannelRegistry;
   /** Store for global configuration. */
@@ -78,6 +81,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   app.decorate("pilotStore", options.pilotStore ?? new PilotStore("/tmp/atc-default"));
   app.decorate("tfrStore", options.tfrStore ?? new TfrStore("/tmp/atc-default"));
   app.decorate("adapterRegistry", options.adapterRegistry ?? new AdapterRegistry());
+  app.decorate("agentManager", options.agentManager ?? null);
   app.decorate("channelRegistry", options.channelRegistry ?? new ChannelRegistry());
   app.decorate("globalConfigStore", options.globalConfigStore ?? null);
   app.decorate(
@@ -169,6 +173,8 @@ declare module "fastify" {
     tfrStore: TfrStore;
     /** Registry of adapter implementations. */
     adapterRegistry: AdapterRegistry;
+    /** Manager for agent subprocess lifecycles, if wired. */
+    agentManager: AgentManager | null;
     /** Pub/sub channel registry for WebSocket clients. */
     channelRegistry: ChannelRegistry;
     /** Store for global configuration, if wired. */
