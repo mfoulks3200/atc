@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/base/page-header";
 import { useGlobalConfig, usePatchGlobalConfig } from "@/hooks/use-api";
+import { useWsManager } from "@/hooks/ws-context";
+import { useSubscription } from "@/hooks/use-subscription";
 
 export function Component() {
+  const wsManager = useWsManager();
+  useSubscription(wsManager, "config:global");
   const { data, isLoading } = useGlobalConfig();
   const patchConfig = usePatchGlobalConfig();
   const [defaultProfile, setDefaultProfile] = useState("");

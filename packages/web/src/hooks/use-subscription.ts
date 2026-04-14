@@ -81,6 +81,19 @@ export function mapEventToQueryUpdate(event: WsEvent): QueryUpdate {
     };
   }
 
+  // Config events
+  if (channel.startsWith("config:global")) {
+    return { strategy: "invalidate", keys: [["config", "global"]] };
+  }
+  if (channel.startsWith("config:project:")) {
+    const projectName = channel.replace("config:project:", "");
+    return { strategy: "invalidate", keys: [["config", "project", projectName]] };
+  }
+  if (channel.startsWith("config:pilot:")) {
+    const pilotId = channel.replace("config:pilot:", "");
+    return { strategy: "invalidate", keys: [["config", "pilot", pilotId]] };
+  }
+
   // Fallback
   return { strategy: "invalidate", keys: [] };
 }

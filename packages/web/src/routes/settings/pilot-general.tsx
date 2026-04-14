@@ -2,11 +2,15 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router";
 import { PageHeader } from "@/components/base/page-header";
 import { usePilotConfig, usePatchPilotConfig } from "@/hooks/use-api";
+import { useWsManager } from "@/hooks/ws-context";
+import { useSubscription } from "@/hooks/use-subscription";
 
 const CERT_OPTIONS = ["captain", "first-officer", "jumpseat"];
 
 export function Component() {
   const { id } = useParams<{ id: string }>();
+  const wsManager = useWsManager();
+  useSubscription(wsManager, `config:pilot:${id}`);
   const { data, isLoading } = usePilotConfig(id!);
   const patchConfig = usePatchPilotConfig(id!);
   const [certifications, setCertifications] = useState<string[]>([]);

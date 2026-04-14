@@ -2,9 +2,13 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router";
 import { PageHeader } from "@/components/base/page-header";
 import { useProjectConfig, usePatchProjectConfig } from "@/hooks/use-api";
+import { useWsManager } from "@/hooks/ws-context";
+import { useSubscription } from "@/hooks/use-subscription";
 
 export function Component() {
   const { name } = useParams<{ name: string }>();
+  const wsManager = useWsManager();
+  useSubscription(wsManager, `config:project:${name}`);
   const { data, isLoading } = useProjectConfig(name!);
   const patchConfig = usePatchProjectConfig(name!);
   const [categories, setCategories] = useState<string[]>([]);
