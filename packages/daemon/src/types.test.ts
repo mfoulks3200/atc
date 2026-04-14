@@ -332,6 +332,7 @@ describe("CraftState", () => {
       ],
       intercom: [],
       controls: { mode: "exclusive", holder: "pilot-uuid-1" },
+      holdingPattern: false,
     };
     expect(craft.callsign).toBe("ALPHA-1");
     expect(craft.status).toBe(CraftStatus.InFlight);

@@ -96,6 +96,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         blackBox: [],
         intercom: [],
         controls: { mode: "exclusive", holder: captain },
+        holdingPattern: false,
       };
 
       app.craftStore.set(name, craft);

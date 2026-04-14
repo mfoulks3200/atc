@@ -24,3 +24,13 @@ export {
   mapTransitionToEvents,
 } from "./lifecycle.js";
 export type { TransitionContext } from "./lifecycle.js";
+
+export {
+  createTfr,
+  liftTfr,
+  isAffectedByTfr,
+  getActiveTfrs,
+  applyHoldingPattern,
+  clearHoldingPattern,
+} from "./tfr.js";
+export type { CreateTfrParams } from "./tfr.js";

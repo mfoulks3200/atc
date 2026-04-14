@@ -67,3 +67,21 @@ Upcoming work for ATC, organized by workstream. Items are unordered within each 
 - [x] **Enforce remaining lifecycle preconditions in core** — `transitionCraft()` only checks RULE-LIFE-4 (all vectors passed) and RULE-LIFE-7 (emergency in bbox). RULE-LIFE-3 (checklist pass), RULE-LIFE-5 (clearance), and RULE-LIFE-6 (queue position) are daemon-only. Move these checks into core so library consumers get the same guarantees. _Packages: core, types_
 
 - [x] **Validate seat type in `shareControls`** — `shareControls()` does not verify that the pilot IDs passed for shared areas belong to Captain or FirstOfficer seats, allowing a Jumpseat pilot to be granted shared controls in violation of RULE-CTRL-2. Add seat-type validation. _Packages: core, validation_
+
+## Temporary Flight Restrictions
+
+The TFR domain model, core logic, persistence, REST routes, and spec are all in place (see `docs/specification.md` §2.6 and §4.5). The remaining items require integration with the agent runtime and WebSocket layer.
+
+- [ ] **Enforce `holdingPattern` across daemon action handlers (RULE-TFR-6)** — All daemon mutation routes (vectors, controls, intercom, blackbox, checklist, transitions) must reject actions on a craft whose `holdingPattern` flag is `true`. The flag is set today but not checked. Return 409 with a reference to the active TFR. _Packages: daemon_
+
+- [ ] **Graceful-mode wind-down window (RULE-TFRP-1)** — In graceful mode, affected agents need a brief wind-down window to reach a safe stopping point and record state as an `Observation` entry before the `holdingPattern` flag takes effect. Today, graceful mode sets the flag immediately like immediate mode. Implement the delay, the notification signal to agents, and the mandatory state-recording step. _Packages: daemon, adapter-claude-agent-sdk_
+
+- [ ] **Agent auto-resume on TFR lift (RULE-TFRP-4)** — When a TFR is lifted, affected agents must automatically resume from their prior state. This requires the daemon to notify agents (via WebSocket or adapter hook) and the adapter to re-engage paused sessions. _Packages: daemon, adapter-claude-agent-sdk_
+
+- [ ] **Intercom notifications for TFR events (RULE-TFRP-6)** — `TFRIssued` and `TFRLifted` events must be posted as system notifications on each affected craft's intercom, not just recorded in the black box. The route helpers currently record the black box entries but do not publish intercom messages or broadcast `craft:<callsign>` WebSocket events. _Packages: daemon_
+
+- [ ] **Tower-initiated TFR gating via project config (RULE-TFR-4)** — The spec allows the tower to issue project- or craft-scoped TFRs only if enabled in project configuration. The route currently accepts any tower-issued non-global TFR. Add a `towerInitiatedTfrsEnabled` boolean to `ProjectMetadata` and reject tower TFRs when the flag is unset. _Packages: daemon, types_
+
+- [ ] **Global-scope TFR craft discovery** — When a `global` TFR is issued without a `projectName`, the daemon does not iterate every project to set `holdingPattern` and record black box entries. Implement a cross-project fan-out so global TFRs actually reach every active craft. _Packages: daemon_
+
+- [ ] **TFR management UI** — Surface active and historical TFRs in the web dashboard. Allow the user to issue a TFR at any scope, view affected crafts, and lift active TFRs. A persistent indicator should show when any TFR is active. _Depends on: TFR REST routes (done). Packages: web_

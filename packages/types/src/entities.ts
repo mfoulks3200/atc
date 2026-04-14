@@ -121,6 +121,8 @@ export interface Craft {
   readonly blackBox: readonly BlackBoxEntry[];
   /** Current control state. @see RULE-CTRL-1 */
   readonly controls: ControlState;
+  /** Whether this craft is paused by a TFR. @see RULE-TFR-5, RULE-TFR-6 */
+  holdingPattern: boolean;
   /** Current lifecycle phase. @see RULE-LIFE-1 */
   status: CraftStatus;
 }

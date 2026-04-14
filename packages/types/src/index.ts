@@ -1,4 +1,11 @@
-export { CraftStatus, SeatType, ControlMode, VectorStatus, BlackBoxEntryType, CraftCategoryEnum } from "./enums.js";
+export {
+  CraftStatus,
+  SeatType,
+  ControlMode,
+  VectorStatus,
+  BlackBoxEntryType,
+  CraftCategoryEnum,
+} from "./enums.js";
 export type { CraftCategory } from "./enums.js";
 
 export type {
@@ -34,3 +41,6 @@ export type {
   ChecklistItemResult,
   ChecklistRunResult,
 } from "./checklist.js";
+
+export { TfrScope, TfrMode } from "./tfr.js";
+export type { TfrIssuer, TemporaryFlightRestriction } from "./tfr.js";

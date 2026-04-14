@@ -39,6 +39,7 @@ function makeCraft(overrides?: Partial<Craft>): Craft {
     ],
     blackBox: [],
     controls: { mode: ControlMode.Exclusive, holder: "captain-1" },
+    holdingPattern: false,
     status: CraftStatus.Taxiing,
     ...overrides,
   };
