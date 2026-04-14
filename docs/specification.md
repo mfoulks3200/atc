@@ -38,6 +38,7 @@ This document is the authoritative reference for ATC's domain model, lifecycle, 
 | Landed           | A craft whose branch has been successfully merged. Terminal state.               |
 | Origin Airport   | The spec/design stage; where crafts return on emergency.                         |
 | Emergency        | A declaration that a craft cannot be landed; triggers return to origin.          |
+| Temporary Flight Restriction (TFR) | An externally imposed pause on agent activity, scoped globally, per-project, or per-craft. |
 
 ## 2. Domain Model
 
@@ -95,6 +96,8 @@ The **black box** is an append-only log maintained on every craft throughout its
 | `Observation`           | Any other noteworthy event, risk, or context worth preserving.            |
 | `EmergencyDeclaration`  | The captain has declared an emergency (final entry before origin handoff).|
 | `ChecklistRun`          | A checklist was executed. Contains full `ChecklistRunResult` metadata (see 4.2). |
+| `TFRIssued`             | A TFR has taken effect on this craft. Records scope, mode, reason, and issuer.   |
+| `TFRLifted`             | A TFR affecting this craft has been lifted. Records duration and issuer.          |
 
 ##### Rules
 
@@ -240,6 +243,35 @@ The **origin airport** represents the spec/implementation design stage.
 - **RULE-ORIG-1:** Crafts that cannot be landed after repeated attempts MUST be sent back to the origin airport for re-evaluation.
 - **RULE-ORIG-2:** The origin airport MUST receive the craft's callsign, cargo description, flight plan, and complete black box upon emergency return.
 - **RULE-ORIG-3:** The origin airport uses the black box to diagnose root cause and determine whether the craft should be re-planned, re-scoped, or abandoned.
+
+### 2.6 Temporary Flight Restriction
+
+A **Temporary Flight Restriction (TFR)** is an externally imposed constraint that pauses agent activity to prevent token usage. TFRs do not alter craft lifecycle state — they act as an overlay that blocks all agent actions while active.
+
+#### Properties
+
+| Property   | Type                                  | Constraints                                                                  |
+|------------|---------------------------------------|------------------------------------------------------------------------------|
+| Identifier | `string`                              | Unique, immutable after creation.                                            |
+| Scope      | `"global"`, `"project"`, or `"craft"` | Required. Determines what is affected.                                       |
+| Target     | `string \| null`                      | Required for `project` (project ID) and `craft` (callsign) scopes. Null for global. |
+| Mode       | `"graceful"` or `"immediate"`         | Required. Default: `graceful`.                                               |
+| Reason     | `string`                              | Required. Why the TFR was issued.                                            |
+| Issued By  | `"user"` or `"tower"`                 | Required. Who issued the TFR.                                                |
+| Issued At  | `Date`                                | Timestamp when the TFR was issued.                                           |
+| Lifted At  | `Date \| null`                        | Null while active. Set when lifted.                                          |
+
+#### Rules
+
+- **RULE-TFR-1:** A TFR MUST have a unique identifier, a scope, a mode, a reason, and an issuer.
+- **RULE-TFR-2:** A TFR scoped to `project` MUST specify a project target. A TFR scoped to `craft` MUST specify a craft callsign. A `global` TFR MUST have a null target.
+- **RULE-TFR-3:** The user MAY issue a TFR at any scope (global, project, or craft).
+- **RULE-TFR-4:** The tower MAY issue a TFR at the project or craft scope only if tower-initiated TFRs are enabled in project configuration. The tower MUST NOT issue global TFRs.
+- **RULE-TFR-5:** A TFR MUST NOT alter a craft's lifecycle state. Affected crafts retain their current `CraftStatus` but MUST have a `holdingPattern` flag set to `true`.
+- **RULE-TFR-6:** While a craft's `holdingPattern` flag is `true`, no pilot on that craft MAY take any action — no code modifications, no vector reports, no checklist executions, no intercom messages, no control transfers.
+- **RULE-TFR-7:** Multiple TFRs MAY be active simultaneously. A craft is in a holding pattern if *any* active TFR applies to it (by global scope, matching project, or matching callsign).
+- **RULE-TFR-8:** Lifting a TFR clears the `holdingPattern` flag on all affected crafts that are not subject to another active TFR.
+
 ## 3. Craft Lifecycle
 
 ### 3.1 States
@@ -427,6 +459,45 @@ When a craft passes its landing checklist, the pilot requests landing clearance 
 - **RULE-TMRG-3:** If a merge conflict arises, the tower MAY send the craft on a go-around to rebase/resolve before re-entering the queue.
 - **RULE-TMRG-4:** Merges MUST be sequenced to avoid conflicts. Default ordering is first-come, first-served.
 
+### 4.5 TFR Protocol
+
+#### Issuance
+
+1. The issuer (user or tower, per RULE-TFR-3/4) declares a TFR with scope, mode, reason, and target.
+2. The system records the TFR with a timestamp.
+3. The system identifies all affected crafts based on scope and target.
+
+#### Enforcement — Graceful Mode (default)
+
+1. All affected agents receive a TFR notification.
+2. Agents are given a brief wind-down window to reach a safe stopping point.
+3. During wind-down, agents MUST record their current state in the black box as an `Observation` entry.
+4. After wind-down, the `holdingPattern` flag is set on all affected crafts.
+5. A `TFRIssued` entry is recorded in each affected craft's black box.
+
+#### Enforcement — Immediate Mode
+
+1. All affected agents are stopped immediately.
+2. The `holdingPattern` flag is set on all affected crafts with no wind-down window.
+3. A `TFRIssued` entry is recorded in each affected craft's black box by the system (since agents cannot act).
+
+#### Lifting
+
+1. The user lifts the TFR (only the user may lift a TFR, regardless of who issued it).
+2. The system sets `liftedAt` on the TFR record.
+3. The `holdingPattern` flag is cleared on all affected crafts not subject to another active TFR.
+4. All affected agents automatically resume from their prior state.
+
+#### Rules
+
+- **RULE-TFRP-1:** In graceful mode, agents MUST be given a wind-down window to reach a safe stopping point and record state before the holding pattern takes effect.
+- **RULE-TFRP-2:** In immediate mode, the holding pattern takes effect instantly with no wind-down.
+- **RULE-TFRP-3:** Only the user MAY lift a TFR, regardless of who issued it.
+- **RULE-TFRP-4:** When a TFR is lifted, all affected agents MUST automatically resume from their prior state.
+- **RULE-TFRP-5:** A `TFRIssued` and `TFRLifted` entry MUST be recorded in the black box of every affected craft.
+- **RULE-TFRP-6:** TFR events MUST be posted as system notifications on each affected craft's intercom.
+- **RULE-TFRP-7:** The tower MUST maintain a log of all TFR events with full metadata.
+
 ## 5. Appendices
 
 ### Appendix A: Rule Index
@@ -501,3 +572,18 @@ When a craft passes its landing checklist, the pilot requests landing clearance 
 | RULE-TMRG-2    | Tower must verify branch is up to date before merge.                 | 4.4     |
 | RULE-TMRG-3    | Tower may send craft on go-around for merge conflicts.               | 4.4     |
 | RULE-TMRG-4    | Merges sequenced FCFS by default.                                    | 4.4     |
+| RULE-TFR-1     | TFR must have identifier, scope, mode, reason, and issuer.           | 2.6     |
+| RULE-TFR-2     | Project/craft TFRs require target; global TFRs have null target.     | 2.6     |
+| RULE-TFR-3     | User may issue TFR at any scope.                                     | 2.6     |
+| RULE-TFR-4     | Tower may issue project/craft TFR if enabled; never global.          | 2.6     |
+| RULE-TFR-5     | TFR must not alter lifecycle state; uses holdingPattern flag.        | 2.6     |
+| RULE-TFR-6     | No pilot actions permitted while holdingPattern is true.             | 2.6     |
+| RULE-TFR-7     | Multiple TFRs may coexist; craft holds if any TFR applies.           | 2.6     |
+| RULE-TFR-8     | Lifting TFR clears holdingPattern unless another TFR still applies.  | 2.6     |
+| RULE-TFRP-1    | Graceful mode: wind-down window before holding pattern.              | 4.5     |
+| RULE-TFRP-2    | Immediate mode: no wind-down, instant hold.                          | 4.5     |
+| RULE-TFRP-3    | Only the user may lift a TFR.                                        | 4.5     |
+| RULE-TFRP-4    | Agents auto-resume when TFR is lifted.                               | 4.5     |
+| RULE-TFRP-5    | TFRIssued and TFRLifted entries in affected craft black boxes.       | 4.5     |
+| RULE-TFRP-6    | TFR events posted as intercom system notifications.                  | 4.5     |
+| RULE-TFRP-7    | Tower maintains log of all TFR events.                               | 4.5     |
