@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: "/projects", label: "Projects", icon: "⊡" },
   { to: "/pilots", label: "Pilots", icon: "◇" },
   { to: "/events", label: "Event Stream", icon: "≋" },
+  { to: "/settings", label: "Settings", icon: "⚙" },
 ];
 
 function ProjectNav({ name }: { name: string }) {
@@ -59,9 +60,120 @@ function ProjectNav({ name }: { name: string }) {
   );
 }
 
+const SETTINGS_NAV = [
+  { to: "/settings/general", label: "General" },
+  { to: "/settings/profile", label: "Profile" },
+  { to: "/settings/about", label: "About" },
+];
+
+function SettingsNav() {
+  return (
+    <nav className="border-t px-4 py-3" style={{ borderColor: "var(--border)" }}>
+      <div
+        className="mb-2 text-[9px] uppercase tracking-widest"
+        style={{ color: "var(--text-dim)" }}
+      >
+        SETTINGS
+      </div>
+      {SETTINGS_NAV.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          className="mb-1 block rounded-md px-2 py-1.5 text-xs no-underline"
+          style={({ isActive }) => ({
+            color: isActive ? "var(--accent-green)" : "var(--text-muted)",
+            backgroundColor: isActive ? "var(--bg-elevated)" : "transparent",
+          })}
+        >
+          {item.label}
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
+
+function PilotSettingsNav({ id }: { id: string }) {
+  return (
+    <nav className="border-t px-4 py-3" style={{ borderColor: "var(--border)" }}>
+      <div className="mb-2 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
+        PILOT SETTINGS: {id.toUpperCase()}
+      </div>
+      <NavLink
+        to="/settings"
+        className="mb-2 block px-2 py-1 text-xs no-underline opacity-50"
+        style={{ color: "var(--text-muted)" }}
+      >
+        ← Back to Settings
+      </NavLink>
+      <NavLink
+        to={`/settings/pilot/${id}/general`}
+        className="mb-1 block rounded-md px-2 py-1.5 text-xs no-underline"
+        style={({ isActive }) => ({
+          color: isActive ? "var(--accent-green)" : "var(--text-muted)",
+          backgroundColor: isActive ? "var(--bg-elevated)" : "transparent",
+        })}
+      >
+        General
+      </NavLink>
+      <NavLink
+        to={`/settings/pilot/${id}/mcp-servers`}
+        className="mb-1 block rounded-md px-2 py-1.5 text-xs no-underline"
+        style={({ isActive }) => ({
+          color: isActive ? "var(--accent-green)" : "var(--text-muted)",
+          backgroundColor: isActive ? "var(--bg-elevated)" : "transparent",
+        })}
+      >
+        MCP Servers
+      </NavLink>
+    </nav>
+  );
+}
+
+function ProjectSettingsNav({ name }: { name: string }) {
+  return (
+    <nav className="border-t px-4 py-3" style={{ borderColor: "var(--border)" }}>
+      <div className="mb-2 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
+        PROJECT SETTINGS: {name.toUpperCase()}
+      </div>
+      <NavLink
+        to="/settings"
+        className="mb-2 block px-2 py-1 text-xs no-underline opacity-50"
+        style={{ color: "var(--text-muted)" }}
+      >
+        ← Back to Settings
+      </NavLink>
+      <NavLink
+        to={`/settings/project/${name}/general`}
+        className="mb-1 block rounded-md px-2 py-1.5 text-xs no-underline"
+        style={({ isActive }) => ({
+          color: isActive ? "var(--accent-green)" : "var(--text-muted)",
+          backgroundColor: isActive ? "var(--bg-elevated)" : "transparent",
+        })}
+      >
+        General
+      </NavLink>
+      <NavLink
+        to={`/settings/project/${name}/mcp-servers`}
+        className="mb-1 block rounded-md px-2 py-1.5 text-xs no-underline"
+        style={({ isActive }) => ({
+          color: isActive ? "var(--accent-green)" : "var(--text-muted)",
+          backgroundColor: isActive ? "var(--bg-elevated)" : "transparent",
+        })}
+      >
+        MCP Servers
+      </NavLink>
+    </nav>
+  );
+}
+
 export function Sidebar() {
   const projectMatch = useMatch("/projects/:name/*");
   const projectName = projectMatch?.params.name;
+  const settingsMatch = useMatch("/settings/*");
+  const projectSettingsMatch = useMatch("/settings/project/:name/*");
+  const projectSettingsName = projectSettingsMatch?.params.name;
+  const pilotSettingsMatch = useMatch("/settings/pilot/:id/*");
+  const pilotSettingsId = pilotSettingsMatch?.params.id;
 
   return (
     <aside
@@ -103,6 +215,13 @@ export function Sidebar() {
         ))}
       </nav>
       {projectName && <ProjectNav name={projectName} />}
+      {pilotSettingsId ? (
+        <PilotSettingsNav id={pilotSettingsId} />
+      ) : projectSettingsName ? (
+        <ProjectSettingsNav name={projectSettingsName} />
+      ) : (
+        settingsMatch && <SettingsNav />
+      )}
     </aside>
   );
 }

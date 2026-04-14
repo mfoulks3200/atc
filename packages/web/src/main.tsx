@@ -33,6 +33,28 @@ const router = createBrowserRouter([
       { path: "checklists", lazy: () => import("@/routes/checklists/index") },
       { path: "checklists/:id", lazy: () => import("@/routes/checklists/template") },
       { path: "checklists/assignments", lazy: () => import("@/routes/checklists/assignments") },
+      { path: "settings", lazy: () => import("@/routes/settings/general") },
+      { path: "settings/general", lazy: () => import("@/routes/settings/general") },
+      { path: "settings/profile", lazy: () => import("@/routes/settings/profile") },
+      { path: "settings/about", lazy: () => import("@/routes/settings/about") },
+      { path: "settings/project/:name", lazy: () => import("@/routes/settings/project-general") },
+      {
+        path: "settings/project/:name/general",
+        lazy: () => import("@/routes/settings/project-general"),
+      },
+      {
+        path: "settings/project/:name/mcp-servers",
+        lazy: () => import("@/routes/settings/project-mcp"),
+      },
+      { path: "settings/pilot/:id", lazy: () => import("@/routes/settings/pilot-general") },
+      {
+        path: "settings/pilot/:id/general",
+        lazy: () => import("@/routes/settings/pilot-general"),
+      },
+      {
+        path: "settings/pilot/:id/mcp-servers",
+        lazy: () => import("@/routes/settings/pilot-mcp"),
+      },
     ],
   },
 ]);

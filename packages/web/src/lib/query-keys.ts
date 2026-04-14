@@ -34,4 +34,9 @@ export const queryKeys = {
     bindings: () => ["checklists", "bindings"] as const,
     runs: (project: string, callsign: string) => ["checklists", "runs", project, callsign] as const,
   },
+  config: {
+    global: () => ["config", "global"] as const,
+    project: (name: string) => ["config", "project", name] as const,
+    pilot: (id: string) => ["config", "pilot", id] as const,
+  },
 };

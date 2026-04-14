@@ -4,6 +4,8 @@ import {
   PROFILE_CONFIG_SCHEMA,
   GLOBAL_CONFIG_DEFAULTS,
   PROFILE_CONFIG_DEFAULTS,
+  PROJECT_METADATA_SCHEMA,
+  PROJECT_METADATA_DEFAULTS,
 } from "./schema.js";
 
 describe("GLOBAL_CONFIG_SCHEMA", () => {
@@ -84,5 +86,65 @@ describe("PROFILE_CONFIG_SCHEMA", () => {
       extra: true,
     }) as Record<string, unknown>;
     expect(parsed["extra"]).toBe(true);
+  });
+});
+
+describe("PROJECT_METADATA_SCHEMA", () => {
+  it("accepts a complete valid ProjectMetadata object", () => {
+    const valid = {
+      name: "my-project",
+      remoteUrl: "https://github.com/org/repo.git",
+      categories: ["feature", "backend"],
+      checklist: [
+        { name: "Tests", command: "pnpm run test", timeout: 60000 },
+        { name: "Lint", command: "pnpm run lint" },
+      ],
+      mcpServers: {
+        filesystem: {
+          command: "npx",
+          args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+          env: { DEBUG: "1" },
+        },
+      },
+    };
+    expect(() => PROJECT_METADATA_SCHEMA.parse(valid)).not.toThrow();
+  });
+
+  it("accepts defaults", () => {
+    expect(() => PROJECT_METADATA_SCHEMA.parse(PROJECT_METADATA_DEFAULTS)).not.toThrow();
+  });
+
+  it("rejects a checklist item missing required 'command' field", () => {
+    const result = PROJECT_METADATA_SCHEMA.safeParse({
+      ...PROJECT_METADATA_DEFAULTS,
+      checklist: [{ name: "Tests" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a checklist item with a non-string name", () => {
+    const result = PROJECT_METADATA_SCHEMA.safeParse({
+      ...PROJECT_METADATA_DEFAULTS,
+      checklist: [{ name: 42, command: "pnpm test" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an mcpServer entry missing required 'args' field", () => {
+    const result = PROJECT_METADATA_SCHEMA.safeParse({
+      ...PROJECT_METADATA_DEFAULTS,
+      mcpServers: {
+        bad: { command: "npx" },
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("preserves unknown fields via passthrough", () => {
+    const parsed = PROJECT_METADATA_SCHEMA.parse({
+      ...PROJECT_METADATA_DEFAULTS,
+      customField: "retained",
+    }) as Record<string, unknown>;
+    expect(parsed["customField"]).toBe("retained");
   });
 });

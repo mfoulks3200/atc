@@ -135,6 +135,30 @@ export interface AgentUsageReport {
   duration: number;
 }
 
+export interface GlobalConfig {
+  defaultProfile: string;
+}
+
+export interface ProfileConfig {
+  port: number;
+  host: string;
+  logLevel: "debug" | "info" | "warn" | "error";
+  autoRecover: boolean;
+  wsHeartbeatInterval: number;
+  stateFlushInterval: number;
+}
+
+export interface PilotConfig {
+  certifications: string[];
+  mcpServers: Record<string, { command: string; args: string[]; env?: Record<string, string> }>;
+  skills: string[];
+}
+
+export interface ConfigResponse<T> {
+  config: T;
+  overrides: Record<string, unknown>;
+}
+
 // ---------------------------------------------------------------------------
 // WebSocket types
 // ---------------------------------------------------------------------------

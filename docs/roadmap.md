@@ -32,6 +32,8 @@ Upcoming work for ATC, organized by workstream. Items are unordered within each 
 
 - [ ] **WebSocket broadcasting for project and pilot config changes** — Global config changes already broadcast on `config:global`. Extend this pattern to project and pilot config so the UI can react in real time. _Depends on: project and pilot config routes. Packages: daemon_
 
+- [ ] **Upgrade pilot config routes to LayeredConfigStore** — The pilot config routes are initially backed by an in-memory store since pilot persistence is not yet implemented. Once pilot records are persisted to disk (see Pilot Management), upgrade the pilot config backing store to a `LayeredConfigStore<PilotConfig>` per pilot, bringing file-watching, sparse diffs, and durable persistence. _Depends on: pilot config routes, persist pilot records to disk. Packages: daemon_
+
 ## Skills
 
 - [ ] **Define skills data model** — Add an `AgentSkill` type representing a skill entry: a reference to a SKILL.md directory on disk, its parsed metadata (name, description), and its assignment scope (global, project, or pilot). Store global skills in the daemon's global config directory and project skills in the project's config directory. _Packages: types, daemon_

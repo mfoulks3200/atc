@@ -22,8 +22,9 @@ import { createApp } from "./server/app.js";
 import { writePidFile, removePidFile } from "./process/pid.js";
 import { createShutdownHandler, registerSignalHandlers } from "./process/signals.js";
 import { createGlobalConfigStore } from "./config/global-store.js";
+import { createProjectConfigStore } from "./config/project-store.js";
 import type { LayeredConfigStore } from "./config/layered-store.js";
-import type { GlobalConfig } from "./config/schema.js";
+import type { GlobalConfig, ProjectMetadataConfig } from "./config/schema.js";
 import { ChannelRegistry } from "./server/websocket/channels.js";
 
 /** Path of the PID file relative to the profile directory. */
@@ -56,6 +57,7 @@ export class Daemon {
   private _agentStore: AgentStore | null = null;
   private _craftStore: CraftStore | null = null;
   private _pilotStore: PilotStore | null = null;
+  private _projectConfigStores: Map<string, LayeredConfigStore<ProjectMetadataConfig>> = new Map();
 
   /**
    * @param profileDir - Absolute path to the profile directory. Must contain
@@ -131,6 +133,32 @@ export class Daemon {
     await globalConfigStore.load();
     globalConfigStore.start();
 
+    // Load project config stores for all existing projects
+    const projectConfigStores = new Map<string, LayeredConfigStore<ProjectMetadataConfig>>();
+    const projectsDir = join(this._profileDir, "projects");
+    try {
+      const { readdir } = await import("node:fs/promises");
+      const entries = await readdir(projectsDir);
+      for (const entry of entries) {
+        const projectDir = join(projectsDir, entry);
+        const store = createProjectConfigStore(
+          entry,
+          projectDir,
+          channelRegistry.publish.bind(channelRegistry),
+          logger,
+        );
+        try {
+          await store.load();
+          store.start();
+          projectConfigStores.set(entry, store);
+        } catch {
+          // Skip projects without valid metadata
+        }
+      }
+    } catch {
+      // No projects dir yet — empty map is fine
+    }
+
     const app = createApp({
       profileDir: this._profileDir,
       agentStore,
@@ -139,6 +167,7 @@ export class Daemon {
       pilotStore,
       channelRegistry,
       globalConfigStore,
+      projectConfigStores,
     });
 
     await app.listen({ port: config.port, host: config.host });
@@ -167,6 +196,7 @@ export class Daemon {
     this._pilotStore = pilotStore;
     this._channelRegistry = channelRegistry;
     this._globalConfigStore = globalConfigStore;
+    this._projectConfigStores = projectConfigStores;
     this._running = true;
   }
 
@@ -202,6 +232,10 @@ export class Daemon {
 
     if (this._app !== null) {
       await this._app.close();
+    }
+
+    for (const store of this._projectConfigStores.values()) {
+      await store.stop();
     }
 
     if (this._globalConfigStore !== null) {
