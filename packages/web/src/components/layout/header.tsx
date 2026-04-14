@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link } from "react-router";
 import { ConnectionIndicator } from "@/components/base/connection-indicator";
+import { GlossaryModal } from "@/components/glossary/glossary-modal";
 import { useConnectionStatus } from "@/hooks/use-websocket";
 import { useWsManager, useWsUrl } from "@/hooks/ws-context";
 import { usePageHeaderState } from "@/hooks/page-header-context";
@@ -9,6 +11,7 @@ export function Header() {
   const wsUrl = useWsUrl();
   const connectionStatus = useConnectionStatus(wsManager);
   const { crumbs, right } = usePageHeaderState();
+  const [referenceOpen, setReferenceOpen] = useState(false);
 
   return (
     <header
@@ -39,8 +42,22 @@ export function Header() {
       </div>
       <div className="flex items-center gap-3">
         {right}
+        <button
+          type="button"
+          onClick={() => setReferenceOpen(true)}
+          aria-label="Open glossary and rules reference"
+          className="flex h-6 w-6 items-center justify-center rounded-full border text-[11px] font-semibold"
+          style={{
+            borderColor: "var(--border)",
+            color: "var(--text-muted)",
+            backgroundColor: "var(--bg-elevated)",
+          }}
+        >
+          ?
+        </button>
         <ConnectionIndicator status={connectionStatus} url={wsUrl} />
       </div>
+      <GlossaryModal open={referenceOpen} onClose={() => setReferenceOpen(false)} />
     </header>
   );
 }

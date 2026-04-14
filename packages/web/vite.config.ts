@@ -31,6 +31,31 @@ interface Contributor {
   username: string | null;
 }
 
+import {
+  parseGlossary,
+  parseRules,
+  type GlossaryTerm,
+  type RuleEntry,
+} from "./src/lib/spec-parser.js";
+
+function readSpec(): string {
+  try {
+    return readFileSync(path.join(repoRoot, "docs/specification.md"), "utf-8");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[vite] specification.md read failed: ${message}`);
+    return "";
+  }
+}
+
+function getGlossary(): GlossaryTerm[] {
+  return parseGlossary(readSpec());
+}
+
+function getRules(): RuleEntry[] {
+  return parseRules(readSpec());
+}
+
 function getContributors(): Contributor[] {
   const contributorsPath = path.join(repoRoot, "contributors.generated.json");
 
@@ -63,6 +88,8 @@ export default defineConfig({
     __ATC_VERSION__: JSON.stringify(getVersion()),
     __ATC_CHANGELOG__: JSON.stringify(getChangelog()),
     __ATC_CONTRIBUTORS__: JSON.stringify(getContributors()),
+    __ATC_GLOSSARY__: JSON.stringify(getGlossary()),
+    __ATC_RULES__: JSON.stringify(getRules()),
   },
   resolve: {
     alias: {
