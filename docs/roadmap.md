@@ -2,6 +2,28 @@
 
 Upcoming work for ATC, organized by workstream. Items are unordered within each section. Dependencies are noted where they exist.
 
+## MVP
+
+The minimum work required to get a single craft from creation through an actual agent working on the worktree, with the user able to observe what's happening, and ultimately land (merge). Today, `POST /launch` only flips the craft status to `InFlight`; no process is spawned, no events are published, and the adapter is a documented stub. The items below close that loop.
+
+- [ ] **Broadcast craft mutations over WebSocket** — The `channelRegistry` only publishes config changes today. Extend the craft, vector, blackbox, intercom, checklist, and lifecycle transition routes in `packages/daemon/src/server/routes/` to call `channelRegistry.publish("craft:<callsign>", …)` (and a `project:<name>` channel for list views) on every mutation. The web UI's events page already subscribes to `*`, so this is the smallest unlock to make the stream non-empty. _Packages: daemon_
+
+- [ ] **Black box entries for every lifecycle event** — Today only emergency declarations are appended to the black box. Append entries for craft creation, launch, vector report (pass/fail), checklist run (per item + overall), clearance request, tower queue enqueue/dequeue, emergency declarations, and any state transition. This is the durable activity log that makes "what happened" answerable without an agent transcript. _Depends on: WebSocket broadcasting. Packages: daemon, core_
+
+- [ ] **Agent runtime in the daemon** — Introduce an `AgentManager` (or similar) that owns agent subprocess lifecycles. On `POST /launch`, resolve the craft's captain pilot, call `adapterRegistry.get(adapter).launch(...)`, store the returned `agentId` and PID in the `AgentStore`, and track status (`running | paused | suspended | terminated`). Handle graceful stop, crash detection, and PID reaping. The manager must survive daemon restart by re-attaching to persisted agent records where possible, or marking them `terminated` if the process is gone. _Packages: daemon_
+
+- [ ] **Pipe agent stdout/stderr into the black box and WS stream** — The agent runtime must capture the subprocess's output, append each line as a `BlackBoxEntry` (type `Observation` or a new `AgentOutput` type), and publish it on the `craft:<callsign>` channel so the web UI renders it live. Include a ring buffer cap so a chatty agent can't blow up memory. _Depends on: agent runtime, black box entries, WebSocket broadcasting. Packages: daemon, types_
+
+- [ ] **Replace the stub Claude Agent SDK adapter with a real implementation** — `packages/adapter-claude-agent-sdk` is a documented no-op. Implement `launch`, `pause`, `resume`, `terminate`, `isAlive`, `sendMessage`, and the `onMessage` / `onStatusChange` / `onUsageReport` callbacks against the real `@anthropic-ai/claude-agent-sdk`. Use `buildSystemPrompt` (already exists) to seed the agent with craft state, flight plan, and controls. The adapter runs the agent in the craft's worktree. _Depends on: agent runtime. Packages: adapter-claude-agent-sdk_
+
+- [ ] **Craft activity view in the web UI** — The craft detail page should show a live activity feed sourced from the `craft:<callsign>` WebSocket channel, rendering black box entries with their type, timestamp, and body. Agent output lines render inline with the lifecycle events so the user sees exactly what the pilot is doing relative to vector progress. Include a "follow tail" toggle and an auto-scroll. _Depends on: WebSocket broadcasting, black box entries for every lifecycle event, pipe agent output. Packages: web_
+
+- [ ] **Launch button wired end-to-end in the UI** — The craft detail page needs a visible Launch button (when in `Taxiing`) that POSTs to the launch route, handles the error cases (missing captain, empty flight plan, uncertified pilot), and transitions the UI into the live activity view. Today the button may not exist or may not surface errors clearly. _Depends on: craft activity view. Packages: web_
+
+- [ ] **Implement tower merge execution** — `Tower.requestClearance` and the merge queue exist, but steps 4–6 of the merge protocol (verify branch up to date with main, execute merge, mark craft `Landed`) are unimplemented. This is called out in CLAUDE.md Known Spec Gaps and blocks the full end-to-end flow. Use the existing daemon git utilities to rebase/merge the craft's worktree branch into the project's main branch, handle conflicts by returning the craft to `GoAround`, and append a `Merge` black box entry on success. _Depends on: black box entries for every lifecycle event. Packages: tower, daemon_
+
+- [ ] **First-run seeding / onboarding** — A fresh daemon has no projects, no pilots, and no crafts, so a new user faces four empty screens before they can try anything. Add a "Create your first project" empty state on the projects list that walks the user through project → pilot → craft in sequence, or alternatively provide a `pnpm run seed:demo` script that creates a throwaway project with one captain pilot and a sample 2-vector flight plan pointing at a local scratch repo. _Packages: web or daemon (pick one)_
+
 ## Pilot Management
 
 - [x] **Wire up pilot creation modal** — The `CreatePilotModal` component exists but is not accessible from the pilots list view. Add a trigger button to the list page that opens it. _Packages: web_
