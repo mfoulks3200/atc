@@ -52,7 +52,15 @@ Upcoming work for ATC, organized by workstream. Items are unordered within each 
 
 ## UI / UX
 
+- [ ] **Inline term-definition tooltip component** — Add a reusable component that renders a small question-mark icon which, on hover (and keyboard focus), shows a tooltip defining a particular term, concept, or rule. Intended for inline use next to domain vocabulary (Craft, Vector, Clearance, RULE-* identifiers, etc.) so users can learn terminology without leaving their current view. Should share its term/rule source with the glossary modal below once that lands. _Packages: web_
+
 - [ ] **Glossary & rules reference modal** — Add a reference modal accessible from a persistent icon in the global navigation bar. The modal has two tabs: (1) **Glossary** — all notable terms from `docs/specification.md` (Craft, Pilot, Captain, First Officer, Jumpseat, Vector, Flight Plan, Black Box, Tower, Controls, Clearance, Emergency, Intercom, Checklist, etc.) with their formal definitions and how they relate to other terms (e.g. a Pilot occupies a Seat on a Craft; a Flight Plan is an ordered sequence of Vectors), with a lightweight client-side search/filter. (2) **Rules** — a browsable list of all `RULE-*` identifiers from the spec with their descriptions, grouped by prefix (CRAFT, CTRL, LIFE, SEAT, VEC, LCHK, TOWER, TMRG, EMER, etc.), also with a lightweight search/filter. _Packages: web_
+
+## End-to-End Testing
+
+- [ ] **Create `@airtrafficcontrol/e2e` package for Playwright tests** — Add a new workspace package that houses Playwright-based end-to-end tests exercising the daemon and web UI together. Include a test runner script, a fixture that boots the daemon against a scratch repo, and baseline smoke tests covering project creation, craft lifecycle, and the settings pages. _Packages: e2e (new)_
+
+- [ ] **README screenshot generation suite** — Within the e2e package, add a dedicated Playwright suite whose sole purpose is to capture screenshots used in the repository README (and other docs). The suite should seed a deterministic demo dataset, navigate to each featured view, and write PNGs to a known output directory that the README references. _Depends on: e2e package. Packages: e2e_
 
 ## Rule Enforcement
 
