@@ -87,6 +87,20 @@ describe("craft routes", () => {
       expect(stored).toBeDefined();
       expect(stored!.cargo).toBe("Implement feature alpha");
     });
+
+    it("appends a CraftCreated black box entry on creation", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts`,
+        payload: validCraftBody,
+      });
+      const body = res.json<CraftState>();
+      expect(body.blackBox).toHaveLength(1);
+      expect(body.blackBox[0].type).toBe("CraftCreated");
+      expect(body.blackBox[0].author).toBe("pilot-1");
+      expect(body.blackBox[0].content).toContain("alpha-1");
+      expect(body.blackBox[0].content).toContain("feat/alpha");
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -195,6 +209,22 @@ describe("craft routes", () => {
       expect(res.json<CraftState>().status).toBe("InFlight");
     });
 
+    it("appends Launched and StateTransition black box entries on launch", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts`,
+        payload: validCraftBody,
+      });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/launch`,
+      });
+      const body = res.json<CraftState>();
+      const types = body.blackBox.map((e) => e.type);
+      expect(types).toEqual(["CraftCreated", "Launched", "StateTransition"]);
+    });
+
     it("returns 404 for unknown craft", async () => {
       const res = await app.inject({
         method: "POST",
@@ -277,6 +307,52 @@ describe("craft routes", () => {
       expect(craftStore.get(PROJECT, "alpha-1")!.status).toBe("GoAround");
     });
 
+    it("appends per-item and ChecklistRun entries plus GoAround on failure", async () => {
+      await seedCraftInFlight();
+      vi.mocked(runChecklist).mockResolvedValueOnce({
+        passed: false,
+        items: [
+          { name: "tests", passed: true, stdout: "", stderr: "", durationMs: 5 },
+          { name: "lint", passed: false, stdout: "", stderr: "bad", durationMs: 7 },
+        ],
+      });
+
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+      });
+
+      const craft = craftStore.get(PROJECT, "alpha-1")!;
+      const types = craft.blackBox.map((e) => e.type);
+      // CraftCreated, Launched, StateTransition (launch), StateTransition (to LandingChecklist),
+      // ChecklistItem x2, ChecklistRun, GoAround, StateTransition (LandingChecklist -> GoAround)
+      expect(types).toContain("ChecklistItem");
+      expect(types.filter((t) => t === "ChecklistItem")).toHaveLength(2);
+      expect(types).toContain("ChecklistRun");
+      expect(types).toContain("GoAround");
+      const stateTransitions = craft.blackBox.filter((e) => e.type === "StateTransition");
+      expect(stateTransitions.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it("appends ChecklistRun and StateTransition entries on success (no GoAround)", async () => {
+      await seedCraftInFlight();
+      vi.mocked(runChecklist).mockResolvedValueOnce({
+        passed: true,
+        items: [{ name: "tests", passed: true, stdout: "", stderr: "", durationMs: 3 }],
+      });
+
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+      });
+
+      const craft = craftStore.get(PROJECT, "alpha-1")!;
+      const types = craft.blackBox.map((e) => e.type);
+      expect(types).toContain("ChecklistItem");
+      expect(types).toContain("ChecklistRun");
+      expect(types).not.toContain("GoAround");
+    });
+
     it("also accepts GoAround as a valid entry state (re-attempt)", async () => {
       await app.inject({
         method: "POST",
@@ -354,8 +430,12 @@ describe("craft routes", () => {
       expect(res.statusCode).toBe(200);
       const body = res.json<CraftState>();
       expect(body.status).toBe("Emergency");
-      expect(body.blackBox).toHaveLength(1);
-      expect(body.blackBox[0].type).toBe("EmergencyDeclaration");
+      // Seeding-via-route creates a CraftCreated entry, so the emergency
+      // branch also appends an EmergencyDeclaration plus a StateTransition.
+      const types = body.blackBox.map((e) => e.type);
+      expect(types).toContain("CraftCreated");
+      expect(types).toContain("EmergencyDeclaration");
+      expect(types).toContain("StateTransition");
     });
 
     it("returns 400 when craft is not in GoAround", async () => {

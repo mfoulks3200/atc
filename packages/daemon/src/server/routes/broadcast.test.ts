@@ -135,7 +135,8 @@ describe("broadcast wiring on mutation routes", () => {
   function eventsFor(channelPrefix: string): WsEvent[] {
     return publishSpy.mock.calls
       .filter(([channel]) => (channel as string).startsWith(channelPrefix))
-      .map(([, data]) => data as WsEvent);
+      .map(([, data]) => data as WsEvent)
+      .filter((e) => e.event !== "craft.blackbox.appended");
   }
 
   beforeEach(() => {

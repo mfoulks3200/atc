@@ -9,7 +9,9 @@
  */
 
 import type { FastifyInstance } from "fastify";
+import { BlackBoxEntryType } from "@airtrafficcontrol/types";
 import { publishCraftEvent } from "./broadcast.js";
+import { appendBlackBoxEntry } from "./blackbox-helpers.js";
 
 // ---------------------------------------------------------------------------
 // Request types
@@ -95,6 +97,16 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
       vector.status = "Passed";
       vector.evidence = evidence;
       vector.reportedAt = new Date().toISOString();
+
+      appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        craft.captain,
+        BlackBoxEntryType.VectorPassed,
+        `Vector "${vectorName}" passed with evidence: ${evidence}`,
+      );
+
       app.craftStore.set(name, craft);
       publishCraftEvent(app, name, craft, "craft.vector.reported", { vector });
 

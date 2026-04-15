@@ -98,6 +98,14 @@ The **black box** is an append-only log maintained on every craft throughout its
 | `ChecklistRun`          | A checklist was executed. Contains full `ChecklistRunResult` metadata (see 4.2). |
 | `TFRIssued`             | A TFR has taken effect on this craft. Records scope, mode, reason, and issuer.   |
 | `TFRLifted`             | A TFR affecting this craft has been lifted. Records duration and issuer.          |
+| `CraftCreated`          | The craft was created (flight plan opened, craft enters Taxiing).                 |
+| `Launched`              | The craft was launched from Taxiing into InFlight.                                |
+| `VectorFailed`          | A vector was reported as failed (reserved for the failing-vector protocol).       |
+| `ChecklistItem`         | A single checklist item completed. Recorded once per item, alongside `ChecklistRun`. |
+| `ClearanceRequested`    | The captain requested landing clearance from the tower.                           |
+| `TowerEnqueued`         | The craft was added to the tower landing queue.                                   |
+| `TowerDequeued`         | The craft was removed from the tower landing queue.                               |
+| `StateTransition`       | The craft transitioned between lifecycle states. Used for structured audit trail. |
 
 ##### Rules
 

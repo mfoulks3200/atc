@@ -107,8 +107,24 @@ export enum BlackBoxEntryType {
   EmergencyDeclaration = "EmergencyDeclaration",
   /** A checklist was executed. Contains full ChecklistRunResult metadata. @see RULE-CHKL-5 */
   ChecklistRun = "ChecklistRun",
+  /** A single checklist item was executed. Paired with ChecklistRun for per-item granularity. @see RULE-CHKL-5 */
+  ChecklistItem = "ChecklistItem",
   /** A Temporary Flight Restriction has taken effect on this craft. @see RULE-TFRP-5 */
   TFRIssued = "TFRIssued",
   /** A Temporary Flight Restriction affecting this craft has been lifted. @see RULE-TFRP-5 */
   TFRLifted = "TFRLifted",
+  /** The craft was created (flight plan opened, enters Taxiing). @see RULE-BBOX-1 */
+  CraftCreated = "CraftCreated",
+  /** The craft was launched (Taxiing → InFlight). @see RULE-LIFE-3 */
+  Launched = "Launched",
+  /** A vector was reported as failed. @see RULE-VEC-2 */
+  VectorFailed = "VectorFailed",
+  /** Landing clearance was requested from the tower. @see RULE-TOWER-2 */
+  ClearanceRequested = "ClearanceRequested",
+  /** The craft was added to the tower landing queue. @see RULE-TOWER-1 */
+  TowerEnqueued = "TowerEnqueued",
+  /** The craft was removed from the tower landing queue. @see RULE-TOWER-1 */
+  TowerDequeued = "TowerDequeued",
+  /** The craft transitioned between lifecycle states. @see RULE-LIFE-1 */
+  StateTransition = "StateTransition",
 }

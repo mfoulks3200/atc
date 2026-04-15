@@ -9,7 +9,9 @@
  */
 
 import type { FastifyInstance } from "fastify";
+import { BlackBoxEntryType } from "@airtrafficcontrol/types";
 import { publishCraftEvent } from "./broadcast.js";
+import { appendBlackBoxEntry } from "./blackbox-helpers.js";
 import type { WsEvent } from "../../types.js";
 
 // ---------------------------------------------------------------------------
@@ -66,13 +68,34 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(404).send({ error: `Craft not found: ${callsign}` });
       }
 
+      // Log the clearance request up front so an audit trail exists even if
+      // the request is rejected for failing the vector-pass precondition.
+      appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        craft.captain,
+        BlackBoxEntryType.ClearanceRequested,
+        `Landing clearance requested for ${callsign}`,
+      );
+
       // RULE-TOWER-2: all vectors must be passed
       const allPassed = craft.flightPlan.every((v) => v.status === "Passed");
       if (!allPassed) {
+        app.craftStore.set(name, craft);
         return reply.code(409).send({ error: "Not all vectors have passed" });
       }
 
       app.towerStore.enqueue(name, callsign);
+      appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        "system",
+        BlackBoxEntryType.TowerEnqueued,
+        `Enqueued on tower landing queue for project ${name}`,
+      );
+      app.craftStore.set(name, craft);
       publishCraftEvent(app, name, craft, "craft.clearance.granted");
 
       // Notify tower queue subscribers so list views refresh.

@@ -16,7 +16,8 @@ import { createWorktree } from "../../git/worktree.js";
 import { loadProjectMetadata } from "../../config/loader.js";
 import { runChecklist } from "../../checklist/runner.js";
 import { publishCraftEvent, publishCraftRemoved } from "./broadcast.js";
-import type { CraftState, VectorState, BlackBoxEntry } from "../../types.js";
+import { appendBlackBoxEntry } from "./blackbox-helpers.js";
+import type { CraftState, VectorState } from "../../types.js";
 
 // ---------------------------------------------------------------------------
 // Request body / param types
@@ -100,6 +101,17 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         holdingPattern: false,
       };
 
+      // RULE-BBOX-1: black box is created at Taxiing — record the craft.created
+      // event as the first entry so the log is non-empty for every craft from
+      // the moment it exists.
+      appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        captain,
+        BlackBoxEntryType.CraftCreated,
+        `Craft ${callsign} created on branch ${branch} with cargo: ${cargo}`,
+      );
       app.craftStore.set(name, craft);
       publishCraftEvent(app, name, craft, "craft.created");
 
@@ -200,6 +212,22 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       }
 
       craft.status = CraftStatus.InFlight;
+      appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        craft.captain,
+        BlackBoxEntryType.Launched,
+        `Launched: ${CraftStatus.Taxiing} -> ${CraftStatus.InFlight}`,
+      );
+      appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        "system",
+        BlackBoxEntryType.StateTransition,
+        `State transition: ${CraftStatus.Taxiing} -> ${CraftStatus.InFlight}`,
+      );
       app.craftStore.set(name, craft);
       publishCraftEvent(app, name, craft, "craft.launched", {
         from: CraftStatus.Taxiing,
@@ -246,6 +274,14 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       // Transition to LandingChecklist before running
       const entryStatus = craft.status;
       craft.status = CraftStatus.LandingChecklist;
+      appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        "system",
+        BlackBoxEntryType.StateTransition,
+        `State transition: ${entryStatus} -> ${CraftStatus.LandingChecklist}`,
+      );
       app.craftStore.set(name, craft);
       publishCraftEvent(app, name, craft, "craft.checklist.started", {
         from: entryStatus,
@@ -263,8 +299,52 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       const worktreePath = join(app.profileDir, "projects", name, "crafts", callsign, "worktree");
       const result = await runChecklist(metadata.checklist, worktreePath);
 
+      // RULE-CHKL-5: per-item granularity in the black box.
+      for (const item of result.items) {
+        appendBlackBoxEntry(
+          app,
+          name,
+          craft,
+          "system",
+          BlackBoxEntryType.ChecklistItem,
+          `Checklist item "${item.name}" ${item.passed ? "passed" : "failed"} in ${item.durationMs}ms`,
+        );
+      }
+
+      // RULE-CHKL-5: overall ChecklistRun entry records the aggregate result.
+      appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        "system",
+        BlackBoxEntryType.ChecklistRun,
+        `Checklist ${result.passed ? "passed" : "failed"} (${result.items.length} items)`,
+      );
+
       // RULE-LCHK-3: failure -> GoAround, success -> ClearedToLand
+      const prevStatus = craft.status;
       craft.status = result.passed ? CraftStatus.ClearedToLand : CraftStatus.GoAround;
+
+      if (!result.passed) {
+        // RULE-BBOX entry types: dedicated GoAround marker for failure path.
+        appendBlackBoxEntry(
+          app,
+          name,
+          craft,
+          "system",
+          BlackBoxEntryType.GoAround,
+          "Go-around initiated after checklist failure",
+        );
+      }
+      appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        "system",
+        BlackBoxEntryType.StateTransition,
+        `State transition: ${prevStatus} -> ${craft.status}`,
+      );
+
       app.craftStore.set(name, craft);
       publishCraftEvent(
         app,
@@ -312,15 +392,23 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      const entry: BlackBoxEntry = {
-        timestamp: new Date().toISOString(),
-        author: pilotId,
-        type: BlackBoxEntryType.EmergencyDeclaration,
-        content: reason,
-      };
-
-      craft.blackBox.push(entry);
+      const entry = appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        pilotId,
+        BlackBoxEntryType.EmergencyDeclaration,
+        reason,
+      );
       craft.status = CraftStatus.Emergency;
+      appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        "system",
+        BlackBoxEntryType.StateTransition,
+        `State transition: ${CraftStatus.GoAround} -> ${CraftStatus.Emergency}`,
+      );
       app.craftStore.set(name, craft);
       publishCraftEvent(app, name, craft, "craft.emergency.declared", {
         from: CraftStatus.GoAround,

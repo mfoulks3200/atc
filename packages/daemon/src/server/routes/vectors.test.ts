@@ -91,6 +91,19 @@ describe("vector routes", () => {
       expect(plan[1].status).toBe("Pending");
     });
 
+    it("appends a VectorPassed black box entry on report", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+        payload: { evidence: "Design doc approved" },
+      });
+      const craft = craftStore.get(PROJECT, "bravo-1")!;
+      const vectorEntries = craft.blackBox.filter((e) => e.type === "VectorPassed");
+      expect(vectorEntries).toHaveLength(1);
+      expect(vectorEntries[0].content).toContain("design");
+      expect(vectorEntries[0].content).toContain("Design doc approved");
+    });
+
     it("rejects out-of-order vector reports (RULE-VEC-2)", async () => {
       const res = await app.inject({
         method: "POST",

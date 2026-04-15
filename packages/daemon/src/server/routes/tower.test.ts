@@ -93,6 +93,34 @@ describe("tower routes", () => {
       expect(res.statusCode).toBe(409);
     });
 
+    it("appends ClearanceRequested and TowerEnqueued black box entries on success", async () => {
+      seedCraft(true);
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/tower/clearance`,
+        payload: { callsign: "charlie-1" },
+      });
+
+      const craft = craftStore.get(PROJECT, "charlie-1")!;
+      const types = craft.blackBox.map((e) => e.type);
+      expect(types).toContain("ClearanceRequested");
+      expect(types).toContain("TowerEnqueued");
+    });
+
+    it("still appends ClearanceRequested even when vectors are pending", async () => {
+      seedCraft(false);
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/tower/clearance`,
+        payload: { callsign: "charlie-1" },
+      });
+
+      const craft = craftStore.get(PROJECT, "charlie-1")!;
+      const types = craft.blackBox.map((e) => e.type);
+      expect(types).toContain("ClearanceRequested");
+      expect(types).not.toContain("TowerEnqueued");
+    });
+
     it("returns 404 for unknown craft", async () => {
       const res = await app.inject({
         method: "POST",
