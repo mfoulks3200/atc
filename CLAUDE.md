@@ -25,6 +25,15 @@ Run a single test file:
 pnpm run test -- packages/types/src/enums.test.ts
 ```
 
+End-to-end tests live in `@airtrafficcontrol/e2e` and are not run by `pnpm run test` — they boot a real daemon against a scratch profile and drive the built web bundle through `vite preview` (Chromium only):
+
+```bash
+pnpm --filter @airtrafficcontrol/e2e exec playwright install chromium  # one-time
+pnpm --filter @airtrafficcontrol/web build                             # build the bundle preview serves
+pnpm --filter @airtrafficcontrol/e2e test                              # smoke + screenshot suites
+pnpm --filter @airtrafficcontrol/e2e test:screenshots                  # screenshot suite only
+```
+
 ## Architecture
 
 This is a pnpm monorepo with TypeScript (ES2022, Node16 module resolution, strict mode).
@@ -48,6 +57,8 @@ This is a pnpm monorepo with TypeScript (ES2022, Node16 module resolution, stric
 - **`@airtrafficcontrol/adapter-claude-agent-sdk`** — Stub adapter for the Anthropic Claude Agent SDK. Implements the `AgentAdapter` interface as no-ops. Includes `buildSystemPrompt` which constructs a structured system prompt from craft state for agent context.
 
 - **`@airtrafficcontrol/web`** — React SPA dashboard (Vite + React Router + TanStack Query). Read-focused UI over the daemon's REST and WebSocket APIs. No domain logic — purely presentational. Note: duplicates domain types locally in `types/api.ts` instead of importing from `@airtrafficcontrol/types`.
+
+- **`@airtrafficcontrol/e2e`** — Playwright (Chromium-only) end-to-end test package. Boots the daemon against a `mkdtemp` scratch profile via `scripts/run-daemon.ts` and drives the built web bundle through `vite preview`. Houses the smoke suite (dashboard, projects, crafts, pilots, settings round trips) and a screenshot suite that seeds a deterministic demo dataset and writes `dashboard.png` / `craft-detail.png` to `docs/assets/screenshots/` for the README. Not exercised by `pnpm run test`; run with `pnpm --filter @airtrafficcontrol/e2e test`.
 
 ### Key Documents
 

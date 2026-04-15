@@ -93,6 +93,7 @@ packages/
   tower/                    @airtrafficcontrol/tower — Merge coordination and landing clearance
   daemon/                   @airtrafficcontrol/daemon — Long-running process with REST/WebSocket API
   adapter-claude-agent-sdk/ @airtrafficcontrol/adapter-claude-agent-sdk — Claude Agent SDK integration
+  e2e/                      @airtrafficcontrol/e2e — Playwright end-to-end and README screenshot suites
 
 docs/
   overview.md          Original design brief
@@ -100,6 +101,8 @@ docs/
   agent/
     operating-manual.md  Behavioral guidance injected into agent contexts
 ```
+
+The screenshots in this README are regenerated from the live dashboard by the Playwright suite in `@airtrafficcontrol/e2e`. Run `pnpm --filter @airtrafficcontrol/e2e test:screenshots` to refresh them after a UI change.
 
 ## Getting Started
 
@@ -151,6 +154,10 @@ Long-running ATC process that exposes a REST API and WebSocket channels. Manages
 ### [`@airtrafficcontrol/adapter-claude-agent-sdk`](packages/adapter-claude-agent-sdk/)
 
 Adapter bridging ATC's agent interface to the Claude Agent SDK. Provides `ClaudeAgentSdkAdapter` and `buildSystemPrompt` for initializing agent context with ATC operating instructions.
+
+### [`@airtrafficcontrol/e2e`](packages/e2e/)
+
+Playwright (Chromium-only) end-to-end test package. Boots the daemon against a `mkdtemp` scratch profile and drives the built web bundle through `vite preview`. Houses the smoke suite (dashboard, projects, crafts, pilots, settings round trips) and a screenshot suite that seeds a deterministic demo dataset and regenerates the README screenshots in `docs/assets/screenshots/`. Not exercised by `pnpm run test` — run with `pnpm --filter @airtrafficcontrol/e2e test`.
 
 ## Documentation
 

@@ -99,6 +99,22 @@ Review the coverage report and verify that changed files meet the 90% threshold 
 
 - [ ] All tests pass with zero failures.
 
+#### End-to-end tests
+
+The Playwright suite in `@airtrafficcontrol/e2e` is **not** run by `pnpm run test` — it boots a real daemon against a `mkdtemp` scratch profile, drives the built web bundle through `vite preview`, and tears everything down on shutdown. Run it locally before merging changes that touch the daemon REST/WebSocket surface, the web dashboard, or anything that affects the dashboard / craft detail screenshots in the README.
+
+```bash
+pnpm --filter @airtrafficcontrol/e2e exec playwright install chromium  # one-time
+pnpm --filter @airtrafficcontrol/web build                             # build the bundle preview serves
+pnpm --filter @airtrafficcontrol/e2e test                              # smoke + screenshot suites
+```
+
+If a UI change altered the dashboard or craft detail view, regenerate the README screenshots and commit the updated PNGs in `docs/assets/screenshots/`:
+
+```bash
+pnpm --filter @airtrafficcontrol/e2e test:screenshots
+```
+
 ### 6. Spec Compliance
 
 Every change must be checked against the formal specification at `docs/specification.md`. The implementation and the spec must agree — one or the other must be updated before merging.
