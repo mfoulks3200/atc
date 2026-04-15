@@ -519,6 +519,32 @@ Response:
 - `404 Not Found` — TFR with the given id does not exist.
 - `409 Conflict` — TFR is already lifted.
 
+### WebSocket channel `tfr:global`
+
+When a global-scoped TFR is issued or lifted, the daemon publishes a
+`WsEvent` on the `tfr:global` channel. Subscribe via the standard
+WebSocket subscribe message:
+
+```json
+{ "type": "subscribe", "channel": "tfr:global" }
+```
+
+Event shape:
+
+```ts
+{
+  type: "event",
+  channel: "tfr:global",
+  event: "tfr.issued" | "tfr.lifted",
+  timestamp: string,   // ISO-8601
+  data: {
+    tfr: TfrState
+  }
+}
+```
+
+Project- and craft-scoped TFRs do not publish on this channel.
+
 ---
 
 ## Agents

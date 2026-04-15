@@ -20,6 +20,7 @@
   - `GET /api/v1/tfrs` — lists all TFRs; `?active=true` filters to only non-lifted records.
   - `POST /api/v1/tfrs/:id/lift` — lifts an active TFR (RULE-TFRP-3). Returns 404 if missing, 409 if already lifted. Clears `holdingPattern` on affected crafts only when no other active TFR still applies (RULE-TFR-8) and records a `TFRLifted` black box entry (RULE-TFRP-5).
 - `app.tfrStore` decoration — exposes the TfrStore to route handlers.
+- `tfr:global` WebSocket channel — published by the TFR routes when a global-scoped TFR is issued (`event: "tfr.issued"`) or lifted (`event: "tfr.lifted"`). Payload is a `WsEvent` with `data: { tfr: TfrState }`. Project- and craft-scoped TFRs do not publish on this channel. Enables dashboards and scripts to react to global TFR state changes without polling.
 
 ### Changed
 
