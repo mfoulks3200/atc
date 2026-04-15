@@ -99,11 +99,23 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:7700",
+        target: process.env.ATC_DAEMON_URL ?? "http://localhost:7700",
         changeOrigin: true,
       },
       "/ws": {
-        target: "ws://localhost:7700",
+        target: (process.env.ATC_DAEMON_URL ?? "http://localhost:7700").replace(/^http/, "ws"),
+        ws: true,
+      },
+    },
+  },
+  preview: {
+    proxy: {
+      "/api": {
+        target: process.env.ATC_DAEMON_URL ?? "http://localhost:7700",
+        changeOrigin: true,
+      },
+      "/ws": {
+        target: (process.env.ATC_DAEMON_URL ?? "http://localhost:7700").replace(/^http/, "ws"),
         ws: true,
       },
     },

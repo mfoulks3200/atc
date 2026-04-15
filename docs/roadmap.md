@@ -80,9 +80,9 @@ The minimum work required to get a single craft from creation through an actual 
 
 ## End-to-End Testing
 
-- [ ] **Create `@airtrafficcontrol/e2e` package for Playwright tests** — Add a new workspace package that houses Playwright-based end-to-end tests exercising the daemon and web UI together. Include a test runner script, a fixture that boots the daemon against a scratch repo, and baseline smoke tests covering project creation, craft lifecycle, and the settings pages. _Packages: e2e (new)_
+- [x] **Create `@airtrafficcontrol/e2e` package for Playwright tests** — New workspace package (`packages/e2e`) runs Playwright (Chromium only) against the built web bundle served by `vite preview`, with a `scripts/run-daemon.ts` fixture that boots the daemon against a `mkdtemp` scratch profile and cleans it up on shutdown. Baseline smoke suite covers dashboard, projects list, project detail, craft detail, pilots list, settings pages (global/profile/about, project general), and a live project-creation round trip. CI integration deferred. _Packages: e2e_
 
-- [ ] **README screenshot generation suite** — Within the e2e package, add a dedicated Playwright suite whose sole purpose is to capture screenshots used in the repository README (and other docs). The suite should seed a deterministic demo dataset, navigate to each featured view, and write PNGs to a known output directory that the README references. _Depends on: e2e package. Packages: e2e_
+- [x] **README screenshot generation suite** — `packages/e2e/tests/screenshots.spec.ts` seeds a deterministic demo dataset (one project, three pilots, two crafts) via the REST API and writes `dashboard.png` and `craft-detail.png` into `packages/e2e/screenshots/`. Run with `pnpm --filter @airtrafficcontrol/e2e test:screenshots`. _Packages: e2e_
 
 ## Rule Enforcement
 
