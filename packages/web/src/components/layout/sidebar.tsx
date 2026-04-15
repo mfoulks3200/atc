@@ -2,6 +2,7 @@ import { NavLink, useMatch } from "react-router";
 import { useTowerQueue } from "@/hooks/use-api";
 import styles from "./sidebar.module.css";
 import { cn } from "@/lib/utils";
+import { GlobalHoldSwitch } from "./global-hold-switch";
 
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: "◈" },
@@ -222,6 +223,9 @@ export function Sidebar() {
       ) : (
         settingsMatch && <SettingsNav />
       )}
+      <div className="mt-auto">
+        <GlobalHoldSwitch />
+      </div>
     </aside>
   );
 }
