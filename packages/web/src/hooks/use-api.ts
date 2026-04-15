@@ -204,6 +204,21 @@ export function useDeletePilot(project: string, id: string) {
   });
 }
 
+export function useLaunchCraft(project: string, callsign: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiClient.post<CraftState>(
+        `/api/v1/projects/${project}/crafts/${callsign}/launch`,
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.crafts.detail(project, callsign) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.crafts.list(project) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.crafts.blackBox(project, callsign) });
+    },
+  });
+}
+
 export function useCreateCraft(project: string) {
   const queryClient = useQueryClient();
   return useMutation({

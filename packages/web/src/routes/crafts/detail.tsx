@@ -10,6 +10,7 @@ import { ActivityFeed } from "@/components/base/activity-feed";
 import { IntercomMessage } from "@/components/base/intercom-message";
 import { ChecklistRunCard } from "@/components/base/checklist-run-card";
 import { FlightPlanHero } from "@/components/base/flight-plan-hero";
+import { LaunchButton } from "@/components/base/launch-button";
 import type { ChecklistRunResult } from "@/types/checklist";
 
 function groupRunsByChecklist(
@@ -63,9 +64,12 @@ export function Component() {
           <div className="mt-1 text-[11px]" style={{ color: "var(--text-dim)" }}>branch: {craft.branch} · category: {craft.category}</div>
           <div className="mt-1.5 text-xs" style={{ color: "var(--text-muted)" }}>{craft.cargo}</div>
         </div>
-        <div className="text-right text-[11px]" style={{ color: "var(--text-dim)" }}>
-          <div>Controls: <span style={{ color: "var(--accent-green)" }}>{craft.controls.mode.toUpperCase()}</span></div>
-          {craft.controls.holder && <div className="mt-0.5">Holder: <span style={{ color: "var(--text-secondary)" }}>{craft.controls.holder}</span></div>}
+        <div className="flex items-start gap-4">
+          <div className="text-right text-[11px]" style={{ color: "var(--text-dim)" }}>
+            <div>Controls: <span style={{ color: "var(--accent-green)" }}>{craft.controls.mode.toUpperCase()}</span></div>
+            {craft.controls.holder && <div className="mt-0.5">Holder: <span style={{ color: "var(--text-secondary)" }}>{craft.controls.holder}</span></div>}
+          </div>
+          <LaunchButton project={name!} craft={craft} />
         </div>
       </div>
       <div className="mt-4">

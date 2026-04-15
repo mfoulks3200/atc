@@ -4,6 +4,7 @@
 
 ### Added
 
+- `<LaunchButton />` hero action on the craft detail page: enabled only when the craft is in `Taxiing` with captain, cargo, and a non-empty flight plan. Clicking opens a confirmation dialog listing the captain, flight plan length, and branch; confirming POSTs `/api/v1/projects/:name/crafts/:callsign/launch` to transition the craft to `InFlight`, after which the existing `<ActivityFeed />` begins streaming. Missing-captain, empty-flight-plan, wrong-state, and generic 4xx/5xx errors surface as a non-dismissable inline alert inside the dialog so the user can correct and retry. `useLaunchCraft` mutation hook wires the POST with TanStack Query cache invalidation for craft detail, list, and black box.
 - `<ActivityFeed />` live craft activity view on the craft detail page: subscribes to the `craft:<callsign>` WebSocket channel, merges `craft.blackbox.appended` events with the seeded black box, renders lifecycle entries and `AgentOutput` stdout/stderr lines inline with distinct styling, and offers a follow-tail toggle with a "jump to latest" affordance when the user scrolls up.
 - `BlackBoxEntryType` mirrors the new daemon enum values (`CraftCreated`, `Launched`, `VectorFailed`, `ChecklistItem`, `ClearanceRequested`, `TowerEnqueued`, `TowerDequeued`, `StateTransition`, `AgentOutput`, `Merge`, `MergeStale`, `MergeConflict`, `TFRIssued`, `TFRLifted`).
 - `CraftState.createdAt: string` mirror of the daemon API type.
