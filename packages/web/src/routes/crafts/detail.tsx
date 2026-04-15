@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/base/page-header";
 import { StatusBadge } from "@/components/base/status-badge";
 import { VectorProgress } from "@/components/base/vector-progress";
 import { CrewMember } from "@/components/base/crew-member";
-import { BlackBoxEntryRow } from "@/components/base/black-box-entry";
+import { ActivityFeed } from "@/components/base/activity-feed";
 import { IntercomMessage } from "@/components/base/intercom-message";
 import { ChecklistRunCard } from "@/components/base/checklist-run-card";
 import { FlightPlanHero } from "@/components/base/flight-plan-hero";
@@ -106,13 +106,8 @@ export function Component() {
           </div>
         </div>
       )}
-      <div className="mt-4 rounded-md border p-3.5" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}>
-        <div className="mb-2.5 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>BLACK BOX</div>
-        {(!blackBox || blackBox.length === 0) ? (
-          <div className="py-4 text-center text-xs" style={{ color: "var(--text-dim)" }}>No black box entries.</div>
-        ) : (
-          [...blackBox].reverse().map((entry, i) => <BlackBoxEntryRow key={`${entry.timestamp}-${i}`} entry={entry} />)
-        )}
+      <div className="mt-4">
+        <ActivityFeed callsign={callsign!} initial={blackBox ?? craft.blackBox ?? []} />
       </div>
       <div className="mt-4 rounded-md border p-3.5" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}>
         <div className="mb-2.5 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>INTERCOM</div>

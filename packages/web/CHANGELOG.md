@@ -4,6 +4,8 @@
 
 ### Added
 
+- `<ActivityFeed />` live craft activity view on the craft detail page: subscribes to the `craft:<callsign>` WebSocket channel, merges `craft.blackbox.appended` events with the seeded black box, renders lifecycle entries and `AgentOutput` stdout/stderr lines inline with distinct styling, and offers a follow-tail toggle with a "jump to latest" affordance when the user scrolls up.
+- `BlackBoxEntryType` mirrors the new daemon enum values (`CraftCreated`, `Launched`, `VectorFailed`, `ChecklistItem`, `ClearanceRequested`, `TowerEnqueued`, `TowerDequeued`, `StateTransition`, `AgentOutput`, `Merge`, `MergeStale`, `MergeConflict`, `TFRIssued`, `TFRLifted`).
 - `CraftState.createdAt: string` mirror of the daemon API type.
 - `<FlightRadar />` dashboard hero widget rendering every active craft as a deterministic SVG radar with click-through to craft detail.
 - `FlightPlanHero` component on the craft detail page: a tactical-HUD arc visualization of the flight plan with segment lengths proportional to actual/estimated durations, equally-spaced label callouts, state-aware plane glyph, and four corner readouts (ELAPSED / ETA / PROGRESS / STATUS).

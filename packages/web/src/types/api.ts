@@ -23,7 +23,21 @@ export type BlackBoxEntryType =
   | "Conflict"
   | "Observation"
   | "EmergencyDeclaration"
-  | "ChecklistRun";
+  | "ChecklistRun"
+  | "ChecklistItem"
+  | "TFRIssued"
+  | "TFRLifted"
+  | "CraftCreated"
+  | "Launched"
+  | "VectorFailed"
+  | "ClearanceRequested"
+  | "TowerEnqueued"
+  | "TowerDequeued"
+  | "StateTransition"
+  | "AgentOutput"
+  | "Merge"
+  | "MergeStale"
+  | "MergeConflict";
 
 export interface SystemNotification {
   source: string;
