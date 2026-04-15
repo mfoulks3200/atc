@@ -127,4 +127,18 @@ export enum BlackBoxEntryType {
   TowerDequeued = "TowerDequeued",
   /** The craft transitioned between lifecycle states. @see RULE-LIFE-1 */
   StateTransition = "StateTransition",
+  /**
+   * A line of stdout/stderr captured from a piloting agent's subprocess.
+   *
+   * Distinct from `Observation` (which is a deliberate log entry authored by an
+   * agent): `AgentOutput` is the raw, unfiltered transcript of subprocess I/O
+   * piped through the daemon's output ring buffer.
+   */
+  AgentOutput = "AgentOutput",
+  /** The craft's branch was successfully merged into main. @see RULE-TMRG-2 */
+  Merge = "Merge",
+  /** Tower attempted a merge but the branch was not up to date with main. @see RULE-TMRG-2 */
+  MergeStale = "MergeStale",
+  /** Tower attempted a merge but encountered conflicts. @see RULE-TMRG-3 */
+  MergeConflict = "MergeConflict",
 }

@@ -7,6 +7,7 @@ import {
 } from "@airtrafficcontrol/types";
 import type { Craft } from "@airtrafficcontrol/types";
 import { Tower, createTower } from "./tower.js";
+import type { MergeExecutor, MergeOutcome } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -331,6 +332,110 @@ describe("Tower.declareEmergency", () => {
     expect(tower.queueSize).toBe(1);
     tower.declareEmergency(craft, "pilot-a", "Changed our mind");
     expect(tower.queueSize).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tower.executeMerge (RULE-TOWER-3, RULE-TMRG-2, RULE-TMRG-3)
+// ---------------------------------------------------------------------------
+
+describe("Tower.executeMerge", () => {
+  function stubExecutor(overrides: Partial<MergeExecutor> = {}): MergeExecutor {
+    return {
+      getMainBranch: async () => "main",
+      isBranchUpToDate: async () => true,
+      merge: async (mainBranch: string): Promise<MergeOutcome> => ({
+        kind: "landed",
+        mainBranch,
+        mergeCommit: "deadbeef",
+      }),
+      ...overrides,
+    };
+  }
+
+  it("returns 'landed' on a successful merge and dequeues the craft", async () => {
+    const tower = createTower();
+    const craft = makeReadyCraft("M-1");
+    tower.enqueue(craft);
+
+    const result = await tower.executeMerge(craft, stubExecutor());
+
+    expect(result.kind).toBe("landed");
+    if (result.kind === "landed") {
+      expect(result.mergeCommit).toBe("deadbeef");
+      expect(result.mainBranch).toBe("main");
+    }
+    expect(tower.queueSize).toBe(0);
+  });
+
+  it("returns 'stale' without calling merge when branch is not up to date (RULE-TMRG-2)", async () => {
+    const tower = createTower();
+    const craft = makeReadyCraft("M-2");
+    tower.enqueue(craft);
+
+    let mergeCalled = false;
+    const result = await tower.executeMerge(
+      craft,
+      stubExecutor({
+        isBranchUpToDate: async () => false,
+        merge: async () => {
+          mergeCalled = true;
+          return { kind: "landed", mainBranch: "main", mergeCommit: "x" };
+        },
+      }),
+    );
+
+    expect(result.kind).toBe("stale");
+    expect(mergeCalled).toBe(false);
+    expect(tower.queueSize).toBe(0);
+  });
+
+  it("returns 'conflict' from the executor and dequeues the craft (RULE-TMRG-3)", async () => {
+    const tower = createTower();
+    const craft = makeReadyCraft("M-3");
+    tower.enqueue(craft);
+
+    const result = await tower.executeMerge(
+      craft,
+      stubExecutor({
+        merge: async (mainBranch) => ({
+          kind: "conflict",
+          mainBranch,
+          reason: "CONFLICT in src/foo.ts",
+        }),
+      }),
+    );
+
+    expect(result.kind).toBe("conflict");
+    if (result.kind === "conflict") {
+      expect(result.reason).toContain("CONFLICT");
+    }
+    expect(tower.queueSize).toBe(0);
+  });
+
+  it("throws TowerError when craft is not in the queue", async () => {
+    const tower = createTower();
+    const craft = makeReadyCraft("ABSENT");
+    await expect(tower.executeMerge(craft, stubExecutor())).rejects.toThrow();
+  });
+
+  it("uses the cargo and callsign in the merge commit message", async () => {
+    const tower = createTower();
+    const craft = makeReadyCraft("MSG-1");
+    tower.enqueue(craft);
+
+    let receivedMessage = "";
+    await tower.executeMerge(
+      craft,
+      stubExecutor({
+        merge: async (mainBranch, _branch, message) => {
+          receivedMessage = message;
+          return { kind: "landed", mainBranch, mergeCommit: "x" };
+        },
+      }),
+    );
+    expect(receivedMessage).toContain("MSG-1");
+    expect(receivedMessage).toContain(craft.cargo);
   });
 });
 

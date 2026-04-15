@@ -106,6 +106,10 @@ The **black box** is an append-only log maintained on every craft throughout its
 | `TowerEnqueued`         | The craft was added to the tower landing queue.                                   |
 | `TowerDequeued`         | The craft was removed from the tower landing queue.                               |
 | `StateTransition`       | The craft transitioned between lifecycle states. Used for structured audit trail. |
+| `AgentOutput`           | A captured line of stdout/stderr from a piloting agent's subprocess. Recorded by the daemon's output pipe; distinct from `Observation`, which is authored by an agent. |
+| `Merge`                 | The craft's branch was successfully merged into main by the tower (final lifecycle event before `Landed`). |
+| `MergeStale`            | Tower attempted a merge but the craft's branch was not up to date with main. The craft is sent on a go-around. |
+| `MergeConflict`         | Tower attempted a merge but encountered conflicts. The craft is sent on a go-around to resolve them. |
 
 ##### Rules
 

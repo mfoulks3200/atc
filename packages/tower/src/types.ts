@@ -29,6 +29,57 @@ export interface ClearanceResult {
  * Contains everything the origin needs to diagnose root cause.
  * @see RULE-ORIG-2, RULE-EMER-4
  */
+/**
+ * The outcome of {@link Tower.executeMerge}.
+ *
+ * The tower uses these results to decide the next lifecycle state for a
+ * craft after step 5 of the merge protocol.
+ *
+ * - `landed`: branch was merged successfully; transition craft to `Landed`.
+ * - `stale`: branch was not up to date with main; transition to `GoAround`.
+ * - `conflict`: the merge produced conflicts; transition to `GoAround`.
+ *
+ * @see RULE-TOWER-3
+ * @see RULE-TMRG-2
+ * @see RULE-TMRG-3
+ */
+export type MergeOutcome =
+  | { kind: "landed"; mainBranch: string; mergeCommit: string }
+  | { kind: "stale"; mainBranch: string; reason: string }
+  | { kind: "conflict"; mainBranch: string; reason: string };
+
+/**
+ * Side-effecting interface the tower uses to perform real git operations.
+ *
+ * The {@link Tower} package contains no git I/O — the daemon supplies an
+ * implementation that talks to its bare-repo / worktree utilities. This
+ * keeps the tower package pure and testable with stub executors.
+ *
+ * @see RULE-TMRG-2
+ * @see RULE-TMRG-3
+ */
+export interface MergeExecutor {
+  /**
+   * Resolve the project's main branch name (e.g. `"main"`).
+   */
+  getMainBranch(): Promise<string>;
+
+  /**
+   * Returns true if `branch` contains every commit on `mainBranch`.
+   */
+  isBranchUpToDate(mainBranch: string, branch: string): boolean | Promise<boolean>;
+
+  /**
+   * Execute the actual merge into main. Implementations MUST NOT throw on
+   * merge conflict — they MUST return a structured outcome instead.
+   */
+  merge(
+    mainBranch: string,
+    branch: string,
+    message: string,
+  ): MergeOutcome | Promise<MergeOutcome>;
+}
+
 export interface EmergencyReport {
   /** The craft's unique identifier. */
   readonly callsign: string;

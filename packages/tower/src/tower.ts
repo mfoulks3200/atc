@@ -1,7 +1,13 @@
 import type { Craft } from "@airtrafficcontrol/types";
 import { VectorStatus, BlackBoxEntryType } from "@airtrafficcontrol/types";
 import { TowerError, EmergencyError } from "@airtrafficcontrol/errors";
-import type { QueueEntry, ClearanceResult, EmergencyReport } from "./types.js";
+import type {
+  QueueEntry,
+  ClearanceResult,
+  EmergencyReport,
+  MergeOutcome,
+  MergeExecutor,
+} from "./types.js";
 import { createEmergencyReport } from "./emergency.js";
 
 /**
@@ -12,7 +18,8 @@ import { createEmergencyReport } from "./emergency.js";
  * @see RULE-TOWER-1 — exactly one tower per repository
  * @see RULE-TOWER-2 — verify all vectors before granting clearance
  * @see RULE-TOWER-3 — verify branch is up to date before merge
- * @see RULE-TMRG-1 through RULE-TMRG-4
+ * @see RULE-TMRG-1 through RULE-TMRG-4 — merge protocol (vector verification,
+ *   up-to-date check, conflict handling, FCFS ordering)
  */
 export class Tower {
   /** The FCFS merge queue. */
@@ -100,6 +107,64 @@ export class Tower {
    */
   get queueSize(): number {
     return this.queue.length;
+  }
+
+  /**
+   * Execute steps 4–6 of the tower merge protocol for the next craft in the
+   * queue.
+   *
+   * Verifies the craft's branch is up to date with main (RULE-TOWER-3,
+   * RULE-TMRG-2), then asks the {@link MergeExecutor} to merge the branch
+   * into main (RULE-TMRG-3). The craft is removed from the queue regardless
+   * of outcome — successful merges proceed to `Landed`, while stale or
+   * conflicting merges are returned to the caller so the craft can be sent
+   * on a go-around.
+   *
+   * The function does not mutate craft state directly (the daemon owns the
+   * persisted state and lifecycle transitions). It is a pure orchestrator
+   * over the supplied executor.
+   *
+   * @param craft - The craft at the head of the queue. The caller MUST
+   *   ensure this matches `peek()`; the tower only enforces that the
+   *   craft is currently in the queue.
+   * @param executor - Side-effecting git implementation supplied by the
+   *   daemon.
+   * @returns The {@link MergeOutcome} describing the result.
+   * @throws TowerError if the craft is not in the merge queue.
+   *
+   * @see RULE-TOWER-3
+   * @see RULE-TMRG-2
+   * @see RULE-TMRG-3
+   * @see RULE-TMRG-4
+   */
+  async executeMerge(craft: Craft, executor: MergeExecutor): Promise<MergeOutcome> {
+    const inQueue = this.queue.some((entry) => entry.craft.callsign === craft.callsign);
+    if (!inQueue) {
+      throw new TowerError(
+        `Craft "${craft.callsign}" is not in the merge queue`,
+        "RULE-TMRG-4",
+      );
+    }
+
+    const mainBranch = await executor.getMainBranch();
+
+    // RULE-TOWER-3 / RULE-TMRG-2 — verify branch is up to date before merge.
+    const upToDate = await executor.isBranchUpToDate(mainBranch, craft.branch);
+    if (!upToDate) {
+      this.dequeue(craft.callsign);
+      return {
+        kind: "stale",
+        mainBranch,
+        reason: `Branch "${craft.branch}" is not up to date with "${mainBranch}"`,
+      };
+    }
+
+    // RULE-TMRG-3 — execute the merge; conflicts are reported, not thrown.
+    const message = `Tower merge: land craft ${craft.callsign}\n\n${craft.cargo}`;
+    const outcome = await executor.merge(mainBranch, craft.branch, message);
+
+    this.dequeue(craft.callsign);
+    return outcome;
   }
 
   /**

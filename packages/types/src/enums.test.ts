@@ -75,8 +75,8 @@ describe("CraftCategoryEnum", () => {
 });
 
 describe("BlackBoxEntryType", () => {
-  it("has exactly 17 entry types", () => {
-    expect(Object.values(BlackBoxEntryType)).toHaveLength(17);
+  it("has exactly 21 entry types", () => {
+    expect(Object.values(BlackBoxEntryType)).toHaveLength(21);
   });
 
   it("contains all entry types", () => {
