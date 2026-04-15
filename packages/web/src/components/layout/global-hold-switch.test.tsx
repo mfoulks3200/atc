@@ -108,7 +108,7 @@ describe("GlobalHoldSwitch", () => {
     expect(cover.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("Escape key closes the cover when open", () => {
+  it("Escape key closes the cover when open and returns focus to the cover", () => {
     render(<GlobalHoldSwitch />);
     const cover = screen.getByRole("button", { name: /safety cover/i });
     fireEvent.click(cover);
@@ -116,6 +116,7 @@ describe("GlobalHoldSwitch", () => {
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(cover.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(cover);
   });
 
   it("mouse leave closes the cover after 150ms grace period", () => {

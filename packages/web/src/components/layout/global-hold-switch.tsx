@@ -62,6 +62,9 @@ export function GlobalHoldSwitch() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setCoverOpen(false);
+        // Return focus to the cover button so keyboard users don't get stranded
+        // on the disabled switch (which has tabIndex=-1 when closed).
+        coverRef.current?.focus();
       }
     };
 
