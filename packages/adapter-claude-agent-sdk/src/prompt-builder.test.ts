@@ -10,6 +10,7 @@ const baseCraft: CraftState = {
   cargo: "Add widget support",
   category: "backend",
   status: CraftStatus.InFlight,
+  holdingPattern: false,
   captain: "pilot-001",
   firstOfficers: [],
   jumpseaters: [],
