@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
-    "test:screenshots": "playwright test screenshots.spec.ts",
+    "test:screenshots": "playwright test screenshots.spec.ts && cp screenshots/* ../../docs/assets/screenshots",
     "install-browsers": "playwright install chromium"
   },
   "dependencies": {

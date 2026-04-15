@@ -17,6 +17,9 @@
 
 ## What is Air Traffic Control?
 
+<img src="docs/assets/screenshots/craft-detail.png" />
+<br />
+
 Two things:
 
 - A philosophy on managing many autonomous agents as they write software.
