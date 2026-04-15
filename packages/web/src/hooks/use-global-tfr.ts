@@ -64,9 +64,7 @@ export function useGlobalTfr(): UseGlobalTfrResult {
       if (!tfr || tfr.scope !== "global") return;
 
       if (wsEvent.event === "tfr.issued") {
-        setActiveIds((ids) =>
-          ids.includes(tfr.identifier) ? ids : [...ids, tfr.identifier],
-        );
+        setActiveIds((ids) => (ids.includes(tfr.identifier) ? ids : [...ids, tfr.identifier]));
       } else if (wsEvent.event === "tfr.lifted") {
         setActiveIds((ids) => ids.filter((id) => id !== tfr.identifier));
       }
@@ -88,9 +86,7 @@ export function useGlobalTfr(): UseGlobalTfrResult {
         reason: KILL_SWITCH_REASON,
         issuedBy: "user",
       });
-      setActiveIds((ids) =>
-        ids.includes(tfr.identifier) ? ids : [...ids, tfr.identifier],
-      );
+      setActiveIds((ids) => (ids.includes(tfr.identifier) ? ids : [...ids, tfr.identifier]));
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
       setError(e);
@@ -106,9 +102,7 @@ export function useGlobalTfr(): UseGlobalTfrResult {
     setError(null);
 
     const results = await Promise.allSettled(
-      activeIds.map((id) =>
-        apiClient.post<TfrState>(`/api/v1/tfrs/${id}/lift`).then(() => id),
-      ),
+      activeIds.map((id) => apiClient.post<TfrState>(`/api/v1/tfrs/${id}/lift`).then(() => id)),
     );
 
     const lifted = new Set<string>();

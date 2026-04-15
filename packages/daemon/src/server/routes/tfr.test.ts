@@ -261,7 +261,8 @@ describe("tfr routes", () => {
   describe("WebSocket publish on tfr:global", () => {
     it("publishes tfr.issued on the tfr:global channel for global-scoped TFRs", async () => {
       const publish = vi.fn();
-      (app as unknown as { channelRegistry: { publish: typeof publish } }).channelRegistry.publish = publish;
+      (app as unknown as { channelRegistry: { publish: typeof publish } }).channelRegistry.publish =
+        publish;
 
       await app.inject({
         method: "POST",
@@ -290,7 +291,8 @@ describe("tfr routes", () => {
 
     it("does not publish on tfr:global for project-scoped TFRs", async () => {
       const publish = vi.fn();
-      (app as unknown as { channelRegistry: { publish: typeof publish } }).channelRegistry.publish = publish;
+      (app as unknown as { channelRegistry: { publish: typeof publish } }).channelRegistry.publish =
+        publish;
 
       await app.inject({
         method: "POST",
@@ -309,7 +311,8 @@ describe("tfr routes", () => {
 
     it("publishes tfr.lifted on the tfr:global channel when a global TFR is lifted", async () => {
       const publish = vi.fn();
-      (app as unknown as { channelRegistry: { publish: typeof publish } }).channelRegistry.publish = publish;
+      (app as unknown as { channelRegistry: { publish: typeof publish } }).channelRegistry.publish =
+        publish;
 
       tfrStore.set({
         identifier: "tfr-global-1",
