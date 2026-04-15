@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- `POST /api/v1/projects/:name/crafts/:callsign/launch` now also spawns the agent subprocess via the shared `AgentManager` when one is wired and a `claude-agent-sdk` adapter is registered. The state transition is still the user-visible contract — if the manager/adapter are not configured the route behaves as before. Spawn success and failure are recorded as `Observation` black box entries so the activity feed surfaces either outcome. Closes the end-to-end UI → state transition → agent-running loop from a single Launch click.
+
 ### Added
 
 - `publishCraftEvent` / `publishCraftRemoved` helpers (`src/server/routes/broadcast.ts`) — fan out craft mutations to both the per-craft (`craft:<callsign>`) and per-project (`project:<name>`) WebSocket channels as structured `WsEvent` payloads. Called from every mutation route (craft create/delete/launch/checklist/emergency, vector report, intercom post, tower clearance) so subscribed clients receive live updates without polling. Tower clearance additionally emits a `tower:<project>` `tower.queue.changed` event.

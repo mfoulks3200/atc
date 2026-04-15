@@ -251,6 +251,112 @@ describe("craft routes", () => {
       });
       expect(res.statusCode).toBe(409);
     });
+
+    it("spawns an agent via AgentManager when one is wired", async () => {
+      const { AdapterRegistry } = await import("../../adapters/registry.js");
+      const { AgentManager } = await import("../../process/agent-manager.js");
+      const registry = new AdapterRegistry();
+      const launchSpy = vi.fn().mockResolvedValue({
+        agentId: "agent-1",
+        adapterMeta: {},
+      });
+      registry.register("claude-agent-sdk", {
+        launch: launchSpy,
+        pause: vi.fn(),
+        resume: vi.fn(),
+        terminate: vi.fn(),
+        isAlive: vi.fn(),
+        sendMessage: vi.fn(),
+        onMessage: vi.fn(),
+        onStatusChange: vi.fn(),
+        onUsageReport: vi.fn(),
+      });
+      const managerAgentStore = new AgentStore("/tmp/atc-craft-test");
+      const managerCraftStore = new CraftStore("/tmp/atc-craft-test");
+      const wiredApp = createApp({
+        craftStore: managerCraftStore,
+        agentStore: managerAgentStore,
+        towerStore: new TowerStore("/tmp/atc-craft-test"),
+        adapterRegistry: registry,
+        agentManager: new AgentManager({
+          adapterRegistry: registry,
+          agentStore: managerAgentStore,
+          isProcessAlive: () => true,
+        }),
+      });
+
+      try {
+        await wiredApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts`,
+          payload: validCraftBody,
+        });
+
+        const res = await wiredApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/launch`,
+        });
+        expect(res.statusCode).toBe(200);
+        expect(launchSpy).toHaveBeenCalledTimes(1);
+        const body = res.json<CraftState>();
+        const lastEntry = body.blackBox[body.blackBox.length - 1];
+        expect(lastEntry.type).toBe("Observation");
+        expect(lastEntry.content).toContain("Agent launched");
+      } finally {
+        await wiredApp.close();
+      }
+    });
+
+    it("keeps the craft InFlight and records a failure entry when spawn throws", async () => {
+      const { AdapterRegistry } = await import("../../adapters/registry.js");
+      const { AgentManager } = await import("../../process/agent-manager.js");
+      const registry = new AdapterRegistry();
+      registry.register("claude-agent-sdk", {
+        launch: vi.fn().mockRejectedValue(new Error("boom")),
+        pause: vi.fn(),
+        resume: vi.fn(),
+        terminate: vi.fn(),
+        isAlive: vi.fn(),
+        sendMessage: vi.fn(),
+        onMessage: vi.fn(),
+        onStatusChange: vi.fn(),
+        onUsageReport: vi.fn(),
+      });
+      const managerAgentStore = new AgentStore("/tmp/atc-craft-test");
+      const managerCraftStore = new CraftStore("/tmp/atc-craft-test");
+      const wiredApp = createApp({
+        craftStore: managerCraftStore,
+        agentStore: managerAgentStore,
+        towerStore: new TowerStore("/tmp/atc-craft-test"),
+        adapterRegistry: registry,
+        agentManager: new AgentManager({
+          adapterRegistry: registry,
+          agentStore: managerAgentStore,
+          isProcessAlive: () => true,
+        }),
+      });
+
+      try {
+        await wiredApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts`,
+          payload: validCraftBody,
+        });
+
+        const res = await wiredApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/launch`,
+        });
+        expect(res.statusCode).toBe(200);
+        const body = res.json<CraftState>();
+        expect(body.status).toBe("InFlight");
+        const lastEntry = body.blackBox[body.blackBox.length - 1];
+        expect(lastEntry.type).toBe("Observation");
+        expect(lastEntry.content).toContain("Agent launch failed: boom");
+      } finally {
+        await wiredApp.close();
+      }
+    });
   });
 
   // -------------------------------------------------------------------------

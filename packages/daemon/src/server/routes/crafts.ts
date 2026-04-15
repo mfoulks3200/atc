@@ -10,6 +10,7 @@
  */
 
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { CraftStatus, BlackBoxEntryType } from "@airtrafficcontrol/types";
 import { createWorktree } from "../../git/worktree.js";
@@ -233,6 +234,63 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         from: CraftStatus.Taxiing,
         to: CraftStatus.InFlight,
       });
+
+      // Spawn the agent subprocess via AgentManager when one is wired and
+      // an adapter is registered. Unit tests that build an app without a
+      // manager skip this path entirely. When no adapter is registered for
+      // "claude-agent-sdk" the route still returns success — the state
+      // transition is the user-visible contract; the agent spawn is a
+      // best-effort side effect tracked in the black box.
+      const manager = app.agentManager;
+      const adapterType = "claude-agent-sdk";
+      if (manager !== null && app.adapterRegistry.get(adapterType) !== undefined) {
+        const captain = app.pilotStore.get(name, craft.captain);
+        const agentId = randomUUID();
+        const worktreePath = join(
+          app.profileDir,
+          "projects",
+          name,
+          "crafts",
+          callsign,
+          "worktree",
+        );
+        try {
+          await manager.launch({
+            agentId,
+            adapterType,
+            projectName: name,
+            callsign,
+            launchOptions: {
+              agentId,
+              worktreePath,
+              craft,
+              systemPrompt: "",
+              intercomHistory: craft.intercom,
+              adapterConfig: {},
+              mcpServers: captain?.mcpServers ?? {},
+            },
+          });
+          appendBlackBoxEntry(
+            app,
+            name,
+            craft,
+            "system",
+            BlackBoxEntryType.Observation,
+            `Agent launched: ${agentId}`,
+          );
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          appendBlackBoxEntry(
+            app,
+            name,
+            craft,
+            "system",
+            BlackBoxEntryType.Observation,
+            `Agent launch failed: ${msg}`,
+          );
+        }
+        app.craftStore.set(name, craft);
+      }
 
       return reply.send(craft);
     },
