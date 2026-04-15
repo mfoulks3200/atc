@@ -28,6 +28,8 @@ import { createProjectConfigStore } from "./config/project-store.js";
 import type { LayeredConfigStore } from "./config/layered-store.js";
 import type { GlobalConfig, ProjectMetadataConfig } from "./config/schema.js";
 import { ChannelRegistry } from "./server/websocket/channels.js";
+import { appendBlackBoxEntryWithRegistry } from "./server/routes/blackbox-helpers.js";
+import { BlackBoxEntryType } from "@airtrafficcontrol/types";
 
 /** Path of the PID file relative to the profile directory. */
 const PID_FILE = "daemon.pid";
@@ -117,10 +119,27 @@ export class Daemon {
     await pilotStore.load();
 
     const adapterRegistry = new AdapterRegistry();
-    const agentManager = new AgentManager({ adapterRegistry, agentStore });
-    agentManager.reattach();
-
     const channelRegistry = new ChannelRegistry();
+    const agentManager = new AgentManager({
+      adapterRegistry,
+      agentStore,
+      outputSink: (ctx, line) => {
+        const craft = craftStore.get(ctx.projectName, ctx.callsign);
+        if (craft === undefined) {
+          return;
+        }
+        appendBlackBoxEntryWithRegistry(
+          channelRegistry,
+          ctx.projectName,
+          craft,
+          "system",
+          BlackBoxEntryType.AgentOutput,
+          `[${line.stream}] ${line.text}`,
+        );
+        craftStore.set(ctx.projectName, craft);
+      },
+    });
+    agentManager.reattach();
     const logger = {
       warn: (msg: string) => {
         console.warn(msg);

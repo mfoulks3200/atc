@@ -9,6 +9,7 @@
  * @see RULE-PILOT-1 for pilot lifecycle rules.
  */
 
+import type { Readable } from "node:stream";
 import type {
   AgentStatus,
   AgentUsageReport,
@@ -31,6 +32,25 @@ export interface AgentHandle {
   pid?: number;
   /** Adapter-specific metadata (e.g. session IDs, connection info). */
   adapterMeta: Record<string, unknown>;
+  /**
+   * Optional readable stream of the agent subprocess's stdout. When present,
+   * the daemon's output pipe captures lines and writes them to the craft's
+   * black box and WebSocket stream.
+   */
+  stdout?: Readable;
+  /**
+   * Optional readable stream of the agent subprocess's stderr. Captured the
+   * same way as {@link stdout}.
+   */
+  stderr?: Readable;
+  /**
+   * Optional hook invoked when the underlying subprocess exits or crashes.
+   * The daemon uses this to drain remaining output, push a terminal status
+   * transition, and release the in-memory handle.
+   *
+   * Returns an unsubscribe function so the manager can detach on stop.
+   */
+  onExit?: (cb: (info: { code: number | null; signal: NodeJS.Signals | null }) => void) => () => void;
 }
 
 /**

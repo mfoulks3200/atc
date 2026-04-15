@@ -14,7 +14,34 @@ import type { AgentAdapter, AgentHandle, AgentLaunchOptions } from "../adapters/
 import type { AdapterRegistry } from "../adapters/registry.js";
 import type { AgentStore } from "../state/agent-store.js";
 import type { AgentRecord, AgentStatus } from "../types.js";
+import { AgentOutputPipe, type CapturedLine } from "./output-pipe.js";
 import { isProcessAlive as defaultIsProcessAlive } from "./pid.js";
+
+/**
+ * Default ring buffer cap, in lines, applied per agent when the daemon does
+ * not override it. Sized to comfortably hold a few minutes of chatty output
+ * without putting meaningful pressure on daemon memory.
+ */
+export const DEFAULT_OUTPUT_BUFFER_SIZE = 10_000;
+
+/**
+ * Context passed to the output sink for every captured line.
+ */
+export interface OutputContext {
+  /** Agent id whose subprocess produced the line. */
+  agentId: string;
+  /** Project the agent's craft belongs to. */
+  projectName: string;
+  /** Craft callsign the agent is piloting. */
+  callsign: string;
+}
+
+/**
+ * Sink invoked once per captured line of agent stdout/stderr. Production
+ * wiring appends the line to the craft's black box as an `AgentOutput` entry
+ * and broadcasts it on `craft:<callsign>` via `appendBlackBoxEntry`.
+ */
+export type OutputSink = (ctx: OutputContext, line: CapturedLine) => void;
 
 /**
  * Options required to launch a new agent through the manager.
@@ -51,6 +78,19 @@ export interface AgentManagerDeps {
   agentStore: AgentStore;
   /** Optional liveness probe override (defaults to the shared PID checker). */
   isProcessAlive?: LivenessProbe;
+  /**
+   * Optional sink invoked once per captured stdout/stderr line. When omitted,
+   * agent output is silently dropped (test/stub mode). The daemon wires this
+   * to a function that appends an `AgentOutput` entry via
+   * `appendBlackBoxEntry`, which fans the line out on the craft channel.
+   */
+  outputSink?: OutputSink;
+  /**
+   * Maximum number of stdout/stderr lines retained per agent in the in-memory
+   * ring buffer. Defaults to {@link DEFAULT_OUTPUT_BUFFER_SIZE}. The cap
+   * applies independently to each running agent.
+   */
+  outputBufferSize?: number;
 }
 
 /**
@@ -68,17 +108,32 @@ export interface AgentManagerDeps {
 export class AgentManager {
   private readonly _handles: Map<string, AgentHandle> = new Map();
   private readonly _adapters: Map<string, string> = new Map();
+  private readonly _pipes: Map<string, AgentOutputPipe> = new Map();
+  private readonly _exitDetachers: Map<string, () => void> = new Map();
   private readonly _adapterRegistry: AdapterRegistry;
   private readonly _agentStore: AgentStore;
   private readonly _isProcessAlive: LivenessProbe;
+  private readonly _outputSink?: OutputSink;
+  private readonly _outputBufferSize: number;
 
   /**
-   * @param deps - Registry, store, and optional liveness probe.
+   * @param deps - Registry, store, and optional liveness probe / output sink.
    */
   constructor(deps: AgentManagerDeps) {
     this._adapterRegistry = deps.adapterRegistry;
     this._agentStore = deps.agentStore;
     this._isProcessAlive = deps.isProcessAlive ?? defaultIsProcessAlive;
+    this._outputSink = deps.outputSink;
+    this._outputBufferSize = deps.outputBufferSize ?? DEFAULT_OUTPUT_BUFFER_SIZE;
+  }
+
+  /**
+   * Return the in-memory ring buffer of captured output for an agent, or
+   * `undefined` if the manager has no live pipe for it. Used by the future
+   * craft activity view to seed clients with recent context on subscribe.
+   */
+  getOutputBuffer(agentId: string): CapturedLine[] | undefined {
+    return this._pipes.get(agentId)?.snapshot();
   }
 
   /**
@@ -101,6 +156,7 @@ export class AgentManager {
     const handle = await adapter.launch(options.launchOptions);
     this._handles.set(options.agentId, handle);
     this._adapters.set(options.agentId, options.adapterType);
+    this._attachOutputPipe(options.agentId, options.projectName, options.callsign, handle);
 
     const record: AgentRecord = {
       id: options.agentId,
@@ -113,6 +169,78 @@ export class AgentManager {
     };
     this._agentStore.set(record);
     return record;
+  }
+
+  /**
+   * Build an {@link AgentOutputPipe} for a freshly launched handle and wire
+   * its stdout/stderr into the configured sink. If the handle exposes an
+   * `onExit` hook, register a listener that drains the pipe and pushes a
+   * `terminated` status transition through the store.
+   *
+   * Pipes are cleaned up by {@link _detachOutputPipe} on stop/reap.
+   */
+  private _attachOutputPipe(
+    agentId: string,
+    projectName: string,
+    callsign: string,
+    handle: AgentHandle,
+  ): void {
+    const hasStreams = handle.stdout !== undefined || handle.stderr !== undefined;
+    if (!hasStreams && handle.onExit === undefined) {
+      return;
+    }
+    const ctx: OutputContext = { agentId, projectName, callsign };
+    const sink = this._outputSink;
+    const pipe = new AgentOutputPipe(
+      (line) => {
+        if (sink !== undefined) {
+          sink(ctx, line);
+        }
+      },
+      { bufferSize: this._outputBufferSize },
+    );
+    if (handle.stdout !== undefined) {
+      pipe.attach(handle.stdout, "stdout");
+    }
+    if (handle.stderr !== undefined) {
+      pipe.attach(handle.stderr, "stderr");
+    }
+    this._pipes.set(agentId, pipe);
+
+    if (handle.onExit !== undefined) {
+      const detach = handle.onExit(() => {
+        this._handleSubprocessExit(agentId);
+      });
+      this._exitDetachers.set(agentId, detach);
+    }
+  }
+
+  /**
+   * Drain and remove the pipe for an agent (if any). Idempotent.
+   */
+  private _detachOutputPipe(agentId: string): void {
+    const pipe = this._pipes.get(agentId);
+    if (pipe !== undefined) {
+      pipe.close();
+      this._pipes.delete(agentId);
+    }
+    const detach = this._exitDetachers.get(agentId);
+    if (detach !== undefined) {
+      detach();
+      this._exitDetachers.delete(agentId);
+    }
+  }
+
+  /**
+   * Invoked by an `onExit` hook from the underlying handle. Drains the
+   * remaining buffered output, pushes a terminal status transition through
+   * {@link setStatus}, and releases the handle.
+   */
+  private _handleSubprocessExit(agentId: string): void {
+    this._detachOutputPipe(agentId);
+    if (this._handles.has(agentId)) {
+      this.setStatus(agentId, "terminated");
+    }
   }
 
   /**
@@ -134,6 +262,7 @@ export class AgentManager {
     if (adapter !== undefined) {
       await adapter.terminate(handle);
     }
+    this._detachOutputPipe(agentId);
     this._handles.delete(agentId);
     this._agentStore.updateStatus(agentId, "terminated");
   }
@@ -165,6 +294,7 @@ export class AgentManager {
         continue;
       }
       if (!this._isProcessAlive(handle.pid)) {
+        this._detachOutputPipe(agentId);
         this._handles.delete(agentId);
         this._agentStore.updateStatus(agentId, "terminated");
         reaped.push(agentId);
@@ -227,6 +357,7 @@ export class AgentManager {
   setStatus(agentId: string, status: AgentStatus): void {
     this._agentStore.updateStatus(agentId, status);
     if (status === "terminated") {
+      this._detachOutputPipe(agentId);
       this._handles.delete(agentId);
     }
   }

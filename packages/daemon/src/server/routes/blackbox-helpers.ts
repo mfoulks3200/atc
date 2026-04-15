@@ -20,6 +20,7 @@ import {
 } from "@airtrafficcontrol/core";
 import type { BlackBoxEntryType } from "@airtrafficcontrol/types";
 import type { BlackBoxEntry, CraftState, WsEvent } from "../../types.js";
+import type { ChannelRegistry } from "../websocket/channels.js";
 
 /**
  * Append a single black box entry to a craft and broadcast it.
@@ -56,6 +57,31 @@ import type { BlackBoxEntry, CraftState, WsEvent } from "../../types.js";
  */
 export function appendBlackBoxEntry(
   app: FastifyInstance,
+  project: string,
+  craft: CraftState,
+  author: string,
+  type: BlackBoxEntryType,
+  content: string,
+): BlackBoxEntry {
+  return appendBlackBoxEntryWithRegistry(app.channelRegistry, project, craft, author, type, content);
+}
+
+/**
+ * Lower-level variant of {@link appendBlackBoxEntry} that takes the channel
+ * registry directly instead of a {@link FastifyInstance}. Used by code paths
+ * that run before the Fastify app is constructed (notably the agent output
+ * pipe, which is wired into `AgentManager` at daemon startup).
+ *
+ * Behaviour is otherwise identical: the entry is appended in place, the
+ * timestamps are normalised to ISO-8601 strings, and `craft.blackbox.appended`
+ * is published on the per-craft and per-project channels.
+ *
+ * @see RULE-BBOX-1
+ * @see RULE-BBOX-2
+ * @see RULE-BBOX-3
+ */
+export function appendBlackBoxEntryWithRegistry(
+  channelRegistry: ChannelRegistry,
   project: string,
   craft: CraftState,
   author: string,
@@ -106,8 +132,8 @@ export function appendBlackBoxEntry(
     data,
   };
 
-  app.channelRegistry.publish(craftPayload.channel, craftPayload);
-  app.channelRegistry.publish(projectPayload.channel, projectPayload);
+  channelRegistry.publish(craftPayload.channel, craftPayload);
+  channelRegistry.publish(projectPayload.channel, projectPayload);
 
   return entry;
 }
