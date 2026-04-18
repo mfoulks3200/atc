@@ -205,6 +205,7 @@ export function Sidebar() {
             key={item.to}
             to={item.to}
             end={item.to === "/"}
+            data-spotlight={item.to === "/projects" ? "sidebar-projects" : undefined}
             className="mb-1 block rounded-md px-2 py-1.5 text-xs no-underline"
             style={({ isActive }) => ({
               color: isActive ? "var(--accent-green)" : "var(--text-muted)",

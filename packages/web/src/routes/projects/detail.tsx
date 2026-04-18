@@ -44,6 +44,7 @@ export function Component() {
             </button>
             <Link
               to={`/projects/${name}/crafts/new`}
+              data-spotlight="project-new-craft-button"
               className="rounded-md px-3 py-1.5 text-xs font-semibold no-underline"
               style={{ backgroundColor: "var(--accent-green)", color: "var(--bg-base)" }}
             >

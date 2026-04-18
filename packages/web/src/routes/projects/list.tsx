@@ -15,6 +15,7 @@ export function Component() {
         right={
           <button
             onClick={() => setShowCreate(true)}
+            data-spotlight="projects-new-button"
             className="rounded-md px-3 py-1.5 text-xs font-semibold"
             style={{ backgroundColor: "var(--accent-green)", color: "var(--bg-base)" }}
           >
