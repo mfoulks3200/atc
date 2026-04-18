@@ -6,7 +6,7 @@ import { getWsUrl } from "@/lib/api-client";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { WsProvider } from "@/hooks/ws-context";
 import { Shell } from "@/components/layout/shell";
-import { SpotlightProvider, tours } from "@/components/spotlight";
+import { SpotlightProvider, tours, useSpotlight } from "@/components/spotlight";
 import "./theme/globals.css";
 
 const queryClient = new QueryClient({
@@ -76,10 +76,19 @@ function App() {
   return (
     <WsProvider value={wsContext}>
       <SpotlightProvider tours={tours}>
+        {import.meta.env.DEV && <SpotlightDevBridge />}
         <RouterProvider router={router} />
       </SpotlightProvider>
     </WsProvider>
   );
+}
+
+function SpotlightDevBridge() {
+  const s = useSpotlight();
+  useEffect(() => {
+    (window as unknown as { __spotlight?: typeof s }).__spotlight = s;
+  }, [s]);
+  return null;
 }
 
 createRoot(document.getElementById("root")!).render(
