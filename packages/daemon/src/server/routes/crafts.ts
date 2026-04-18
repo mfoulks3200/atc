@@ -236,17 +236,13 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         to: CraftStatus.InFlight,
       });
 
-      // Spawn the agent subprocess via AgentManager when one is wired and
-      // an adapter is registered. Unit tests that build an app without a
-      // manager skip this path entirely. When no adapter is registered for
-      // "claude-agent-sdk" the route still returns success — the state
-      // transition is the user-visible contract; the agent spawn is a
-      // best-effort side effect tracked in the black box.
+      // Spawn agent subprocesses via AgentManager when one is wired and an
+      // adapter is registered. One agent is launched per crew member (captain
+      // first, then each first officer). Unit tests without a manager skip
+      // this path. Spawn failures are non-fatal and recorded in the black box.
       const manager = app.agentManager;
       const adapterType = "claude-agent-sdk";
       if (manager !== null && app.adapterRegistry.get(adapterType) !== undefined) {
-        const captain = app.pilotStore.get(name, craft.captain);
-        const agentId = randomUUID();
         const worktreePath = join(
           app.profileDir,
           "projects",
@@ -256,40 +252,48 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
           "worktree",
         );
         mkdirSync(worktreePath, { recursive: true });
-        try {
-          await manager.launch({
-            agentId,
-            adapterType,
-            projectName: name,
-            callsign,
-            launchOptions: {
+
+        const pilotsToSpawn = [craft.captain, ...craft.firstOfficers];
+        for (const pilotId of pilotsToSpawn) {
+          const pilot = app.pilotStore.get(name, pilotId);
+          const agentId = randomUUID();
+          try {
+            await manager.launch({
               agentId,
-              worktreePath,
+              adapterType,
+              projectName: name,
+              callsign,
+              pilotId,
+              launchOptions: {
+                agentId,
+                worktreePath,
+                craft,
+                pilotId,
+                systemPrompt: "",
+                intercomHistory: craft.intercom,
+                adapterConfig: {},
+                mcpServers: pilot?.mcpServers ?? {},
+              },
+            });
+            appendBlackBoxEntry(
+              app,
+              name,
               craft,
-              systemPrompt: "",
-              intercomHistory: craft.intercom,
-              adapterConfig: {},
-              mcpServers: captain?.mcpServers ?? {},
-            },
-          });
-          appendBlackBoxEntry(
-            app,
-            name,
-            craft,
-            "system",
-            BlackBoxEntryType.Observation,
-            `Agent launched: ${agentId}`,
-          );
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          appendBlackBoxEntry(
-            app,
-            name,
-            craft,
-            "system",
-            BlackBoxEntryType.Observation,
-            `Agent launch failed: ${msg}`,
-          );
+              "system",
+              BlackBoxEntryType.Observation,
+              `Agent launched for ${pilotId}: ${agentId}`,
+            );
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            appendBlackBoxEntry(
+              app,
+              name,
+              craft,
+              "system",
+              BlackBoxEntryType.Observation,
+              `Agent launch failed for ${pilotId}: ${msg}`,
+            );
+          }
         }
         app.craftStore.set(name, craft);
       }

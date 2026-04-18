@@ -44,6 +44,16 @@ export interface OutputContext {
 export type OutputSink = (ctx: OutputContext, line: CapturedLine) => void;
 
 /**
+ * Sink invoked when the agent emits an assistant message. Production wiring
+ * appends the message to the craft's intercom and forwards it to other agents
+ * on the same craft so they can respond.
+ */
+export type IntercomSink = (
+  ctx: OutputContext,
+  message: import("../types.js").IntercomMessage,
+) => void;
+
+/**
  * Options required to launch a new agent through the manager.
  *
  * @see RULE-PILOT-1
@@ -57,6 +67,8 @@ export interface AgentManagerLaunchOptions {
   projectName: string;
   /** Callsign of the craft the agent is piloting. */
   callsign: string;
+  /** Pilot identifier this agent represents (used for intercom routing). */
+  pilotId?: string;
   /** Full launch options forwarded to the adapter. */
   launchOptions: AgentLaunchOptions;
 }
@@ -86,6 +98,12 @@ export interface AgentManagerDeps {
    */
   outputSink?: OutputSink;
   /**
+   * Optional sink invoked when the agent emits an assistant text message.
+   * The daemon wires this to append the message to the craft intercom and
+   * forward it to other running agents on the same craft.
+   */
+  intercomSink?: IntercomSink;
+  /**
    * Maximum number of stdout/stderr lines retained per agent in the in-memory
    * ring buffer. Defaults to {@link DEFAULT_OUTPUT_BUFFER_SIZE}. The cap
    * applies independently to each running agent.
@@ -108,12 +126,14 @@ export interface AgentManagerDeps {
 export class AgentManager {
   private readonly _handles: Map<string, AgentHandle> = new Map();
   private readonly _adapters: Map<string, string> = new Map();
+  private readonly _pilotIds: Map<string, string> = new Map(); // agentId → pilotId
   private readonly _pipes: Map<string, AgentOutputPipe> = new Map();
   private readonly _exitDetachers: Map<string, () => void> = new Map();
   private readonly _adapterRegistry: AdapterRegistry;
   private readonly _agentStore: AgentStore;
   private readonly _isProcessAlive: LivenessProbe;
   private readonly _outputSink?: OutputSink;
+  private readonly _intercomSink?: IntercomSink;
   private readonly _outputBufferSize: number;
 
   /**
@@ -124,6 +144,7 @@ export class AgentManager {
     this._agentStore = deps.agentStore;
     this._isProcessAlive = deps.isProcessAlive ?? defaultIsProcessAlive;
     this._outputSink = deps.outputSink;
+    this._intercomSink = deps.intercomSink;
     this._outputBufferSize = deps.outputBufferSize ?? DEFAULT_OUTPUT_BUFFER_SIZE;
   }
 
@@ -134,6 +155,28 @@ export class AgentManager {
    */
   getOutputBuffer(agentId: string): CapturedLine[] | undefined {
     return this._pipes.get(agentId)?.snapshot();
+  }
+
+  /**
+   * Forward an intercom message to all running agents on a craft, excluding
+   * the agent whose pilotId matches `message.from` (to avoid echo loops).
+   * No-ops if no live handles exist for the callsign.
+   *
+   * @see RULE-CRAFT-5
+   */
+  async sendMessage(callsign: string, message: import("../types.js").IntercomMessage): Promise<void> {
+    const recipients = this._agentStore
+      .list()
+      .filter((r) => r.callsign === callsign && r.status === "running" && r.pilotId !== message.from);
+    for (const record of recipients) {
+      const handle = this._handles.get(record.id);
+      if (handle === undefined) continue;
+      const adapterType = this._adapters.get(record.id);
+      if (adapterType === undefined) continue;
+      const adapter = this._adapterRegistry.get(adapterType);
+      if (adapter === undefined) continue;
+      await adapter.sendMessage(handle, message);
+    }
   }
 
   /**
@@ -156,17 +199,26 @@ export class AgentManager {
     const handle = await adapter.launch(options.launchOptions);
     this._handles.set(options.agentId, handle);
     this._adapters.set(options.agentId, options.adapterType);
+    if (options.pilotId !== undefined) {
+      this._pilotIds.set(options.agentId, options.pilotId);
+    }
     this._attachOutputPipe(options.agentId, options.projectName, options.callsign, handle);
 
+    const msgCtx: OutputContext = {
+      agentId: options.agentId,
+      projectName: options.projectName,
+      callsign: options.callsign,
+    };
     if (this._outputSink !== undefined) {
       const sink = this._outputSink;
-      const ctx: OutputContext = {
-        agentId: options.agentId,
-        projectName: options.projectName,
-        callsign: options.callsign,
-      };
       adapter.onMessage(handle, (msg) => {
-        sink(ctx, { text: msg.content, stream: "stdout", timestamp: new Date() });
+        sink(msgCtx, { text: msg.content, stream: "stdout", timestamp: new Date() });
+      });
+    }
+    if (this._intercomSink !== undefined) {
+      const sink = this._intercomSink;
+      adapter.onMessage(handle, (msg) => {
+        sink(msgCtx, msg);
       });
     }
 
@@ -176,6 +228,7 @@ export class AgentManager {
       pid: handle.pid,
       projectName: options.projectName,
       callsign: options.callsign,
+      pilotId: options.pilotId,
       status: "running",
       adapterMeta: handle.adapterMeta,
     };
@@ -276,6 +329,7 @@ export class AgentManager {
     }
     this._detachOutputPipe(agentId);
     this._handles.delete(agentId);
+    this._pilotIds.delete(agentId);
     this._agentStore.updateStatus(agentId, "terminated");
   }
 
@@ -346,6 +400,9 @@ export class AgentManager {
           adapterMeta: record.adapterMeta,
         });
         this._adapters.set(record.id, record.adapterType);
+        if (record.pilotId !== undefined) {
+          this._pilotIds.set(record.id, record.pilotId);
+        }
         reattached.push(record.id);
       } else {
         this._agentStore.updateStatus(record.id, "terminated");
@@ -371,6 +428,7 @@ export class AgentManager {
     if (status === "terminated") {
       this._detachOutputPipe(agentId);
       this._handles.delete(agentId);
+      this._pilotIds.delete(agentId);
     }
   }
 

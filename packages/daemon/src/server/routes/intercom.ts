@@ -87,6 +87,11 @@ export async function intercomRoutes(app: FastifyInstance): Promise<void> {
       if (updated) {
         publishCraftEvent(app, name, updated, "craft.intercom.posted", { message });
       }
+
+      if (app.agentManager !== null) {
+        await app.agentManager.sendMessage(callsign, message);
+      }
+
       return reply.send(message);
     },
   );

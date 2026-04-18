@@ -31,6 +31,7 @@ import { ChannelRegistry } from "./server/websocket/channels.js";
 import { appendBlackBoxEntryWithRegistry } from "./server/routes/blackbox-helpers.js";
 import { BlackBoxEntryType } from "@airtrafficcontrol/types";
 import { ClaudeAgentSdkAdapter } from "@airtrafficcontrol/adapter-claude-agent-sdk";
+import type { WsEvent } from "./types.js";
 
 /** Path of the PID file relative to the profile directory. */
 const PID_FILE = "daemon.pid";
@@ -122,6 +123,11 @@ export class Daemon {
     const adapterRegistry = new AdapterRegistry();
     adapterRegistry.register("claude-agent-sdk", new ClaudeAgentSdkAdapter());
     const channelRegistry = new ChannelRegistry();
+
+    // Deferred reference so the intercomSink closure can call sendMessage
+    // even though agentManager is not constructed yet.
+    let agentManagerRef: AgentManager | null = null;
+
     const agentManager = new AgentManager({
       adapterRegistry,
       agentStore,
@@ -140,7 +146,34 @@ export class Daemon {
         );
         craftStore.set(ctx.projectName, craft);
       },
+      intercomSink: (ctx, message) => {
+        craftStore.appendIntercom(ctx.projectName, ctx.callsign, message);
+        const craft = craftStore.get(ctx.projectName, ctx.callsign);
+        if (craft !== undefined) {
+          const timestamp = new Date().toISOString();
+          const data = { project: ctx.projectName, callsign: ctx.callsign, craft, message };
+          const craftPayload: WsEvent = {
+            type: "event",
+            channel: `craft:${ctx.callsign}`,
+            event: "craft.intercom.posted",
+            timestamp,
+            data,
+          };
+          const projectPayload: WsEvent = {
+            type: "event",
+            channel: `project:${ctx.projectName}`,
+            event: "craft.intercom.posted",
+            timestamp,
+            data,
+          };
+          channelRegistry.publish(craftPayload.channel, craftPayload);
+          channelRegistry.publish(projectPayload.channel, projectPayload);
+        }
+        // Forward to other agents on the craft (sendMessage excludes the sender)
+        agentManagerRef?.sendMessage(ctx.callsign, message);
+      },
     });
+    agentManagerRef = agentManager;
     agentManager.reattach();
     const logger = {
       warn: (msg: string) => {

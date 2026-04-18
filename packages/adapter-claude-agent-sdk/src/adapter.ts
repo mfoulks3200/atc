@@ -72,6 +72,8 @@ interface AgentSession {
   statusListeners: Array<(status: AgentStatus) => void>;
   usageListeners: Array<(report: AgentUsageReport) => void>;
   callsign: string;
+  /** Pilot identifier used as `from` in outgoing intercom messages. */
+  pilotId: string;
   consumer: Promise<void>;
 }
 
@@ -250,6 +252,7 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
       statusListeners: [],
       usageListeners: [],
       callsign: options.craft.callsign,
+      pilotId: options.pilotId ?? options.craft.callsign,
       consumer: Promise.resolve(),
     };
     session.consumer = this._consume(session);
@@ -389,7 +392,7 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
       for (const block of message.message.content) {
         if (block.type === "text" && block.text.length > 0) {
           const intercom: IntercomMessage = {
-            from: session.callsign,
+            from: session.pilotId,
             seat: "captain",
             content: block.text,
             timestamp: new Date().toISOString(),

@@ -90,6 +90,8 @@ export interface AgentRecord {
   projectName: string;
   /** Aviation callsign assigned to this agent's craft. */
   callsign: string;
+  /** Pilot identifier this agent is acting as (captain or first officer id). */
+  pilotId?: string;
   /** Current lifecycle status of the agent. */
   status: AgentStatus;
   /** Adapter-specific metadata (e.g. session IDs, connection info). */
