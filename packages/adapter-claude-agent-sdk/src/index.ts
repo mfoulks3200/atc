@@ -15,6 +15,7 @@ export {
 } from "./adapter.js";
 export { buildSystemPrompt, deriveSeat } from "./prompt-builder.js";
 export { createIntercomMcpServer, type IntercomToolContext } from "./intercom-tool.js";
+export { createControlsMcpServer, type ControlsToolContext } from "./controls-tool.js";
 export {
   createControlsCanUseTool,
   decideForFileModification,
