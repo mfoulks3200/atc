@@ -76,6 +76,17 @@ export function useCraftIntercom(project: string, callsign: string) {
   });
 }
 
+export function useClaimControls(project: string, callsign: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { pilotId: string }) =>
+      apiClient.post(`/api/v1/projects/${project}/crafts/${callsign}/controls/claim`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.crafts.detail(project, callsign) });
+    },
+  });
+}
+
 export function useSendIntercom(project: string, callsign: string) {
   const queryClient = useQueryClient();
   return useMutation({

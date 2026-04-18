@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
 import { useState } from "react";
-import { useCraft, useCraftBlackBox, useCraftIntercom, useCraftVectors, useCraftChecklistRuns, useSendIntercom } from "@/hooks/use-api";
+import { useCraft, useCraftBlackBox, useCraftIntercom, useCraftVectors, useCraftChecklistRuns, useSendIntercom, useClaimControls } from "@/hooks/use-api";
 import { useWsManager } from "@/hooks/ws-context";
 import { useSubscription } from "@/hooks/use-subscription";
 import { PageHeader } from "@/components/base/page-header";
@@ -40,8 +40,13 @@ export function Component() {
   const { data: vectors } = useCraftVectors(name!, callsign!);
   const { data: checklistRuns } = useCraftChecklistRuns(name!, callsign!);
   const sendIntercom = useSendIntercom(name!, callsign!);
+  const claimControls = useClaimControls(name!, callsign!);
   const [intercomText, setIntercomText] = useState("");
   const [intercomFrom, setIntercomFrom] = useState("operator");
+
+  function handleClaimControls(pilotId: string) {
+    claimControls.mutate({ pilotId });
+  }
 
   function handleSendIntercom(e: React.FormEvent) {
     e.preventDefault();
@@ -89,11 +94,51 @@ export function Component() {
       </div>
       <div className="mt-4 grid grid-cols-2 gap-4">
         <div className="rounded-md border p-3.5" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}>
-          <div className="mb-2.5 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>CREW</div>
+          <div className="mb-2.5 flex items-center justify-between">
+            <div className="text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>CREW</div>
+            <div className="text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
+              CONTROLS · {craft.controls.mode === "exclusive" ? (
+                <span style={{ color: "var(--accent-green)" }}>{craft.controls.holder ?? "—"}</span>
+              ) : (
+                <span style={{ color: "var(--accent-green)" }}>SHARED</span>
+              )}
+            </div>
+          </div>
           <div className="space-y-2">
-            <CrewMember identifier={craft.captain} seat="captain" />
-            {craft.firstOfficers.map((fo) => <CrewMember key={fo} identifier={fo} seat="firstOfficer" />)}
-            {craft.jumpseaters.map((js) => <CrewMember key={js} identifier={js} seat="jumpseat" />)}
+            {[
+              { id: craft.captain, seat: "captain" as const },
+              ...craft.firstOfficers.map((id) => ({ id, seat: "firstOfficer" as const })),
+              ...craft.jumpseaters.map((id) => ({ id, seat: "jumpseat" as const })),
+            ].map(({ id, seat }) => {
+              const isHolder = craft.controls.mode === "exclusive" && craft.controls.holder === id;
+              const canClaim = seat !== "jumpseat" && !isHolder;
+              return (
+                <div key={id} className="flex items-center justify-between gap-2">
+                  <CrewMember identifier={id} seat={seat} />
+                  {canClaim && (
+                    <button
+                      type="button"
+                      onClick={() => handleClaimControls(id)}
+                      disabled={claimControls.isPending}
+                      className="shrink-0 rounded px-2 py-1 text-[10px] uppercase tracking-widest"
+                      style={{
+                        backgroundColor: "var(--bg-elevated)",
+                        border: "1px solid var(--border)",
+                        color: "var(--text-secondary)",
+                        opacity: claimControls.isPending ? 0.4 : 1,
+                      }}
+                    >
+                      Give controls
+                    </button>
+                  )}
+                  {isHolder && (
+                    <span className="shrink-0 text-[10px] uppercase tracking-widest" style={{ color: "var(--accent-green)" }}>
+                      ● Holder
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
         <div className="rounded-md border p-3.5" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}>
