@@ -33,6 +33,7 @@ import { query as defaultQuery } from "@anthropic-ai/claude-agent-sdk";
 import { buildSystemPrompt, deriveSeat } from "./prompt-builder.js";
 import { createIntercomMcpServer } from "./intercom-tool.js";
 import { createControlsMcpServer } from "./controls-tool.js";
+import { createTowerMcpServer } from "./tower-tool.js";
 import { createControlsCanUseTool } from "./controls-enforcer.js";
 
 /**
@@ -277,6 +278,14 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
       pilotId: pilotIdForPrompt,
     });
 
+    // Tower tools: the captain uses these to request clearance and execute
+    // the merge once all vectors pass and the landing checklist is green.
+    const towerServer = createTowerMcpServer({
+      daemonUrl: "http://localhost:7700",
+      projectName: options.projectName,
+      callsign: options.craft.callsign,
+    });
+
     // Runtime enforcer for RULE-CTRL-3. Inspects every tool call and denies
     // file modifications (Edit, Write, MultiEdit, NotebookEdit, Bash) when
     // the pilot does not currently hold controls for the target path.
@@ -300,6 +309,7 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
         ...toSdkMcpServers(options.mcpServers),
         "atc-intercom": intercomServer,
         "atc-controls": controlsServer,
+        "atc-tower": towerServer,
       },
       // acceptEdits auto-accepts file edit operations without interactive
       // prompts (no human is at the keyboard). RULE-CTRL-3 is still enforced

@@ -16,6 +16,7 @@ export {
 export { buildSystemPrompt, deriveSeat } from "./prompt-builder.js";
 export { createIntercomMcpServer, type IntercomToolContext } from "./intercom-tool.js";
 export { createControlsMcpServer, type ControlsToolContext } from "./controls-tool.js";
+export { createTowerMcpServer, type TowerToolContext } from "./tower-tool.js";
 export {
   createControlsCanUseTool,
   decideForFileModification,
