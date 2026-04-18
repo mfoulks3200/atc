@@ -137,6 +137,8 @@ function baseLaunchOptions(overrides: Partial<AgentLaunchOptions> = {}): AgentLa
       intercom: [],
       controls: { mode: "exclusive", holder: "pilot-001" },
     },
+    projectName: "demo-project",
+    pilotId: "pilot-001",
     systemPrompt: "You are a pilot.",
     intercomHistory: [],
     adapterConfig: {},
@@ -158,13 +160,25 @@ describe("ClaudeAgentSdkAdapter", () => {
     overrides: Partial<AgentLaunchOptions> = {},
   ): Promise<AgentHandle> => adapter.launch(baseLaunchOptions(overrides));
 
-  it("launch wires the SDK with the worktree cwd, default model, and system prompt", async () => {
+  it("launch wires the SDK with the worktree cwd, default model, and auto-built pilot briefing", async () => {
     await launchTestAgent();
     const session = sdk.lastSession();
     expect(session.options?.cwd).toBe("/tmp/worktree");
     expect(session.options?.model).toBe(DEFAULT_MODEL);
-    expect(session.options?.systemPrompt).toBe("You are a pilot.");
+    // The auto-built briefing is prepended; the caller-supplied prompt is
+    // appended as project-specific notes.
+    expect(session.options?.systemPrompt).toContain("ATC Pilot Briefing");
+    expect(session.options?.systemPrompt).toContain("ALPHA-1");
+    expect(session.options?.systemPrompt).toContain("Project-specific notes");
+    expect(session.options?.systemPrompt).toContain("You are a pilot.");
     expect(session.options?.permissionMode).toBe("bypassPermissions");
+  });
+
+  it("launch uses only the auto-built briefing when caller systemPrompt is empty", async () => {
+    await launchTestAgent({ systemPrompt: "" });
+    const session = sdk.lastSession();
+    expect(session.options?.systemPrompt).toContain("ATC Pilot Briefing");
+    expect(session.options?.systemPrompt).not.toContain("Project-specific notes");
   });
 
   it("launch honors an adapterConfig.model override", async () => {
@@ -254,8 +268,10 @@ describe("ClaudeAgentSdkAdapter", () => {
 
     await new Promise((r) => setTimeout(r, 0));
     expect(received).toHaveLength(1);
+    // `from` is the pilotId (not the callsign) so agent-to-agent forwarding
+    // can exclude the sender correctly.
     expect(received[0]).toMatchObject({
-      from: "ALPHA-1",
+      from: "pilot-001",
       seat: "captain",
       content: "hello world",
     });

@@ -30,6 +30,7 @@ import type {
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { query as defaultQuery } from "@anthropic-ai/claude-agent-sdk";
+import { buildSystemPrompt } from "./prompt-builder.js";
 
 /**
  * Default Claude model used by the adapter.
@@ -222,13 +223,28 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
   async launch(options: AgentLaunchOptions): Promise<AgentHandle> {
     const channel = createInputChannel();
 
+    // Build the pilot briefing automatically from craft state. The caller's
+    // provided systemPrompt (if any non-empty) is appended as a project-specific
+    // extension so route handlers can add local context without replacing the
+    // core briefing.
+    const pilotIdForPrompt = options.pilotId ?? options.craft.captain;
+    const autoPrompt = buildSystemPrompt(
+      options.craft,
+      pilotIdForPrompt,
+      options.projectName,
+    );
+    const finalSystemPrompt =
+      options.systemPrompt && options.systemPrompt.trim().length > 0
+        ? `${autoPrompt}\n\n---\n\n## Project-specific notes\n\n${options.systemPrompt}`
+        : autoPrompt;
+
     const sdkOptions: Options = {
       cwd: options.worktreePath,
       model:
         typeof options.adapterConfig.model === "string"
           ? options.adapterConfig.model
           : DEFAULT_MODEL,
-      systemPrompt: options.systemPrompt,
+      systemPrompt: finalSystemPrompt,
       mcpServers: toSdkMcpServers(options.mcpServers),
       permissionMode: "bypassPermissions",
       allowDangerouslySkipPermissions: true,

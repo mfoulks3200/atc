@@ -66,6 +66,8 @@ export interface AgentLaunchOptions {
   worktreePath: string;
   /** Full persisted craft state to load the agent with. */
   craft: CraftState;
+  /** Project name this craft belongs to (used in API URL construction). */
+  projectName: string;
   /** Pilot identifier this agent represents (used as `from` in intercom messages). */
   pilotId?: string;
   /** System prompt text injected into the agent's context at startup. */

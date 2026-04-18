@@ -17,11 +17,30 @@ describe("apiClient", () => {
 
     const result = await apiClient.get("/api/v1/health");
 
+    // GET requests have no body, so Content-Type is not set (Fastify rejects
+    // bodyless requests that declare application/json).
     expect(fetch).toHaveBeenCalledWith("/api/v1/health", {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
+      headers: {},
     });
     expect(result).toEqual(mockResponse);
+  });
+
+  it("sets Content-Type for requests with a body", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await apiClient.post("/api/v1/things", { name: "x" });
+
+    expect(fetch).toHaveBeenCalledWith("/api/v1/things", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "x" }),
+    });
   });
 
   it("throws on non-ok response", async () => {

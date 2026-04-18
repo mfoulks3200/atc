@@ -268,6 +268,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
                 agentId,
                 worktreePath,
                 craft,
+                projectName: name,
                 pilotId,
                 systemPrompt: "",
                 intercomHistory: craft.intercom,

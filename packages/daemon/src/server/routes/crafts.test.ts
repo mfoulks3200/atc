@@ -297,11 +297,12 @@ describe("craft routes", () => {
           url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/launch`,
         });
         expect(res.statusCode).toBe(200);
-        expect(launchSpy).toHaveBeenCalledTimes(1);
+        // One agent spawned per crew member (captain + one first officer).
+        expect(launchSpy).toHaveBeenCalledTimes(2);
         const body = res.json<CraftState>();
         const lastEntry = body.blackBox[body.blackBox.length - 1];
         expect(lastEntry.type).toBe("Observation");
-        expect(lastEntry.content).toContain("Agent launched");
+        expect(lastEntry.content).toContain("Agent launched for");
       } finally {
         await wiredApp.close();
       }
@@ -352,7 +353,8 @@ describe("craft routes", () => {
         expect(body.status).toBe("InFlight");
         const lastEntry = body.blackBox[body.blackBox.length - 1];
         expect(lastEntry.type).toBe("Observation");
-        expect(lastEntry.content).toContain("Agent launch failed: boom");
+        expect(lastEntry.content).toContain("Agent launch failed for");
+        expect(lastEntry.content).toContain("boom");
       } finally {
         await wiredApp.close();
       }
