@@ -91,9 +91,9 @@ export async function tfrRoutes(app: FastifyInstance): Promise<void> {
 
     app.tfrStore.set(tfr);
 
-    // RULE-TFR-5: Set holdingPattern on affected crafts
+    // RULE-TFR-5: Set holdingPattern on affected crafts and pause agents
     // RULE-TFRP-5: Record TFRIssued in black box
-    applyTfrToCrafts(app, tfr, projectName);
+    await applyTfrToCrafts(app, tfr, projectName);
 
     // Publish to the tfr:global channel so clients can react in real time
     if (tfr.scope === "global") {
@@ -145,9 +145,9 @@ export async function tfrRoutes(app: FastifyInstance): Promise<void> {
       };
       app.tfrStore.set(lifted);
 
-      // RULE-TFR-8: Clear holdingPattern on crafts not subject to another active TFR
-      // RULE-TFRP-5: Record TFRLifted in black box
-      clearTfrFromCrafts(app, lifted, projectName);
+      // RULE-TFR-8: Clear holdingPattern; resume agents no longer under any TFR
+      // RULE-TFRP-4 / RULE-TFRP-5
+      await clearTfrFromCrafts(app, lifted, projectName);
 
       // Publish to the tfr:global channel so clients can react in real time
       if (lifted.scope === "global") {
@@ -170,57 +170,108 @@ export async function tfrRoutes(app: FastifyInstance): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /**
- * Sets holdingPattern and records TFRIssued on all crafts affected by the TFR.
+ * Returns all { projectName, craft } pairs affected by the given TFR.
+ *
+ * For global scope this spans every project. For project/craft scope it
+ * restricts to the supplied projectName (required by callers in those cases).
  */
-function applyTfrToCrafts(app: FastifyInstance, tfr: TfrState, projectName?: string): void {
-  if (!projectName) return;
+function affectedCrafts(
+  app: FastifyInstance,
+  tfr: TfrState,
+  projectName?: string,
+): Array<{ projectName: string; craft: import("../../types.js").CraftState }> {
+  if (tfr.scope === "global") {
+    return app.craftStore.listAll();
+  }
+  if (!projectName) return [];
+  return app.craftStore
+    .listForProject(projectName)
+    .map((craft) => ({ projectName, craft }));
+}
 
-  const crafts = app.craftStore.listForProject(projectName);
-  for (const craft of crafts) {
-    if (isAffectedByTfrState(tfr, projectName, craft.callsign)) {
-      craft.holdingPattern = true;
+/**
+ * Sets holdingPattern and records TFRIssued on all crafts affected by the TFR.
+ * Also pauses any running agents on those crafts (RULE-TFR-5 / RULE-TFRP-1).
+ */
+async function applyTfrToCrafts(
+  app: FastifyInstance,
+  tfr: TfrState,
+  projectName?: string,
+): Promise<void> {
+  const pairs = affectedCrafts(app, tfr, projectName);
+  for (const { projectName: proj, craft } of pairs) {
+    if (!isAffectedByTfrState(tfr, proj, craft.callsign)) continue;
 
-      // RULE-TFRP-5: Record TFRIssued in black box
-      const entry: BlackBoxEntry = {
-        timestamp: new Date().toISOString(),
-        author: "system",
-        type: BlackBoxEntryType.TFRIssued,
-        content: `TFR ${tfr.identifier} issued: ${tfr.reason} (scope=${tfr.scope}, mode=${tfr.mode})`,
-      };
-      craft.blackBox.push(entry);
-      app.craftStore.set(projectName, craft);
+    craft.holdingPattern = true;
+
+    // RULE-TFRP-5: Record TFRIssued in black box
+    const entry: BlackBoxEntry = {
+      timestamp: new Date().toISOString(),
+      author: "system",
+      type: BlackBoxEntryType.TFRIssued,
+      content: `TFR ${tfr.identifier} issued: ${tfr.reason} (scope=${tfr.scope}, mode=${tfr.mode})`,
+    };
+    craft.blackBox.push(entry);
+    app.craftStore.set(proj, craft);
+
+    // RULE-TFR-5 / RULE-TFRP-1: Pause any running agents on this craft.
+    if (app.agentManager !== null) {
+      const runningAgents = app.agentManager
+        .listAgents()
+        .filter((r) => r.callsign === craft.callsign && r.status === "running");
+      for (const record of runningAgents) {
+        await app.agentManager.pauseAgent(record.id);
+      }
     }
   }
 }
 
 /**
  * Clears holdingPattern and records TFRLifted on affected crafts,
- * unless another active TFR still applies.
+ * unless another active TFR still applies. Resumes any paused agents
+ * on crafts that are now fully clear (RULE-TFRP-4).
  */
-function clearTfrFromCrafts(app: FastifyInstance, tfr: TfrState, projectName?: string): void {
-  if (!projectName) return;
-
+async function clearTfrFromCrafts(
+  app: FastifyInstance,
+  tfr: TfrState,
+  projectName?: string,
+): Promise<void> {
   // Build a "was-active" snapshot to check which crafts were affected before lifting.
   const asActive: TfrState = { ...tfr, liftedAt: null };
 
-  const crafts = app.craftStore.listForProject(projectName);
-  for (const craft of crafts) {
-    if (isAffectedByTfrState(asActive, projectName, craft.callsign)) {
-      // RULE-TFRP-5: Record TFRLifted in black box
-      const entry: BlackBoxEntry = {
-        timestamp: new Date().toISOString(),
-        author: "system",
-        type: BlackBoxEntryType.TFRLifted,
-        content: `TFR ${tfr.identifier} lifted`,
-      };
-      craft.blackBox.push(entry);
+  const pairs = affectedCrafts(app, asActive, projectName);
+  for (const { projectName: proj, craft } of pairs) {
+    if (!isAffectedByTfrState(asActive, proj, craft.callsign)) continue;
 
-      // RULE-TFR-8: Only clear holdingPattern if no other active TFR applies
-      const remaining = app.tfrStore.findAffecting(projectName, craft.callsign);
-      if (remaining.length === 0) {
-        craft.holdingPattern = false;
+    // RULE-TFRP-5: Record TFRLifted in black box
+    const entry: BlackBoxEntry = {
+      timestamp: new Date().toISOString(),
+      author: "system",
+      type: BlackBoxEntryType.TFRLifted,
+      content: `TFR ${tfr.identifier} lifted`,
+    };
+    craft.blackBox.push(entry);
+
+    // RULE-TFR-8: Only clear holdingPattern if no other active TFR applies
+    const remaining = app.tfrStore.findAffecting(proj, craft.callsign);
+    const nowClear = remaining.length === 0;
+    if (nowClear) {
+      craft.holdingPattern = false;
+    }
+    app.craftStore.set(proj, craft);
+
+    // RULE-TFRP-4: Resume paused agents once no TFR covers this craft.
+    if (nowClear && app.agentManager !== null) {
+      const pausedAgents = app.agentManager
+        .listAgents()
+        .filter((r) => r.callsign === craft.callsign && r.status === "paused");
+      for (const record of pausedAgents) {
+        await app.agentManager.resumeAgent(record.id, {
+          craft,
+          intercomHistory: craft.intercom,
+          lastKnownState: "",
+        });
       }
-      app.craftStore.set(projectName, craft);
     }
   }
 }

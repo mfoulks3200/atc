@@ -10,7 +10,7 @@
  * @see RULE-PILOT-1 for pilot lifecycle rules.
  */
 
-import type { AgentAdapter, AgentHandle, AgentLaunchOptions } from "../adapters/adapter.js";
+import type { AgentAdapter, AgentHandle, AgentLaunchOptions, AgentResumeContext } from "../adapters/adapter.js";
 import type { AdapterRegistry } from "../adapters/registry.js";
 import type { AgentStore } from "../state/agent-store.js";
 import type { AgentRecord, AgentStatus } from "../types.js";
@@ -149,12 +149,52 @@ export class AgentManager {
   }
 
   /**
+   * Return all agent records from the store (all statuses).
+   * Used by TFR routes to find running or paused agents by callsign.
+   */
+  listAgents(): AgentRecord[] {
+    return this._agentStore.list();
+  }
+
+  /**
    * Return the in-memory ring buffer of captured output for an agent, or
    * `undefined` if the manager has no live pipe for it. Used by the future
    * craft activity view to seed clients with recent context on subscribe.
    */
   getOutputBuffer(agentId: string): CapturedLine[] | undefined {
     return this._pipes.get(agentId)?.snapshot();
+  }
+
+  /**
+   * Pause a specific running agent by its id. Delegates to the adapter's
+   * `pause()` method and marks the record as `paused` in the store.
+   * No-ops if the agent has no live handle.
+   *
+   * @see RULE-TFR-5 for holding-pattern enforcement.
+   */
+  async pauseAgent(agentId: string): Promise<void> {
+    const handle = this._handles.get(agentId);
+    if (handle === undefined) return;
+    const adapter = this._resolveAdapter(agentId);
+    if (adapter === undefined) return;
+    await adapter.pause(handle);
+    this._agentStore.updateStatus(agentId, "paused");
+  }
+
+  /**
+   * Resume a previously paused agent by its id. Delegates to the adapter's
+   * `resume()` method with the provided context and marks the record as
+   * `running` in the store. No-ops if the agent has no live handle.
+   *
+   * @see RULE-TFRP-4 for auto-resume on TFR lift.
+   */
+  async resumeAgent(agentId: string, context: AgentResumeContext): Promise<void> {
+    const handle = this._handles.get(agentId);
+    if (handle === undefined) return;
+    const adapter = this._resolveAdapter(agentId);
+    if (adapter === undefined) return;
+    await adapter.resume(handle, context);
+    this._agentStore.updateStatus(agentId, "running");
   }
 
   /**

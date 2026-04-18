@@ -115,6 +115,20 @@ export class CraftStore {
   }
 
   /**
+   * Returns every craft across all projects as `{ projectName, craft }` pairs.
+   * Useful for global operations like TFRs that span projects.
+   */
+  listAll(): Array<{ projectName: string; craft: CraftState }> {
+    const result: Array<{ projectName: string; craft: CraftState }> = [];
+    for (const [projectName, projectMap] of this._projects) {
+      for (const craft of projectMap.values()) {
+        result.push({ projectName, craft });
+      }
+    }
+    return result;
+  }
+
+  /**
    * Appends an intercom message to the in-memory craft state.
    * No-ops if the craft is not found.
    *
