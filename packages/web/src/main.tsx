@@ -6,6 +6,7 @@ import { getWsUrl } from "@/lib/api-client";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { WsProvider } from "@/hooks/ws-context";
 import { Shell } from "@/components/layout/shell";
+import { SpotlightProvider, tours } from "@/components/spotlight";
 import "./theme/globals.css";
 
 const queryClient = new QueryClient({
@@ -74,7 +75,9 @@ function App() {
 
   return (
     <WsProvider value={wsContext}>
-      <RouterProvider router={router} />
+      <SpotlightProvider tours={tours}>
+        <RouterProvider router={router} />
+      </SpotlightProvider>
     </WsProvider>
   );
 }
