@@ -9,10 +9,11 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@airtrafficcontrol/types": "workspace:*",
-    "@airtrafficcontrol/errors": "workspace:*",
     "@airtrafficcontrol/daemon": "workspace:*",
-    "@anthropic-ai/claude-agent-sdk": "^0.2.108"
+    "@airtrafficcontrol/errors": "workspace:*",
+    "@airtrafficcontrol/types": "workspace:*",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.108",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^22.15.3"

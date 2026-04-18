@@ -44,9 +44,12 @@ export interface OutputContext {
 export type OutputSink = (ctx: OutputContext, line: CapturedLine) => void;
 
 /**
- * Sink invoked when the agent emits an assistant message. Production wiring
- * appends the message to the craft's intercom and forwards it to other agents
- * on the same craft so they can respond.
+ * @deprecated The intercom is now an explicit MCP tool the agent invokes
+ * (see `createIntercomMcpServer` in the adapter). Agent assistant output is
+ * no longer auto-forwarded to the intercom — it goes only to the black box
+ * via `outputSink`. This type is retained as a no-op hook for backwards
+ * compatibility with any external adapter wiring; the daemon no longer
+ * supplies it.
  */
 export type IntercomSink = (
   ctx: OutputContext,
@@ -249,6 +252,10 @@ export class AgentManager {
       projectName: options.projectName,
       callsign: options.callsign,
     };
+    // Route assistant text into the black box only. The intercom is an
+    // explicit MCP tool the agent invokes (see createIntercomMcpServer);
+    // the adapter does not emit onMessage events for tool-triggered
+    // intercom posts, so this sink stays focused on raw assistant output.
     if (this._outputSink !== undefined) {
       const sink = this._outputSink;
       adapter.onMessage(handle, (msg) => {
@@ -256,6 +263,9 @@ export class AgentManager {
       });
     }
     if (this._intercomSink !== undefined) {
+      // Legacy path, retained for backwards compatibility with adapters
+      // that still emit intercom events via onMessage. The production
+      // daemon no longer supplies this sink.
       const sink = this._intercomSink;
       adapter.onMessage(handle, (msg) => {
         sink(msgCtx, msg);

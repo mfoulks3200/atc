@@ -13,4 +13,5 @@ export {
   type ClaudeAgentSdkAdapterDeps,
   type QueryFn,
 } from "./adapter.js";
-export { buildSystemPrompt } from "./prompt-builder.js";
+export { buildSystemPrompt, deriveSeat } from "./prompt-builder.js";
+export { createIntercomMcpServer, type IntercomToolContext } from "./intercom-tool.js";

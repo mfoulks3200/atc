@@ -163,9 +163,17 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("/checklist");
   });
 
-  it("shows the pilot's own id as the intercom from field", () => {
+  it("instructs the agent to use intercom_send rather than curl for broadcasting", () => {
     const prompt = buildSystemPrompt(baseCraft, "pilot-002", "demo-project");
-    expect(prompt).toContain('"from":"pilot-002"');
+    expect(prompt).toContain("intercom_send");
+    expect(prompt).toContain("not curl");
+  });
+
+  it("distinguishes private assistant output from the shared intercom channel", () => {
+    const prompt = buildSystemPrompt(baseCraft, "pilot-001", "demo-project");
+    expect(prompt).toContain("two separate communication channels");
+    expect(prompt).toContain("private");
+    expect(prompt).toContain("INTERCOM RECEIVED");
   });
 
   it("includes intercom etiquette 3W principle", () => {

@@ -30,7 +30,8 @@ import type {
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { query as defaultQuery } from "@anthropic-ai/claude-agent-sdk";
-import { buildSystemPrompt } from "./prompt-builder.js";
+import { buildSystemPrompt, deriveSeat } from "./prompt-builder.js";
+import { createIntercomMcpServer } from "./intercom-tool.js";
 
 /**
  * Default Claude model used by the adapter.
@@ -158,10 +159,25 @@ function toSdkMcpServers(
 }
 
 /**
- * Build an {@link SDKUserMessage} from an {@link IntercomMessage}.
+ * Build an {@link SDKUserMessage} that delivers an inbound intercom message
+ * as a clearly-labeled system-style notification in the agent's context.
+ *
+ * The wrapper tags the payload as an incoming radio transmission (not the
+ * primary conversation) so the agent understands this is a side-channel
+ * notification and should decide whether/how to respond via the
+ * `intercom_send` tool — not by replying inline.
  */
 function toSdkUserMessage(msg: IntercomMessage): SDKUserMessage {
-  const text = `[intercom] ${msg.from} (${msg.seat}): ${msg.content}`;
+  const text = [
+    `[INTERCOM RECEIVED] A new message has arrived on the craft intercom:`,
+    ``,
+    `  From: ${msg.from} (${msg.seat})`,
+    `  Content: ${msg.content}`,
+    ``,
+    `Decide whether a reply is warranted. If so, broadcast it via the`,
+    `\`intercom_send\` tool — do not reply inline, as your regular output is`,
+    `not sent to the intercom. Follow the 3W principle and end with "Over".`,
+  ].join("\n");
   return {
     type: "user",
     parent_tool_use_id: null,
@@ -228,6 +244,7 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
     // extension so route handlers can add local context without replacing the
     // core briefing.
     const pilotIdForPrompt = options.pilotId ?? options.craft.captain;
+    const seat = deriveSeat(options.craft, pilotIdForPrompt);
     const autoPrompt = buildSystemPrompt(
       options.craft,
       pilotIdForPrompt,
@@ -238,6 +255,17 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
         ? `${autoPrompt}\n\n---\n\n## Project-specific notes\n\n${options.systemPrompt}`
         : autoPrompt;
 
+    // Expose the intercom as an explicit tool. The pilot must deliberately
+    // call `intercom_send` to broadcast to the crew — their internal
+    // reasoning and file-edit commentary are never auto-forwarded.
+    const intercomServer = createIntercomMcpServer({
+      daemonUrl: "http://localhost:7700",
+      projectName: options.projectName,
+      callsign: options.craft.callsign,
+      pilotId: pilotIdForPrompt,
+      seat,
+    });
+
     const sdkOptions: Options = {
       cwd: options.worktreePath,
       model:
@@ -245,7 +273,10 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
           ? options.adapterConfig.model
           : DEFAULT_MODEL,
       systemPrompt: finalSystemPrompt,
-      mcpServers: toSdkMcpServers(options.mcpServers),
+      mcpServers: {
+        ...toSdkMcpServers(options.mcpServers),
+        "atc-intercom": intercomServer,
+      },
       permissionMode: "bypassPermissions",
       allowDangerouslySkipPermissions: true,
     };
