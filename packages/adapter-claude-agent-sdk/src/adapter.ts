@@ -32,6 +32,7 @@ import type {
 import { query as defaultQuery } from "@anthropic-ai/claude-agent-sdk";
 import { buildSystemPrompt, deriveSeat } from "./prompt-builder.js";
 import { createIntercomMcpServer } from "./intercom-tool.js";
+import { createControlsCanUseTool } from "./controls-enforcer.js";
 
 /**
  * Default Claude model used by the adapter.
@@ -266,6 +267,18 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
       seat,
     });
 
+    // Runtime enforcer for RULE-CTRL-3. Inspects every tool call and denies
+    // file modifications (Edit, Write, MultiEdit, NotebookEdit, Bash) when
+    // the pilot does not currently hold controls for the target path.
+    const canUseTool = createControlsCanUseTool({
+      daemonUrl: "http://localhost:7700",
+      projectName: options.projectName,
+      callsign: options.craft.callsign,
+      pilotId: pilotIdForPrompt,
+      seat,
+      worktreePath: options.worktreePath,
+    });
+
     const sdkOptions: Options = {
       cwd: options.worktreePath,
       model:
@@ -277,8 +290,14 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
         ...toSdkMcpServers(options.mcpServers),
         "atc-intercom": intercomServer,
       },
-      permissionMode: "bypassPermissions",
-      allowDangerouslySkipPermissions: true,
+      // acceptEdits auto-accepts file edit operations without interactive
+      // prompts (no human is at the keyboard). RULE-CTRL-3 is still enforced
+      // via `canUseTool` — the SDK consults it on every tool call before
+      // running, regardless of permissionMode.
+      permissionMode: "acceptEdits",
+      canUseTool: canUseTool as unknown as Options["canUseTool"],
+      // Intentionally NOT setting allowDangerouslySkipPermissions — that
+      // flag would skip `canUseTool`, which is where RULE-CTRL-3 lives.
     };
 
     const q = this._query({ prompt: channel.iterable, options: sdkOptions });

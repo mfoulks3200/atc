@@ -15,3 +15,13 @@ export {
 } from "./adapter.js";
 export { buildSystemPrompt, deriveSeat } from "./prompt-builder.js";
 export { createIntercomMcpServer, type IntercomToolContext } from "./intercom-tool.js";
+export {
+  createControlsCanUseTool,
+  decideForFileModification,
+  decideForBash,
+  normalizeFilePath,
+  isFileInPilotArea,
+  type ControlsSnapshot,
+  type ControlsEnforcerContext,
+  type EnforcementDecision,
+} from "./controls-enforcer.js";

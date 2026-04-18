@@ -171,7 +171,10 @@ describe("ClaudeAgentSdkAdapter", () => {
     expect(session.options?.systemPrompt).toContain("ALPHA-1");
     expect(session.options?.systemPrompt).toContain("Project-specific notes");
     expect(session.options?.systemPrompt).toContain("You are a pilot.");
-    expect(session.options?.permissionMode).toBe("bypassPermissions");
+    expect(session.options?.permissionMode).toBe("acceptEdits");
+    // RULE-CTRL-3 is enforced via canUseTool — `acceptEdits` disables
+    // interactive prompts, but canUseTool is still consulted.
+    expect(session.options?.canUseTool).toBeTypeOf("function");
   });
 
   it("launch uses only the auto-built briefing when caller systemPrompt is empty", async () => {
