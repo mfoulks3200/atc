@@ -2,13 +2,11 @@ const BASE_URL = import.meta.env.VITE_DAEMON_URL ?? "";
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${BASE_URL}${path}`;
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
+  const headers: Record<string, string> = { ...options.headers as Record<string, string> };
+  if (options.body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+  const response = await fetch(url, { ...options, headers });
 
   if (response.status === 204) {
     return null as T;
