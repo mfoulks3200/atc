@@ -7,6 +7,7 @@ import { FlightStrip } from "@/components/base/flight-strip";
 import { EventRow } from "@/components/base/event-row";
 import { PageHeader } from "@/components/base/page-header";
 import { FlightRadar } from "@/components/base/flight-radar";
+import { SpotlightAutoStart } from "@/components/spotlight";
 import type { WsEvent, CraftState } from "@/types/api";
 
 const MAX_EVENTS = 50;
@@ -28,8 +29,12 @@ export function Component() {
     return () => window.removeEventListener("atc-ws-event", handler);
   }, []);
 
+  const hasAnyProject = (projects?.length ?? 0) > 0;
+  const projectsLoaded = projects !== undefined;
+
   return (
     <div>
+      <SpotlightAutoStart tourId="first-run" when={projectsLoaded && !hasAnyProject} />
       <PageHeader crumbs={[{ label: "Dashboard" }]} />
       <div className="mt-5">
         <FlightRadar />
