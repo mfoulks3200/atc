@@ -158,6 +158,18 @@ export class AgentManager {
     this._adapters.set(options.agentId, options.adapterType);
     this._attachOutputPipe(options.agentId, options.projectName, options.callsign, handle);
 
+    if (this._outputSink !== undefined) {
+      const sink = this._outputSink;
+      const ctx: OutputContext = {
+        agentId: options.agentId,
+        projectName: options.projectName,
+        callsign: options.callsign,
+      };
+      adapter.onMessage(handle, (msg) => {
+        sink(ctx, { text: msg.content, stream: "stdout", timestamp: new Date() });
+      });
+    }
+
     const record: AgentRecord = {
       id: options.agentId,
       adapterType: options.adapterType,

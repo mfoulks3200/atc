@@ -10,6 +10,7 @@
  */
 
 import { join } from "node:path";
+import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { CraftStatus, BlackBoxEntryType } from "@airtrafficcontrol/types";
@@ -254,6 +255,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
           callsign,
           "worktree",
         );
+        mkdirSync(worktreePath, { recursive: true });
         try {
           await manager.launch({
             agentId,

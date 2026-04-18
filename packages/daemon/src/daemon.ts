@@ -30,6 +30,7 @@ import type { GlobalConfig, ProjectMetadataConfig } from "./config/schema.js";
 import { ChannelRegistry } from "./server/websocket/channels.js";
 import { appendBlackBoxEntryWithRegistry } from "./server/routes/blackbox-helpers.js";
 import { BlackBoxEntryType } from "@airtrafficcontrol/types";
+import { ClaudeAgentSdkAdapter } from "@airtrafficcontrol/adapter-claude-agent-sdk";
 
 /** Path of the PID file relative to the profile directory. */
 const PID_FILE = "daemon.pid";
@@ -119,6 +120,7 @@ export class Daemon {
     await pilotStore.load();
 
     const adapterRegistry = new AdapterRegistry();
+    adapterRegistry.register("claude-agent-sdk", new ClaudeAgentSdkAdapter());
     const channelRegistry = new ChannelRegistry();
     const agentManager = new AgentManager({
       adapterRegistry,

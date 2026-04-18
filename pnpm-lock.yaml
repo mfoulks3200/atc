@@ -78,6 +78,9 @@ importers:
 
   packages/daemon:
     dependencies:
+      '@airtrafficcontrol/adapter-claude-agent-sdk':
+        specifier: workspace:*
+        version: link:../adapter-claude-agent-sdk
       '@airtrafficcontrol/checklist':
         specifier: workspace:*
         version: link:../checklist

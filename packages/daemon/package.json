@@ -11,6 +11,7 @@
     "seed:demo": "node --import tsx src/seed-demo-cli.ts"
   },
   "dependencies": {
+    "@airtrafficcontrol/adapter-claude-agent-sdk": "workspace:*",
     "@airtrafficcontrol/checklist": "workspace:*",
     "@airtrafficcontrol/core": "workspace:*",
     "@airtrafficcontrol/errors": "workspace:*",
