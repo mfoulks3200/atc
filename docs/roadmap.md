@@ -24,6 +24,30 @@ The minimum work required to get a single craft from creation through an actual 
 
 - [ ] **First-run seeding / onboarding** — A fresh daemon has no projects, no pilots, and no crafts, so a new user faces four empty screens before they can try anything. Add a "Create your first project" empty state on the projects list that walks the user through project → pilot → craft in sequence, or alternatively provide a `pnpm run seed:demo` script that creates a throwaway project with one captain pilot and a sample 2-vector flight plan pointing at a local scratch repo. _Packages: web or daemon (pick one)_
 
+### MVP followups
+
+Surfaced while implementing the MVP on the `worktree-humble-snacking-kitten` branch. None block the core loop but all are needed before it is production-quality.
+
+- [ ] **Register the Claude Agent SDK adapter at daemon startup** — `AdapterRegistry` is empty in production: nothing calls `register("claude-agent-sdk", new ClaudeAgentSdkAdapter())`. The craft launch route's spawn path is therefore dead code. The blocker is a workspace dependency cycle: `adapter-claude-agent-sdk` already depends on `daemon` for the `AgentAdapter` interface types. Fix by moving `AgentAdapter`, `AgentHandle`, and `AgentLaunchOptions` out of `packages/daemon/src/adapters/adapter.ts` into `@airtrafficcontrol/types`, then having daemon depend on the adapter package and register it in `Daemon.start()`. _Packages: types, daemon, adapter-claude-agent-sdk_
+
+- [ ] **Remove the redundant `/api/v1/agents/launch` route** — The unified craft launch route now owns both the state transition and the agent spawn. `POST /api/v1/agents/launch` is a second, unused launch path that can be deleted once the adapter registration above lands. _Packages: daemon_
+
+- [ ] **Add a real `Launching` intermediate state** — The spec and operating manual reference `Launching` but the daemon transitions `Taxiing → InFlight` in one step. Either add `Launching` to `CraftStatus` and `TRANSITIONS` or scrub it from the spec. _Packages: types, core, daemon, docs_
+
+- [ ] **Enforce RULE-PILOT-2 at launch time** — Neither launch route validates that the captain is certified for the craft's category. Add a daemon-side precondition check. _Packages: daemon_
+
+- [ ] **Real approval flow for agent file edits** — The adapter runs with `permissionMode: "bypassPermissions"`. Replace with a real approval mechanism before running ATC against important code. _Packages: adapter-claude-agent-sdk, daemon, web_
+
+- [ ] **Resolve the `@anthropic-ai/claude-agent-sdk` zod@4 peer-dep mismatch** — The SDK requires `zod@^4` but the repo uses `zod@3.25.76`. Currently a warning; will break once anything imports SDK-reexported zod types. _Packages: adapter-claude-agent-sdk_
+
+- [ ] **Relax or document RULE-TMRG-2 so the merge-conflict path is reachable** — With strict RULE-TMRG-2 (main must be ancestor), a real merge can never conflict. The conflict → `GoAround` path is unit-tested via a stub but unreachable end-to-end. _Packages: tower, docs_
+
+- [ ] **Smoke-test the MVP loop in a real browser** — Activity feed and launch button were implemented in sandboxed agents with no browser access. Unit/build coverage is solid but nobody has clicked Launch and watched it populate live. _Packages: —_
+
+- [ ] **Stop duplicating domain types in `packages/web/src/types/api.ts`** — The web package hand-mirrors enums from `@airtrafficcontrol/types`. The MVP added 12 new `BlackBoxEntryType` variants that each had to be re-added by hand. Import types directly. _Packages: web_
+
+- [ ] **Fix `pnpm run build` TS6305/TS6306 composite errors in `packages/web`** — `pnpm run build` at the repo root fails on pre-existing TypeScript project-reference errors in the web package, even though `vite build` and `tsc --noEmit` succeed individually. Blocks using `pnpm run build` as the project-wide green light. _Packages: web_
+
 ## Pilot Management
 
 - [x] **Wire up pilot creation modal** — The `CreatePilotModal` component exists but is not accessible from the pilots list view. Add a trigger button to the list page that opens it. _Packages: web_
