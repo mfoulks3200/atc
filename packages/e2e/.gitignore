@@ -3,3 +3,8 @@ test-results
 playwright-report
 screenshots
 .playwright
+# Compiled JS artifacts from accidental tsc --build runs (tsconfig has noEmit: true)
+**/*.js
+**/*.js.map
+**/*.d.ts
+**/*.d.ts.map
