@@ -78,7 +78,10 @@ export function pickPlacement(
   }
 
   const order: Exclude<PlacementSide, "center">[] = preferredSide
-    ? [preferredSide, ...(["bottom", "top", "right", "left"] as const).filter((s) => s !== preferredSide)]
+    ? [
+        preferredSide,
+        ...(["bottom", "top", "right", "left"] as const).filter((s) => s !== preferredSide),
+      ]
     : ["bottom", "top", "right", "left"];
 
   for (const side of order) {

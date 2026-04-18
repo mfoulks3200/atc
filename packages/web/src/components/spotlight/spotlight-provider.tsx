@@ -116,7 +116,18 @@ export function SpotlightProvider({ tours, children }: SpotlightProviderProps) {
       isComplete,
       getTour,
     }),
-    [activeTourId, activeStepIndex, start, restart, stop, complete, next, back, isComplete, getTour],
+    [
+      activeTourId,
+      activeStepIndex,
+      start,
+      restart,
+      stop,
+      complete,
+      next,
+      back,
+      isComplete,
+      getTour,
+    ],
   );
 
   return (
