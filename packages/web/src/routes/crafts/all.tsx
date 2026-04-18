@@ -4,7 +4,7 @@ import { useAllCrafts, type CraftWithProject } from "@/hooks/use-api";
 import { PageHeader } from "@/components/base/page-header";
 import { StatusBadge } from "@/components/base/status-badge";
 import { VectorProgress } from "@/components/base/vector-progress";
-import { FlightPlanHero } from "@/components/base/flight-plan-hero";
+import { MiniRadar } from "@/components/base/mini-radar";
 import { STATUS_COLORS } from "@/theme/tokens";
 import type { CraftStatus } from "@/types/api";
 
@@ -278,13 +278,14 @@ function CraftCard({ craft }: { craft: CraftWithProject }) {
         </div>
       </div>
 
-      {/* Mini-radar — the per-card "widget". Reuses FlightPlanHero in a
-          shorter container so the arc visual stays consistent with the
-          detail page. */}
-      <div className="px-2 py-1" style={{ height: "120px", overflow: "hidden" }}>
-        <div style={{ transform: "scale(0.55)", transformOrigin: "top left", width: "182%" }}>
-          <FlightPlanHero craft={craft} />
-        </div>
+      {/* Mini-radar — the per-card "widget". Shares vocabulary with the
+          detail-page hero (arc, waypoints, plane) but stripped of HUD
+          chrome so it fits the card without cropping. */}
+      <div
+        className="border-b px-2 py-3"
+        style={{ borderColor: "var(--border)", backgroundColor: "var(--bg-base)" }}
+      >
+        <MiniRadar craft={craft} height={100} />
       </div>
 
       <div className="border-t p-3" style={{ borderColor: "var(--border)" }}>
