@@ -60,6 +60,17 @@ export function useCraft(project: string, callsign: string) {
   });
 }
 
+/** Cross-project craft listing — every craft tagged with its projectName. */
+export type CraftWithProject = CraftState & { projectName: string };
+
+export function useAllCrafts() {
+  return useQuery({
+    queryKey: ["crafts", "all"],
+    queryFn: () => apiClient.get<CraftWithProject[]>("/api/v1/crafts"),
+    refetchInterval: 5_000,
+  });
+}
+
 export function useCraftBlackBox(project: string, callsign: string) {
   return useQuery({
     queryKey: queryKeys.crafts.blackBox(project, callsign),

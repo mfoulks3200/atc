@@ -7,6 +7,7 @@ import { GlobalHoldSwitch } from "./global-hold-switch";
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: "◈" },
   { to: "/projects", label: "Projects", icon: "⊡" },
+  { to: "/crafts", label: "Crafts", icon: "✈" },
   { to: "/pilots", label: "Pilots", icon: "◇" },
   { to: "/events", label: "Event Stream", icon: "≋" },
   { to: "/settings", label: "Settings", icon: "⚙" },

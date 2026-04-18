@@ -24,6 +24,7 @@ const router = createBrowserRouter([
       { index: true, lazy: () => import("@/routes/dashboard") },
       { path: "projects", lazy: () => import("@/routes/projects/list") },
       { path: "projects/:name", lazy: () => import("@/routes/projects/detail") },
+      { path: "crafts", lazy: () => import("@/routes/crafts/all") },
       { path: "projects/:name/crafts/new", lazy: () => import("@/routes/crafts/create") },
       { path: "projects/:name/crafts/:callsign", lazy: () => import("@/routes/crafts/detail") },
       { path: "projects/:name/tower", lazy: () => import("@/routes/tower") },
