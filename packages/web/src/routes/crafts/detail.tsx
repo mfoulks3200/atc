@@ -1,5 +1,6 @@
 import { useParams } from "react-router";
-import { useCraft, useCraftBlackBox, useCraftIntercom, useCraftVectors, useCraftChecklistRuns } from "@/hooks/use-api";
+import { useState } from "react";
+import { useCraft, useCraftBlackBox, useCraftIntercom, useCraftVectors, useCraftChecklistRuns, useSendIntercom } from "@/hooks/use-api";
 import { useWsManager } from "@/hooks/ws-context";
 import { useSubscription } from "@/hooks/use-subscription";
 import { PageHeader } from "@/components/base/page-header";
@@ -38,6 +39,17 @@ export function Component() {
   const { data: intercom } = useCraftIntercom(name!, callsign!);
   const { data: vectors } = useCraftVectors(name!, callsign!);
   const { data: checklistRuns } = useCraftChecklistRuns(name!, callsign!);
+  const sendIntercom = useSendIntercom(name!, callsign!);
+  const [intercomText, setIntercomText] = useState("");
+  const [intercomFrom, setIntercomFrom] = useState("operator");
+
+  function handleSendIntercom(e: React.FormEvent) {
+    e.preventDefault();
+    const text = intercomText.trim();
+    if (!text) return;
+    sendIntercom.mutate({ from: intercomFrom, seat: "jumpseat", content: text });
+    setIntercomText("");
+  }
 
   if (!craft) {
     return <div className="py-8 text-center text-xs" style={{ color: "var(--text-dim)" }}>Loading...</div>;
@@ -122,6 +134,32 @@ export function Component() {
             {intercom.map((msg, i) => <IntercomMessage key={`${msg.timestamp}-${i}`} message={msg} />)}
           </div>
         )}
+        <form onSubmit={handleSendIntercom} className="mt-3 flex gap-2">
+          <input
+            type="text"
+            placeholder="From (call sign)"
+            value={intercomFrom}
+            onChange={(e) => setIntercomFrom(e.target.value)}
+            className="w-28 rounded px-2 py-1.5 text-xs"
+            style={{ backgroundColor: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-primary)", outline: "none" }}
+          />
+          <input
+            type="text"
+            placeholder="Send a message to the crew…"
+            value={intercomText}
+            onChange={(e) => setIntercomText(e.target.value)}
+            className="min-w-0 flex-1 rounded px-2 py-1.5 text-xs"
+            style={{ backgroundColor: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-primary)", outline: "none" }}
+          />
+          <button
+            type="submit"
+            disabled={!intercomText.trim() || sendIntercom.isPending}
+            className="rounded px-3 py-1.5 text-xs font-medium"
+            style={{ backgroundColor: "var(--accent-green)", color: "#000", opacity: (!intercomText.trim() || sendIntercom.isPending) ? 0.4 : 1 }}
+          >
+            Send
+          </button>
+        </form>
       </div>
     </div>
   );

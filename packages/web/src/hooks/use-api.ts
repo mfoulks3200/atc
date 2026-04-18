@@ -76,6 +76,17 @@ export function useCraftIntercom(project: string, callsign: string) {
   });
 }
 
+export function useSendIntercom(project: string, callsign: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { from: string; seat: string; content: string }) =>
+      apiClient.post(`/api/v1/projects/${project}/crafts/${callsign}/intercom`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.crafts.intercom(project, callsign) });
+    },
+  });
+}
+
 export function useCraftVectors(project: string, callsign: string) {
   return useQuery({
     queryKey: queryKeys.crafts.vectors(project, callsign),
