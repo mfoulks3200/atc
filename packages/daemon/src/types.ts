@@ -281,11 +281,35 @@ export type WsClientMessage =
   | { type: "config.patch"; scope: "global"; body: Record<string, unknown>; requestId: string }
   | { type: "config.replace"; scope: "global"; body: Record<string, unknown>; requestId: string }
   | { type: "config.unset"; scope: "global"; key: string; requestId: string }
-  | { type: "config.patch"; scope: "project"; project: string; body: Record<string, unknown>; requestId: string }
-  | { type: "config.replace"; scope: "project"; project: string; body: Record<string, unknown>; requestId: string }
+  | {
+      type: "config.patch";
+      scope: "project";
+      project: string;
+      body: Record<string, unknown>;
+      requestId: string;
+    }
+  | {
+      type: "config.replace";
+      scope: "project";
+      project: string;
+      body: Record<string, unknown>;
+      requestId: string;
+    }
   | { type: "config.unset"; scope: "project"; project: string; key: string; requestId: string }
-  | { type: "config.patch"; scope: "pilot"; pilotId: string; body: Record<string, unknown>; requestId: string }
-  | { type: "config.replace"; scope: "pilot"; pilotId: string; body: Record<string, unknown>; requestId: string }
+  | {
+      type: "config.patch";
+      scope: "pilot";
+      pilotId: string;
+      body: Record<string, unknown>;
+      requestId: string;
+    }
+  | {
+      type: "config.replace";
+      scope: "pilot";
+      pilotId: string;
+      body: Record<string, unknown>;
+      requestId: string;
+    }
   | { type: "config.unset"; scope: "pilot"; pilotId: string; key: string; requestId: string };
 
 /**

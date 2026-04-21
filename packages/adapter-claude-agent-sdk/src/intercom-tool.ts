@@ -44,9 +44,7 @@ export interface IntercomToolContext {
  * @param ctx - Routing context for this pilot's intercom traffic.
  * @returns An MCP server config ready to register with the SDK.
  */
-export function createIntercomMcpServer(
-  ctx: IntercomToolContext,
-): McpSdkServerConfigWithInstance {
+export function createIntercomMcpServer(ctx: IntercomToolContext): McpSdkServerConfigWithInstance {
   const intercomUrl = `${ctx.daemonUrl}/api/v1/projects/${ctx.projectName}/crafts/${ctx.callsign}/intercom`;
 
   return createSdkMcpServer({
@@ -113,9 +111,7 @@ export function createIntercomMcpServer(
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             return {
-              content: [
-                { type: "text", text: `Intercom POST threw: ${msg}` },
-              ],
+              content: [{ type: "text", text: `Intercom POST threw: ${msg}` }],
               isError: true,
             };
           }

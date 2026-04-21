@@ -106,6 +106,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
         callsign,
         launchOptions: {
           agentId,
+          projectName,
           worktreePath,
           craft,
           systemPrompt: captain.systemPrompt ?? "",

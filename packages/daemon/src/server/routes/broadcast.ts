@@ -83,11 +83,7 @@ export function publishCraftEvent(
  *
  * @see RULE-CRAFT-1
  */
-export function publishCraftRemoved(
-  app: FastifyInstance,
-  project: string,
-  callsign: string,
-): void {
+export function publishCraftRemoved(app: FastifyInstance, project: string, callsign: string): void {
   const timestamp = new Date().toISOString();
   const data = { project, callsign };
 

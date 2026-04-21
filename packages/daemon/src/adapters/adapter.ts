@@ -50,7 +50,9 @@ export interface AgentHandle {
    *
    * Returns an unsubscribe function so the manager can detach on stop.
    */
-  onExit?: (cb: (info: { code: number | null; signal: NodeJS.Signals | null }) => void) => () => void;
+  onExit?: (
+    cb: (info: { code: number | null; signal: NodeJS.Signals | null }) => void,
+  ) => () => void;
 }
 
 /**

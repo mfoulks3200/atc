@@ -53,7 +53,10 @@ export async function handleWsMessage(
 // Helpers
 // ------------------------------------------------------------------
 
-type ConfigMessage = Extract<WsClientMessage, { type: "config.patch" | "config.replace" | "config.unset" }>;
+type ConfigMessage = Extract<
+  WsClientMessage,
+  { type: "config.patch" | "config.replace" | "config.unset" }
+>;
 
 function sendConfigError(
   send: (data: WsServerMessage) => void,
@@ -179,11 +182,20 @@ function dispatchPilot(
   try {
     let merged: Record<string, unknown>;
     if (message.type === "config.patch") {
-      merged = pilotConfigStore.patch(pilotId, message.body as Parameters<PilotConfigStore["patch"]>[1]) as unknown as Record<string, unknown>;
+      merged = pilotConfigStore.patch(
+        pilotId,
+        message.body as Parameters<PilotConfigStore["patch"]>[1],
+      ) as unknown as Record<string, unknown>;
     } else if (message.type === "config.replace") {
-      merged = pilotConfigStore.replace(pilotId, message.body as Parameters<PilotConfigStore["replace"]>[1]) as unknown as Record<string, unknown>;
+      merged = pilotConfigStore.replace(
+        pilotId,
+        message.body as Parameters<PilotConfigStore["replace"]>[1],
+      ) as unknown as Record<string, unknown>;
     } else {
-      merged = pilotConfigStore.unset(pilotId, message.key as Parameters<PilotConfigStore["unset"]>[1]) as unknown as Record<string, unknown>;
+      merged = pilotConfigStore.unset(
+        pilotId,
+        message.key as Parameters<PilotConfigStore["unset"]>[1],
+      ) as unknown as Record<string, unknown>;
     }
     send({
       type: "config.ack",

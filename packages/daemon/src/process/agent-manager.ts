@@ -10,7 +10,12 @@
  * @see RULE-PILOT-1 for pilot lifecycle rules.
  */
 
-import type { AgentAdapter, AgentHandle, AgentLaunchOptions, AgentResumeContext } from "../adapters/adapter.js";
+import type {
+  AgentAdapter,
+  AgentHandle,
+  AgentLaunchOptions,
+  AgentResumeContext,
+} from "../adapters/adapter.js";
 import type { AdapterRegistry } from "../adapters/registry.js";
 import type { AgentStore } from "../state/agent-store.js";
 import type { AgentRecord, AgentStatus } from "../types.js";
@@ -207,10 +212,15 @@ export class AgentManager {
    *
    * @see RULE-CRAFT-5
    */
-  async sendMessage(callsign: string, message: import("../types.js").IntercomMessage): Promise<void> {
+  async sendMessage(
+    callsign: string,
+    message: import("../types.js").IntercomMessage,
+  ): Promise<void> {
     const recipients = this._agentStore
       .list()
-      .filter((r) => r.callsign === callsign && r.status === "running" && r.pilotId !== message.from);
+      .filter(
+        (r) => r.callsign === callsign && r.status === "running" && r.pilotId !== message.from,
+      );
     for (const record of recipients) {
       const handle = this._handles.get(record.id);
       if (handle === undefined) continue;
@@ -259,7 +269,7 @@ export class AgentManager {
     if (this._outputSink !== undefined) {
       const sink = this._outputSink;
       adapter.onMessage(handle, (msg) => {
-        sink(msgCtx, { text: msg.content, stream: "stdout", timestamp: new Date() });
+        sink(msgCtx, { text: msg.content, stream: "stdout", timestamp: new Date().toISOString() });
       });
     }
     if (this._intercomSink !== undefined) {

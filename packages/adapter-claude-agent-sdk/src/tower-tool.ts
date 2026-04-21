@@ -21,7 +21,6 @@
 
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { McpSdkServerConfigWithInstance } from "@anthropic-ai/claude-agent-sdk";
-import { z } from "zod";
 
 /**
  * Context a pilot agent needs in order to drive tower landing operations
@@ -40,9 +39,7 @@ export interface TowerToolContext {
  * Build an in-process MCP server exposing tower landing tools for the
  * bound craft.
  */
-export function createTowerMcpServer(
-  ctx: TowerToolContext,
-): McpSdkServerConfigWithInstance {
+export function createTowerMcpServer(ctx: TowerToolContext): McpSdkServerConfigWithInstance {
   const clearanceUrl = `${ctx.daemonUrl}/api/v1/projects/${ctx.projectName}/tower/clearance`;
   const mergeUrl = `${ctx.daemonUrl}/api/v1/projects/${ctx.projectName}/tower/merge`;
 
@@ -83,9 +80,7 @@ export function createTowerMcpServer(
               };
             }
             return {
-              content: [
-                { type: "text", text: `Clearance granted: ${body}` },
-              ],
+              content: [{ type: "text", text: `Clearance granted: ${body}` }],
             };
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
@@ -128,9 +123,7 @@ export function createTowerMcpServer(
               };
             }
             return {
-              content: [
-                { type: "text", text: `Merge result: ${body}` },
-              ],
+              content: [{ type: "text", text: `Merge result: ${body}` }],
             };
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);

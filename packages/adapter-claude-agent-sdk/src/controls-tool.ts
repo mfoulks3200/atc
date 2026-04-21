@@ -39,9 +39,7 @@ export interface ControlsToolContext {
  * The returned config can be registered alongside other MCP servers in the
  * adapter's `launch()` options.
  */
-export function createControlsMcpServer(
-  ctx: ControlsToolContext,
-): McpSdkServerConfigWithInstance {
+export function createControlsMcpServer(ctx: ControlsToolContext): McpSdkServerConfigWithInstance {
   const claimUrl = `${ctx.daemonUrl}/api/v1/projects/${ctx.projectName}/crafts/${ctx.callsign}/controls/claim`;
   const readUrl = `${ctx.daemonUrl}/api/v1/projects/${ctx.projectName}/crafts/${ctx.callsign}/controls`;
 

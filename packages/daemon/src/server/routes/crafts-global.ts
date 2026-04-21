@@ -26,18 +26,15 @@ interface ListCraftsQuery {
 type CraftWithProject = CraftState & { projectName: string };
 
 export async function craftsGlobalRoutes(app: FastifyInstance): Promise<void> {
-  app.get<{ Querystring: ListCraftsQuery }>(
-    "/api/v1/crafts",
-    async (request, reply) => {
-      const { status, project } = request.query;
-      const all = app.craftStore.listAll();
-      const filtered: CraftWithProject[] = [];
-      for (const { projectName, craft } of all) {
-        if (project && projectName !== project) continue;
-        if (status && craft.status !== status) continue;
-        filtered.push({ ...craft, projectName });
-      }
-      return reply.send(filtered);
-    },
-  );
+  app.get<{ Querystring: ListCraftsQuery }>("/api/v1/crafts", async (request, reply) => {
+    const { status, project } = request.query;
+    const all = app.craftStore.listAll();
+    const filtered: CraftWithProject[] = [];
+    for (const { projectName, craft } of all) {
+      if (project && projectName !== project) continue;
+      if (status && craft.status !== status) continue;
+      filtered.push({ ...craft, projectName });
+    }
+    return reply.send(filtered);
+  });
 }

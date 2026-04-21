@@ -12,6 +12,7 @@ import { IntercomMessage } from "@/components/base/intercom-message";
 import { ChecklistRunCard } from "@/components/base/checklist-run-card";
 import { FlightPlanHero } from "@/components/base/flight-plan-hero";
 import { LaunchButton } from "@/components/base/launch-button";
+import { CraftDiffView } from "@/components/craft-diff-view";
 import type { ChecklistRunResult } from "@/types/checklist";
 
 function groupRunsByChecklist(
@@ -167,6 +168,12 @@ export function Component() {
           </div>
         </div>
       )}
+      <div className="mt-4">
+        <div className="mb-2.5 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
+          DIFF
+        </div>
+        <CraftDiffView projectName={name!} callsign={callsign!} />
+      </div>
       <div className="mt-4">
         <ActivityFeed callsign={callsign!} initial={blackBox ?? craft.blackBox ?? []} />
       </div>

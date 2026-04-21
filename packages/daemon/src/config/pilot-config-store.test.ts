@@ -63,9 +63,9 @@ describe("PilotConfigStore", () => {
 
   it("throws UnknownConfigKeyError when unsetting an unknown key", () => {
     const { store } = makeStore();
-    expect(() => store.unset("pilot-4", "nonExistentKey" as keyof typeof PILOT_CONFIG_DEFAULTS)).toThrow(
-      UnknownConfigKeyError,
-    );
+    expect(() =>
+      store.unset("pilot-4", "nonExistentKey" as keyof typeof PILOT_CONFIG_DEFAULTS),
+    ).toThrow(UnknownConfigKeyError);
   });
 
   it("removes all overrides for a pilot", () => {

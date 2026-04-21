@@ -51,16 +51,15 @@ export function deriveSeat(
  * @see RULE-PILOT-1
  * @see RULE-SEAT-1 through RULE-SEAT-3
  */
-export function buildSystemPrompt(
-  craft: CraftState,
-  pilotId: string,
-  projectName: string,
-): string {
+export function buildSystemPrompt(craft: CraftState, pilotId: string, projectName: string): string {
   const seat = deriveSeat(craft, pilotId);
-  const seatLabel = seat === "firstOfficer" ? "First Officer" : seat === "captain" ? "Captain" : "Jumpseat";
+  const seatLabel =
+    seat === "firstOfficer" ? "First Officer" : seat === "captain" ? "Captain" : "Jumpseat";
 
   // --- Crew section ---
-  const crewLines: string[] = [`- Captain: ${craft.captain}${craft.captain === pilotId ? " (you)" : ""}`];
+  const crewLines: string[] = [
+    `- Captain: ${craft.captain}${craft.captain === pilotId ? " (you)" : ""}`,
+  ];
   for (const fo of craft.firstOfficers) {
     crewLines.push(`- First Officer: ${fo}${fo === pilotId ? " (you)" : ""}`);
   }
@@ -70,7 +69,8 @@ export function buildSystemPrompt(
 
   // --- Flight plan section ---
   const vectorLines = craft.flightPlan.map((v, i) => {
-    const tag = v.status === "Passed" ? "✓ PASSED" : v.status === "Failed" ? "✗ FAILED" : "○ PENDING";
+    const tag =
+      v.status === "Passed" ? "✓ PASSED" : v.status === "Failed" ? "✗ FAILED" : "○ PENDING";
     return `  ${i + 1}. [${tag}] ${v.name}\n     Criteria: ${v.acceptanceCriteria}`;
   });
   const nextVector = craft.flightPlan.find((v) => v.status === "Pending");
@@ -79,9 +79,10 @@ export function buildSystemPrompt(
   const controlsDesc =
     craft.controls.mode === "exclusive"
       ? `Exclusive — held by ${craft.controls.holder ?? "nobody"}`
-      : `Shared — areas: ${(craft.controls.sharedAreas ?? [])
-          .map((a) => `${a.pilotId} → ${a.area}`)
-          .join(", ") || "none declared"}`;
+      : `Shared — areas: ${
+          (craft.controls.sharedAreas ?? []).map((a) => `${a.pilotId} → ${a.area}`).join(", ") ||
+          "none declared"
+        }`;
 
   // --- Seat-specific authority section ---
   const seatSection =
@@ -267,7 +268,7 @@ export function buildSystemPrompt(
     "1. Read the request and decide (as captain, default to granting unless you",
     "   have a reason to hold — RULE-CTRL-6 lets you override in a dispute).",
     "",
-    "2. Call `controls_transfer({targetPilotId: \"<their id>\"})`.",
+    '2. Call `controls_transfer({targetPilotId: "<their id>"})`.',
     "",
     "3. Broadcast a confirmation via `intercom_send` so they know to proceed:",
     "```",
@@ -287,7 +288,7 @@ export function buildSystemPrompt(
     "### Landing — full sequence (captain runs this once all vectors pass)",
     "",
     "1. **Commit the branch.** Your worktree changes aren't merged unless",
-    "   they're committed. Run `git add -A && git commit -m \"...\"` in the",
+    '   they\'re committed. Run `git add -A && git commit -m "..."` in the',
     "   worktree via Bash. The tower verifies branch contents before merging.",
     "",
     "2. **Run the landing checklist** via the API:",

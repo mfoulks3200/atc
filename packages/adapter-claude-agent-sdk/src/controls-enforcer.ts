@@ -143,9 +143,7 @@ export function decideForFileModification(
   if (isFileInPilotArea(normalized, pilotId, controls)) {
     return { behavior: "allow" };
   }
-  const mine = (controls.sharedAreas ?? [])
-    .filter((a) => a.pilotId === pilotId)
-    .map((a) => a.area);
+  const mine = (controls.sharedAreas ?? []).filter((a) => a.pilotId === pilotId).map((a) => a.area);
   const mineDesc = mine.length > 0 ? mine.join(", ") : "(no areas assigned)";
   return {
     behavior: "deny",
@@ -163,14 +161,10 @@ export function decideForFileModification(
  * command will touch, so we use a coarse gate: if the pilot has ANY
  * controls authority on the craft, we allow; otherwise we deny.
  */
-export function decideForBash(
-  controls: ControlsSnapshot,
-  pilotId: string,
-): EnforcementDecision {
+export function decideForBash(controls: ControlsSnapshot, pilotId: string): EnforcementDecision {
   const exclusiveHolder = controls.mode === "exclusive" && controls.holder === pilotId;
   const hasSharedArea =
-    controls.mode === "shared" &&
-    (controls.sharedAreas ?? []).some((a) => a.pilotId === pilotId);
+    controls.mode === "shared" && (controls.sharedAreas ?? []).some((a) => a.pilotId === pilotId);
   if (exclusiveHolder || hasSharedArea) return { behavior: "allow" };
   return {
     behavior: "deny",
@@ -205,10 +199,7 @@ async function fetchControls(ctx: ControlsEnforcerContext): Promise<ControlsSnap
  */
 export function createControlsCanUseTool(
   ctx: ControlsEnforcerContext,
-): (
-  toolName: string,
-  input: Record<string, unknown>,
-) => Promise<EnforcementDecision> {
+): (toolName: string, input: Record<string, unknown>) => Promise<EnforcementDecision> {
   const allow = (input: Record<string, unknown>): EnforcementDecision => ({
     behavior: "allow",
     updatedInput: input,
@@ -236,12 +227,7 @@ export function createControlsCanUseTool(
           message: `Cannot evaluate controls for ${toolName}: no file_path/notebook_path in input.`,
         };
       }
-      const decision = decideForFileModification(
-        controls,
-        ctx.pilotId,
-        ctx.worktreePath,
-        filePath,
-      );
+      const decision = decideForFileModification(controls, ctx.pilotId, ctx.worktreePath, filePath);
       return decision.behavior === "allow" ? allow(input) : decision;
     }
 

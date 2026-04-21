@@ -98,9 +98,11 @@ function seatOf(
  * Build a runtime `SeatType` map for every pilot on the craft so the core
  * `shareControls()` helper can validate seat assignments (RULE-CTRL-2).
  */
-function crewSeatMap(
-  craft: { captain: string; firstOfficers: string[]; jumpseaters: string[] },
-): Map<string, SeatType> {
+function crewSeatMap(craft: {
+  captain: string;
+  firstOfficers: string[];
+  jumpseaters: string[];
+}): Map<string, SeatType> {
   const map = new Map<string, SeatType>();
   map.set(craft.captain, SeatType.Captain);
   for (const fo of craft.firstOfficers) map.set(fo, SeatType.FirstOfficer);
@@ -160,11 +162,7 @@ export async function controlsRoutes(app: FastifyInstance): Promise<void> {
 
       // RULE-CTRL-2: jumpseaters must not hold controls.
       try {
-        const nextControls = coreClaim(
-          toCoreControlState(craft.controls),
-          pilotId,
-          seat,
-        );
+        const nextControls = coreClaim(toCoreControlState(craft.controls), pilotId, seat);
 
         const previousSummary = summarizeControls(craft.controls);
         craft.controls = fromCoreControlState(nextControls);
@@ -224,9 +222,7 @@ export async function controlsRoutes(app: FastifyInstance): Promise<void> {
         const previousSummary = summarizeControls(craft.controls);
         craft.controls = fromCoreControlState(core);
 
-        const areaSummary = areas
-          .map((a) => `${a.pilotId}:${a.area}`)
-          .join(", ");
+        const areaSummary = areas.map((a) => `${a.pilotId}:${a.area}`).join(", ");
         appendBlackBoxEntry(
           app,
           name,
@@ -258,8 +254,6 @@ function summarizeControls(controls: ControlState): string {
   if (controls.mode === "exclusive") {
     return `exclusive holder=${controls.holder ?? "none"}`;
   }
-  const areas = (controls.sharedAreas ?? [])
-    .map((a) => `${a.pilotId}:${a.area}`)
-    .join(", ");
+  const areas = (controls.sharedAreas ?? []).map((a) => `${a.pilotId}:${a.area}`).join(", ");
   return `shared [${areas}]`;
 }

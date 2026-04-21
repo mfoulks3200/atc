@@ -140,10 +140,7 @@ export class Tower {
   async executeMerge(craft: Craft, executor: MergeExecutor): Promise<MergeOutcome> {
     const inQueue = this.queue.some((entry) => entry.craft.callsign === craft.callsign);
     if (!inQueue) {
-      throw new TowerError(
-        `Craft "${craft.callsign}" is not in the merge queue`,
-        "RULE-TMRG-4",
-      );
+      throw new TowerError(`Craft "${craft.callsign}" is not in the merge queue`, "RULE-TMRG-4");
     }
 
     const mainBranch = await executor.getMainBranch();

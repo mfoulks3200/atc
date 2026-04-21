@@ -63,7 +63,14 @@ export function appendBlackBoxEntry(
   type: BlackBoxEntryType,
   content: string,
 ): BlackBoxEntry {
-  return appendBlackBoxEntryWithRegistry(app.channelRegistry, project, craft, author, type, content);
+  return appendBlackBoxEntryWithRegistry(
+    app.channelRegistry,
+    project,
+    craft,
+    author,
+    type,
+    content,
+  );
 }
 
 /**

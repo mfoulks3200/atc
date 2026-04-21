@@ -15,6 +15,8 @@ import type {
   GlobalConfig,
   PilotConfig,
   ConfigResponse,
+  CraftDiffResponse,
+  CraftDiffFileResponse,
 } from "@/types/api";
 
 export function useHealth() {
@@ -114,6 +116,34 @@ export function useCraftVectors(project: string, callsign: string) {
     queryKey: queryKeys.crafts.vectors(project, callsign),
     queryFn: () =>
       apiClient.get<VectorState[]>(`/api/v1/projects/${project}/crafts/${callsign}/vectors`),
+  });
+}
+
+/**
+ * Fetches the list of files changed between the craft branch and its base branch.
+ * @see AIR-40
+ */
+export function useCraftDiff(projectName: string, callsign: string) {
+  return useQuery({
+    queryKey: queryKeys.crafts.diff(projectName, callsign),
+    queryFn: () =>
+      apiClient.get<CraftDiffResponse>(`/api/v1/projects/${projectName}/crafts/${callsign}/diff`),
+  });
+}
+
+/**
+ * Fetches the original/modified content pair for a single file in the craft diff.
+ * Disabled when `filePath` is null.
+ * @see AIR-40
+ */
+export function useCraftDiffFile(projectName: string, callsign: string, filePath: string | null) {
+  return useQuery({
+    queryKey: queryKeys.crafts.diffFile(projectName, callsign, filePath ?? ""),
+    queryFn: () =>
+      apiClient.get<CraftDiffFileResponse>(
+        `/api/v1/projects/${projectName}/crafts/${callsign}/diff/files/${encodeURIComponent(filePath!)}`,
+      ),
+    enabled: filePath !== null,
   });
 }
 
@@ -241,9 +271,7 @@ export function useLaunchCraft(project: string, callsign: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      apiClient.post<CraftState>(
-        `/api/v1/projects/${project}/crafts/${callsign}/launch`,
-      ),
+      apiClient.post<CraftState>(`/api/v1/projects/${project}/crafts/${callsign}/launch`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.crafts.detail(project, callsign) });
       queryClient.invalidateQueries({ queryKey: queryKeys.crafts.list(project) });

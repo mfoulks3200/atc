@@ -7,12 +7,7 @@ import type {
   AgentUsageReport,
   IntercomMessage,
 } from "@airtrafficcontrol/daemon";
-import type {
-  Options,
-  Query,
-  SDKMessage,
-  SDKUserMessage,
-} from "@anthropic-ai/claude-agent-sdk";
+import type { Options, Query, SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 
 interface FakeSession {
   options: Options | undefined;
@@ -230,7 +225,10 @@ describe("ClaudeAgentSdkAdapter", () => {
       },
     });
     const mcp = sdk.lastSession().options?.mcpServers as
-      | Record<string, { type?: string; command: string; args?: string[]; env?: Record<string, string> }>
+      | Record<
+          string,
+          { type?: string; command: string; args?: string[]; env?: Record<string, string> }
+        >
       | undefined;
     expect(mcp?.files).toEqual({
       type: "stdio",

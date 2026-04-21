@@ -8,6 +8,7 @@ import type { CraftState } from "@/types/api";
 function baseCraft(overrides: Partial<CraftState> = {}): CraftState {
   return {
     callsign: "NX-42",
+    createdAt: "2024-01-01T00:00:00.000Z",
     branch: "feat/test",
     cargo: "test cargo",
     category: "feature",

@@ -56,30 +56,24 @@ export async function projectConfigRoutes(app: FastifyInstance): Promise<void> {
   };
 
   // GET /api/v1/projects/:name/config
-  app.get<{ Params: { name: string } }>(
-    "/api/v1/projects/:name/config",
-    async (request, reply) => {
-      const store = requireStore(request.params.name, reply);
-      if (store === null) return;
-      return { config: store.get(), overrides: store.getOverrides() };
-    },
-  );
+  app.get<{ Params: { name: string } }>("/api/v1/projects/:name/config", async (request, reply) => {
+    const store = requireStore(request.params.name, reply);
+    if (store === null) return;
+    return { config: store.get(), overrides: store.getOverrides() };
+  });
 
   // PUT /api/v1/projects/:name/config
-  app.put<{ Params: { name: string } }>(
-    "/api/v1/projects/:name/config",
-    async (request, reply) => {
-      const store = requireStore(request.params.name, reply);
-      if (store === null) return;
-      try {
-        const merged = await store.replace(request.body as ProjectMetadataConfig);
-        return { config: merged };
-      } catch (err) {
-        const { statusCode, body } = mapError(err);
-        return reply.code(statusCode).send(body);
-      }
-    },
-  );
+  app.put<{ Params: { name: string } }>("/api/v1/projects/:name/config", async (request, reply) => {
+    const store = requireStore(request.params.name, reply);
+    if (store === null) return;
+    try {
+      const merged = await store.replace(request.body as ProjectMetadataConfig);
+      return { config: merged };
+    } catch (err) {
+      const { statusCode, body } = mapError(err);
+      return reply.code(statusCode).send(body);
+    }
+  });
 
   // PATCH /api/v1/projects/:name/config
   app.patch<{ Params: { name: string } }>(
