@@ -34,3 +34,9 @@ export {
   clearHoldingPattern,
 } from "./tfr.js";
 export type { CreateTfrParams } from "./tfr.js";
+
+export { slugifyTitle, generateCallsign } from "./callsign.js";
+export type { CallsignResult } from "./callsign.js";
+
+export { computeWorkloadScore, selectCaptain, selectFirstOfficers } from "./pilot-selection.js";
+export type { SelectionParams } from "./pilot-selection.js";
