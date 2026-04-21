@@ -12,3 +12,14 @@ export { TowerError } from "./tower.js";
 export { ConfigValidationError, UnknownConfigKeyError } from "./config.js";
 export type { ConfigScope, ConfigIssue } from "./config.js";
 export { TfrError } from "./tfr.js";
+export {
+  SpecError,
+  SpecParseError,
+  SpecValidationError,
+  UnknownCategoryError,
+  CallsignConflictError,
+  NoCertifiedPilotError,
+  PilotNotCertifiedError,
+  PilotRoleConflictError,
+  BranchCreationFailedError,
+} from "./sdd.js";

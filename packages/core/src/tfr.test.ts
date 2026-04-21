@@ -30,7 +30,7 @@ function makeCraft(overrides: Partial<Craft> = {}): Craft {
     branch: "feat/alpha",
     cargo: "Build alpha",
     category: "Backend Engineering",
-    captain: { identifier: "pilot-1", certifications: ["Backend Engineering"] },
+    captain: { identifier: "pilot-1", certifications: ["Backend Engineering"], selectionCount: 0 },
     firstOfficers: [],
     jumpseaters: [],
     flightPlan: [],

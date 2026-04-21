@@ -75,8 +75,8 @@ describe("CraftCategoryEnum", () => {
 });
 
 describe("BlackBoxEntryType", () => {
-  it("has exactly 21 entry types", () => {
-    expect(Object.values(BlackBoxEntryType)).toHaveLength(21);
+  it("has exactly 22 entry types", () => {
+    expect(Object.values(BlackBoxEntryType)).toHaveLength(22);
   });
 
   it("contains all entry types", () => {
@@ -103,5 +103,9 @@ describe("BlackBoxEntryType", () => {
     expect(BlackBoxEntryType.TowerEnqueued).toBe("TowerEnqueued");
     expect(BlackBoxEntryType.TowerDequeued).toBe("TowerDequeued");
     expect(BlackBoxEntryType.StateTransition).toBe("StateTransition");
+  });
+
+  it("includes SpecCreated entry type (RULE-SDD-16)", () => {
+    expect(BlackBoxEntryType.SpecCreated).toBe("SpecCreated");
   });
 });

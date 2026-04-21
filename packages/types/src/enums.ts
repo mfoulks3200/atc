@@ -141,4 +141,6 @@ export enum BlackBoxEntryType {
   MergeStale = "MergeStale",
   /** Tower attempted a merge but encountered conflicts. @see RULE-TMRG-3 */
   MergeConflict = "MergeConflict",
+  /** The craft was created from a spec document via SDD. @see RULE-SDD-16 */
+  SpecCreated = "SpecCreated",
 }

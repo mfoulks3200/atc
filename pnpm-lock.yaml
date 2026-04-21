@@ -178,7 +178,11 @@ importers:
         specifier: ^5.8.2
         version: 5.9.3
 
-  packages/errors: {}
+  packages/errors:
+    dependencies:
+      '@airtrafficcontrol/types':
+        specifier: workspace:*
+        version: link:../types
 
   packages/tower:
     dependencies:
