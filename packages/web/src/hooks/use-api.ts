@@ -15,8 +15,9 @@ import type {
   GlobalConfig,
   PilotConfig,
   ConfigResponse,
+  CraftDiffResponse,
+  CraftDiffFileResponse,
 } from "@/types/api";
-
 
 export function useHealth() {
   return useQuery({
@@ -69,6 +70,25 @@ export function useAllCrafts() {
     queryKey: ["crafts", "all"],
     queryFn: () => apiClient.get<CraftWithProject[]>("/api/v1/crafts"),
     refetchInterval: 5_000,
+  });
+}
+
+export function useCraftDiff(project: string, callsign: string) {
+  return useQuery({
+    queryKey: queryKeys.crafts.diff(project, callsign),
+    queryFn: () =>
+      apiClient.get<CraftDiffResponse>(`/api/v1/projects/${project}/crafts/${callsign}/diff`),
+  });
+}
+
+export function useCraftDiffFile(project: string, callsign: string, path: string | null) {
+  return useQuery({
+    queryKey: queryKeys.crafts.diffFile(project, callsign, path ?? ""),
+    queryFn: () =>
+      apiClient.get<CraftDiffFileResponse>(
+        `/api/v1/projects/${project}/crafts/${callsign}/diff/files/${path}`,
+      ),
+    enabled: path !== null,
   });
 }
 
@@ -242,9 +262,7 @@ export function useLaunchCraft(project: string, callsign: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      apiClient.post<CraftState>(
-        `/api/v1/projects/${project}/crafts/${callsign}/launch`,
-      ),
+      apiClient.post<CraftState>(`/api/v1/projects/${project}/crafts/${callsign}/launch`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.crafts.detail(project, callsign) });
       queryClient.invalidateQueries({ queryKey: queryKeys.crafts.list(project) });

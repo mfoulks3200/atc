@@ -19,7 +19,18 @@ vi.mock("../../checklist/runner.js", () => ({
   runChecklist: vi.fn(),
 }));
 
+vi.mock("../../git/merge.js", () => ({
+  getDefaultBranch: vi.fn().mockResolvedValue("main"),
+}));
+
+vi.mock("../../git/diff.js", () => ({
+  listChangedFiles: vi.fn().mockResolvedValue([]),
+  getFileAtRef: vi.fn().mockResolvedValue(null),
+  isFileBinary: vi.fn().mockResolvedValue(false),
+}));
+
 import { runChecklist } from "../../checklist/runner.js";
+import { listChangedFiles, getFileAtRef, isFileBinary } from "../../git/diff.js";
 
 describe("craft routes", () => {
   let app: FastifyInstance;
@@ -593,6 +604,123 @@ describe("craft routes", () => {
         payload: { pilotId: "pilot-2", reason: "I'm not the captain" },
       });
       expect(res.statusCode).toBe(403);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // GET /api/v1/projects/:name/crafts/:callsign/diff
+  // -------------------------------------------------------------------------
+
+  describe("GET /api/v1/projects/:name/crafts/:callsign/diff", () => {
+    it("returns 404 for unknown craft", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/v1/projects/${PROJECT}/crafts/ghost/diff`,
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("returns the file list with branch names", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts`,
+        payload: validCraftBody,
+      });
+
+      vi.mocked(listChangedFiles).mockResolvedValueOnce([
+        { path: "src/index.ts", status: "modified" },
+        { path: "src/new.ts", status: "added" },
+      ]);
+
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/diff`,
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.baseBranch).toBe("main");
+      expect(body.craftBranch).toBe("feat/alpha");
+      expect(body.files).toHaveLength(2);
+      expect(body.files[0].path).toBe("src/index.ts");
+      expect(body.files[0].status).toBe("modified");
+    });
+
+    it("returns empty files array when no changes", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts`,
+        payload: validCraftBody,
+      });
+
+      vi.mocked(listChangedFiles).mockResolvedValueOnce([]);
+
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/diff`,
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().files).toEqual([]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // GET /api/v1/projects/:name/crafts/:callsign/diff/files/*
+  // -------------------------------------------------------------------------
+
+  describe("GET /api/v1/projects/:name/crafts/:callsign/diff/files/*", () => {
+    it("returns 404 for unknown craft", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/v1/projects/${PROJECT}/crafts/ghost/diff/files/src/index.ts`,
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("returns original and modified content for a text file", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts`,
+        payload: validCraftBody,
+      });
+
+      vi.mocked(isFileBinary).mockResolvedValue(false);
+      vi.mocked(getFileAtRef)
+        .mockResolvedValueOnce("// original")
+        .mockResolvedValueOnce("// modified");
+
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/diff/files/src/index.ts`,
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.path).toBe("src/index.ts");
+      expect(body.original).toBe("// original");
+      expect(body.modified).toBe("// modified");
+    });
+
+    it("returns binary flag for binary files", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts`,
+        payload: validCraftBody,
+      });
+
+      vi.mocked(isFileBinary).mockResolvedValue(true);
+
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/diff/files/assets/logo.png`,
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.binary).toBe(true);
+      expect(body.original).toBeNull();
+      expect(body.modified).toBeNull();
     });
   });
 });

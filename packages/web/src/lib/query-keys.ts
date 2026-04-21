@@ -19,6 +19,9 @@ export const queryKeys = {
       ["crafts", project, callsign, "intercom"] as const,
     vectors: (project: string, callsign: string) =>
       ["crafts", project, callsign, "vectors"] as const,
+    diff: (project: string, callsign: string) => ["crafts", project, callsign, "diff"] as const,
+    diffFile: (project: string, callsign: string, path: string) =>
+      ["crafts", project, callsign, "diff", "file", path] as const,
   },
   agents: {
     list: () => ["agents"] as const,

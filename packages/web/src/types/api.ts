@@ -250,10 +250,8 @@ export const SDD_ERROR_MESSAGES: Record<SddErrorCode, string> = {
   UNKNOWN_CATEGORY: "Category does not match any project-configured categories.",
   CALLSIGN_CONFLICT:
     "This callsign is already in use. Remove the callsign override to auto-generate one.",
-  NO_CERTIFIED_PILOT:
-    "No available pilot holds the required certification for this category.",
-  PILOT_NOT_CERTIFIED:
-    "A named pilot does not hold the required certification for this category.",
+  NO_CERTIFIED_PILOT: "No available pilot holds the required certification for this category.",
+  PILOT_NOT_CERTIFIED: "A named pilot does not hold the required certification for this category.",
   PILOT_ROLE_CONFLICT: "The same pilot cannot be both captain and first officer.",
   BRANCH_CREATION_FAILED: "Git branch could not be created. The craft was not saved — try again.",
 };
@@ -271,4 +269,29 @@ export interface TfrState {
   issuedBy: "user" | "tower";
   issuedAt: string;
   liftedAt: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Craft diff types — used by the diff view component
+// ---------------------------------------------------------------------------
+
+/** A single file entry in a craft diff. */
+export interface DiffFile {
+  path: string;
+  status: "added" | "modified" | "deleted";
+}
+
+/** Response from GET /api/v1/projects/:name/crafts/:callsign/diff */
+export interface CraftDiffResponse {
+  baseBranch: string;
+  craftBranch: string;
+  files: DiffFile[];
+}
+
+/** Response from GET /api/v1/projects/:name/crafts/:callsign/diff/files/* */
+export interface CraftDiffFileResponse {
+  path: string;
+  original: string | null;
+  modified: string | null;
+  binary?: boolean;
 }
