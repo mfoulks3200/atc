@@ -197,6 +197,67 @@ export type WsClientMessage =
   | { type: "ping" }
   | { type: "pong" };
 
+// ---------------------------------------------------------------------------
+// Spec-Driven Development (SDD) types — §2.7 and §4.6
+// ---------------------------------------------------------------------------
+
+/** A single vector entry in a spec document. @see RULE-SDD-2 */
+export interface SpecVector {
+  name: string;
+  criteria: string[];
+}
+
+/** Pilot assignment overrides in a spec document. @see RULE-SDD-6 @see RULE-SDD-7 */
+export interface SpecPilots {
+  captain?: string;
+  firstOfficers?: string[];
+  requireCertifications?: string[];
+  maxFirstOfficers?: number;
+}
+
+/**
+ * Structured spec document submitted to ATC to automatically create a craft.
+ * @see RULE-SDD-1 through RULE-SDD-4
+ */
+export interface SpecDocument {
+  title: string;
+  cargo: string;
+  category: string;
+  vectors: SpecVector[];
+  callsign?: string;
+  autoLaunch?: boolean;
+  notes?: string;
+  pilots?: SpecPilots;
+  metadata?: Record<string, unknown>;
+}
+
+/** SDD error codes returned by POST /api/v1/projects/:name/crafts/from-spec. @see §4.6.8 */
+export type SddErrorCode =
+  | "SPEC_PARSE_ERROR"
+  | "SPEC_VALIDATION_ERROR"
+  | "UNKNOWN_CATEGORY"
+  | "CALLSIGN_CONFLICT"
+  | "NO_CERTIFIED_PILOT"
+  | "PILOT_NOT_CERTIFIED"
+  | "PILOT_ROLE_CONFLICT"
+  | "BRANCH_CREATION_FAILED";
+
+/** Human-readable messages for each SDD error code. */
+export const SDD_ERROR_MESSAGES: Record<SddErrorCode, string> = {
+  SPEC_PARSE_ERROR: "Spec document is malformed YAML/JSON — check syntax and try again.",
+  SPEC_VALIDATION_ERROR:
+    "Spec is missing required fields. Ensure title, cargo, category, and at least one vector are present.",
+  UNKNOWN_CATEGORY: "Category does not match any project-configured categories.",
+  CALLSIGN_CONFLICT:
+    "This callsign is already in use. Remove the callsign override to auto-generate one.",
+  NO_CERTIFIED_PILOT:
+    "No available pilot holds the required certification for this category.",
+  PILOT_NOT_CERTIFIED:
+    "A named pilot does not hold the required certification for this category.",
+  PILOT_ROLE_CONFLICT: "The same pilot cannot be both captain and first officer.",
+  BRANCH_CREATION_FAILED: "Git branch could not be created. The craft was not saved — try again.",
+};
+
 /**
  * Daemon representation of a Temporary Flight Restriction.
  * Mirrors the TfrState interface in @airtrafficcontrol/daemon.
