@@ -1,9 +1,12 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Status:** Draft
-**Date:** 2026-03-26
+**Date:** 2026-04-21
 **Brief:** [`docs/overview.md`](overview.md)
+
+**Changelog:**
+- 0.2.0 (2026-04-21): Add Spec-Driven Development protocol (§2.7, §4.6, RULE-SDD-1 through RULE-SDD-17).
 
 ## 1. Overview
 
@@ -39,6 +42,9 @@ This document is the authoritative reference for ATC's domain model, lifecycle, 
 | Origin Airport   | The spec/design stage; where crafts return on emergency.                         |
 | Emergency        | A declaration that a craft cannot be landed; triggers return to origin.          |
 | Temporary Flight Restriction (TFR) | An externally imposed pause on agent activity, scoped globally, per-project, or per-craft. |
+| Spec Document    | A structured YAML/JSON document that fully describes a proposed craft — cargo, category, vectors, and pilot hints — submitted to ATC to create a craft automatically. |
+| Spec-Driven Development (SDD) | The protocol by which ATC automatically creates and optionally launches a craft from a submitted spec document. |
+| Selection Count  | A per-pilot monotonic counter tracking how many times a pilot has been auto-selected as captain or first officer, used for equitable workload distribution in SDD. |
 
 ## 2. Domain Model
 
@@ -110,6 +116,7 @@ The **black box** is an append-only log maintained on every craft throughout its
 | `Merge`                 | The craft's branch was successfully merged into main by the tower (final lifecycle event before `Landed`). |
 | `MergeStale`            | Tower attempted a merge but the craft's branch was not up to date with main. The craft is sent on a go-around. |
 | `MergeConflict`         | Tower attempted a merge but encountered conflicts. The craft is sent on a go-around to resolve them. |
+| `SpecCreated`           | The craft was created from a spec document via SDD. Records the submitter identity, submission source, spec title, and whether autoLaunch was requested and executed or suppressed (with reason). The raw spec document is attached. |
 
 ##### Rules
 
@@ -124,10 +131,11 @@ A **pilot** is an autonomous agent that can be assigned to a craft. Each pilot h
 
 #### 2.2.1 Properties
 
-| Property       | Type       | Constraints                                              |
-| -------------- | ---------- | -------------------------------------------------------- |
-| Identifier     | `string`   | Unique across the system.                                |
-| Certifications | `string[]` | List of craft categories the pilot is certified to fly.  |
+| Property        | Type       | Constraints                                              |
+| --------------- | ---------- | -------------------------------------------------------- |
+| Identifier      | `string`   | Unique across the system.                                |
+| Certifications  | `string[]` | List of craft categories the pilot is certified to fly.  |
+| Selection Count | `number`   | Monotonic counter; incremented each time this pilot is auto-selected as captain or first officer via SDD. Persisted; used for equitable scheduling. Default: 0. |
 
 ##### Rules
 
@@ -283,6 +291,52 @@ A **Temporary Flight Restriction (TFR)** is an externally imposed constraint tha
 - **RULE-TFR-6:** While a craft's `holdingPattern` flag is `true`, no pilot on that craft MAY take any action — no code modifications, no vector reports, no checklist executions, no intercom messages, no control transfers.
 - **RULE-TFR-7:** Multiple TFRs MAY be active simultaneously. A craft is in a holding pattern if *any* active TFR applies to it (by global scope, matching project, or matching callsign).
 - **RULE-TFR-8:** Lifting a TFR clears the `holdingPattern` flag on all affected crafts that are not subject to another active TFR.
+
+### 2.7 Spec Document
+
+A **spec document** is a structured YAML or JSON document submitted to ATC to automatically create a craft. It is the machine-readable input to the Spec-Driven Development (SDD) protocol (see §4.6).
+
+#### Properties
+
+| Property                    | Type                                     | Required | Description |
+| --------------------------- | ---------------------------------------- | -------- | ----------- |
+| Title                       | `string`                                 | Yes      | Short name for the work. Used in callsign generation and search. |
+| Cargo                       | `string`                                 | Yes      | Full description of the change and its scope. Becomes the craft's `cargo`. |
+| Category                    | `CraftCategory`                          | Yes      | Craft category. Must match a project-configured category. |
+| Vectors                     | `SpecVector[]`                           | Yes      | Ordered list of flight-plan milestones. At least one required. |
+| Priority                    | `low \| medium \| high \| critical`      | No       | Default: `medium`. |
+| Auto Launch                 | `boolean`                                | No       | Default: `false`. Request immediate craft launch. Subject to layered safety guards (see §4.6.3). |
+| Callsign Override           | `string \| null`                         | No       | Explicit callsign. Must be unique. If absent, auto-generated (see §4.6.2). |
+| Pilots                      | `SpecPilotHints`                         | No       | Optional pilot assignment hints (see below). |
+| Notes                       | `string \| null`                         | No       | Markdown. Stored verbatim in the craft's black box at creation. |
+| Metadata                    | `Record<string, string>`                 | No       | Arbitrary key-value pairs stored in the black box. |
+
+**SpecVector:**
+
+| Field    | Type       | Required | Description |
+| -------- | ---------- | -------- | ----------- |
+| Name     | `string`   | Yes      | Short, descriptive milestone name. |
+| Criteria | `string[]` | Yes      | One or more acceptance criteria in natural language. Each criterion must be specific, binary, and testable. |
+
+**SpecPilotHints:**
+
+| Field                    | Type       | Description |
+| ------------------------ | ---------- | ----------- |
+| Captain                  | `string`   | Explicit pilot ID. If absent, auto-selected. |
+| First Officers           | `string[]` | Explicit first officer pilot IDs. |
+| Jumpseaters              | `string[]` | Explicit jumpseat pilot IDs. |
+| Require Certifications   | `string[]` | Additional certifications the auto-selected captain must hold. |
+| Exclude                  | `string[]` | Pilot IDs excluded from auto-selection. |
+
+#### Rules
+
+- **RULE-SDD-1:** A spec document MUST include `title`, `cargo`, `category`, and at least one entry in `vectors`. Submissions missing any required field MUST be rejected with `SPEC_VALIDATION_ERROR`.
+- **RULE-SDD-2:** Each vector entry MUST include a `name` and at least one non-empty string in `criteria`. A vector with no criteria MUST be rejected.
+- **RULE-SDD-3:** The `category` field MUST match one of the project-configured craft categories. An unknown category MUST be rejected with `UNKNOWN_CATEGORY`.
+- **RULE-SDD-4:** The `vectors` array MUST contain at least one entry.
+- **RULE-SDD-5:** If an explicit callsign override is provided, it MUST be unique across all crafts in the project. A collision MUST be rejected with `CALLSIGN_CONFLICT`.
+- **RULE-SDD-6:** If an explicit `pilots.captain` is provided, that pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
+- **RULE-SDD-7:** If explicit `pilots.firstOfficers` are provided, each listed pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
 
 ## 3. Craft Lifecycle
 
@@ -510,6 +564,125 @@ When a craft passes its landing checklist, the pilot requests landing clearance 
 - **RULE-TFRP-6:** TFR events MUST be posted as system notifications on each affected craft's intercom.
 - **RULE-TFRP-7:** The tower MUST maintain a log of all TFR events with full metadata.
 
+### 4.6 Spec-Driven Craft Creation Protocol
+
+**Spec-Driven Development (SDD)** is the process by which a spec document (§2.7) is submitted to ATC and automatically converted into a fully-initialized craft in the Taxiing state, optionally launched immediately.
+
+#### 4.6.1 Creation Procedure
+
+When a spec is submitted, ATC executes the following steps in order:
+
+1. **Parse** the spec document (YAML or JSON). On parse failure, return `SPEC_PARSE_ERROR`.
+2. **Validate** fields against RULE-SDD-1 through RULE-SDD-7. On failure, return `SPEC_VALIDATION_ERROR`, `UNKNOWN_CATEGORY`, `CALLSIGN_CONFLICT`, or `PILOT_NOT_CERTIFIED` as appropriate.
+3. **Dry-run exit** — if requested (RULE-SDD-15), return the would-be craft object without creating any records or branches.
+4. **Generate callsign** from the spec title if no override is provided (see §4.6.2).
+5. **Generate flight plan** — convert the `vectors` array into `Vector` objects in declaration order, each with status `Pending`.
+6. **Select pilots** via the auto-selection algorithm (see §4.6.4) for any unspecified seats.
+7. **Create git worktree branch** named `<callsign>` off the project's main branch. If this fails, return `BRANCH_CREATION_FAILED` — no craft record has been written.
+8. **Write craft record** in the `Taxiing` state to the craft store. If this fails, delete the worktree branch as a compensating action, then return the error.
+9. **Record black box entry** — append a `SpecCreated` entry recording: requester identity, submission source, spec title, notes, metadata, and whether `autoLaunch` was requested and whether it was executed or suppressed (RULE-SDD-16).
+10. **Evaluate autoLaunch** — if `autoLaunch: true` and all guards pass (RULE-SDD-11 through RULE-SDD-14), transition the craft to `InFlight` and start the captain's agent. Otherwise, record the suppression reason in the black box entry and leave the craft in `Taxiing`.
+11. **Return** the created craft object.
+
+**Rollback (compensating transaction):** Steps 7 and 8 are not atomic. The git branch is created first because it is the cheaper operation to compensate: if step 8 (craft store write) fails, the branch is deleted and the error returned. On daemon startup, a reconciliation scan removes orphaned worktree branches that have no corresponding craft store record.
+
+#### 4.6.2 Callsign Generation
+
+When no callsign override is provided, ATC generates a callsign deterministically:
+
+1. Slugify the spec `title` (lowercase; replace spaces and special characters with hyphens; collapse consecutive hyphens; trim).
+2. Truncate to 40 characters at a word boundary.
+3. Append a zero-padded monotonic counter persisted in the project config store: `<slug>-<NN>` (e.g., `add-oauth2-login-01`). The counter increments per spec-created craft; it MUST be persisted before the branch creation step.
+4. If the result collides with an existing craft callsign, increment the counter until unique.
+
+#### 4.6.3 AutoLaunch Safety
+
+`autoLaunch: true` in a spec requests that the craft transition from `Taxiing` to `InFlight` immediately after creation, spawning the captain's agent process. All of the following guards MUST pass; failure of any one suppresses `autoLaunch` and leaves the craft in `Taxiing`.
+
+- **RULE-SDD-11:** `autoLaunch` MUST be suppressed unless the project configuration explicitly sets `allowAutoLaunch: true`.
+- **RULE-SDD-12:** An active TFR covering the target project (global or project-scoped) MUST suppress `autoLaunch`, regardless of project opt-in. The craft is created with `holdingPattern: true` (consistent with RULE-TFR-5 and RULE-TFR-6).
+- **RULE-SDD-13:** The API key or session used to submit the spec MUST carry a `spec:autolaunch` permission scope. Keys with only `spec:submit` scope have `autoLaunch` suppressed even when the project allows it.
+- **RULE-SDD-14:** When a spec is submitted by an agent (identified by `agentId` in the request context), `autoLaunch` MUST be suppressed. An agent-created craft requires human or tower confirmation before transitioning to `InFlight`. This prevents runaway spawn chains.
+
+#### 4.6.4 Pilot Auto-Selection
+
+When no explicit captain is provided, ATC applies the following algorithm to select one:
+
+1. **Certification filter:** Collect all pilots certified for the spec's `category`.
+2. **Exclusion filter:** Remove pilots listed in `spec.pilots.exclude`.
+3. **Additional certification filter:** If `spec.pilots.requireCertifications` is non-empty, further filter to pilots holding all listed certifications.
+4. **Workload score:** For each remaining candidate, compute:
+   ```
+   workload_score = (active_captaincies × 1.0) + (active_fo_assignments × 0.5)
+   ```
+   where "active" means the craft's status is `Taxiing`, `InFlight`, or `LandingClearanceRequested`. The FO weight (`0.5`) is configurable via `pilotSelectionFoWeight` in project config (default: `0.5`).
+5. **Sort ascending** by workload score.
+6. **Tie-break** by `selectionCount` ascending — prefer the pilot selected least often across all auto-selection events.
+7. **Select** the top-scoring pilot and increment their `selectionCount`.
+8. **Reject** if no candidates remain: return `NO_CERTIFIED_PILOT`.
+
+The same algorithm (excluding the chosen captain) selects first officers when a minimum crew is configured for the category. Each auto-selected FO has their `selectionCount` incremented.
+
+##### Rules
+
+- **RULE-SDD-8:** Auto-selected captains MUST be certified for the craft's category (RULE-PILOT-2 applies).
+- **RULE-SDD-9:** If no certified pilot is available after all filters, the spec submission MUST fail with `NO_CERTIFIED_PILOT`. The error message MUST enumerate the required category, any additional `requireCertifications`, and the certifications held by each available pilot, so the operator knows which filter eliminated each candidate.
+- **RULE-SDD-10:** ATC MUST NOT assign the same pilot as both captain and first officer. This constraint MUST be checked explicitly before returning the selection.
+
+#### 4.6.5 Submission Interfaces
+
+Spec documents may be submitted through three interfaces:
+
+**REST API:**
+
+```
+POST /api/v1/projects/:name/crafts/from-spec
+Content-Type: application/json | application/yaml
+
+Query: ?dryRun=true  — validate without side effects (RULE-SDD-15)
+```
+
+The endpoint accepts YAML or JSON. A YAML body parser MUST be registered in the HTTP server for YAML submissions. The endpoint is not idempotent — duplicate callsigns are rejected with `CALLSIGN_CONFLICT`.
+
+**Spec Inbox (File Watch):**
+
+When a project is configured with a `specInbox` directory, ATC watches it. Files with a `.spec.yaml` or `.spec.json` extension are automatically submitted on creation. Processed files are moved to `specInbox/.processed/`; failed files to `specInbox/.failed/` with a `.error` sidecar.
+
+**CLI:**
+
+```bash
+atc spec submit --project <name> --file <path>
+atc spec submit --project <name> --file <path> --dry-run
+```
+
+#### 4.6.6 Audit Trail
+
+- **RULE-SDD-15:** The spec submission interface MUST support a dry-run mode. In dry-run mode, the daemon validates the spec fully and returns the would-be craft object but creates no records, branches, or agents.
+- **RULE-SDD-16:** The `SpecCreated` black box entry MUST record: requester identity (`userId`, `apiKeyId`, or `agentId`), submission source (`rest`, `file-watch`, `cli`), whether `autoLaunch` was requested in the spec, and whether it was executed or suppressed — including the suppression reason if applicable.
+- **RULE-SDD-17:** The file-watch inbox processor MUST NOT process the same file twice. Deduplication MUST be enforced by inode + modification timestamp or by content hash.
+
+#### 4.6.7 Acceptance Criteria Guidelines
+
+Criteria are natural language strings verified by the pilot through self-assessment. Criteria must be:
+
+- **Specific** — names the endpoint, file, state, or behavior.
+- **Binary** — pass or fail without subjective thresholds.
+- **Testable** — the pilot can write a test or run a manual check against it.
+
+Criteria express *what success looks like*. Structural gates (tests pass, lint clean, build succeeds) belong in the landing checklist, not in criteria.
+
+#### 4.6.8 Error Reference
+
+| Code | Description |
+|------|-------------|
+| `SPEC_PARSE_ERROR` | Spec document is malformed YAML/JSON. |
+| `SPEC_VALIDATION_ERROR` | Required field is missing or invalid. |
+| `UNKNOWN_CATEGORY` | `category` does not match any project-configured category. |
+| `CALLSIGN_CONFLICT` | Explicit callsign override is already in use. |
+| `NO_CERTIFIED_PILOT` | No pilots certified for the category remain after all filters. |
+| `PILOT_NOT_CERTIFIED` | Explicitly named pilot lacks required certification. |
+| `BRANCH_CREATION_FAILED` | Git branch could not be created. No craft record is written. |
+
 ## 5. Appendices
 
 ### Appendix A: Rule Index
@@ -599,3 +772,20 @@ When a craft passes its landing checklist, the pilot requests landing clearance 
 | RULE-TFRP-5    | TFRIssued and TFRLifted entries in affected craft black boxes.       | 4.5     |
 | RULE-TFRP-6    | TFR events posted as intercom system notifications.                  | 4.5     |
 | RULE-TFRP-7    | Tower maintains log of all TFR events.                               | 4.5     |
+| RULE-SDD-1     | Spec must include title, cargo, category, and at least one vector.   | 2.7     |
+| RULE-SDD-2     | Each vector must have a name and at least one non-empty criterion.   | 2.7     |
+| RULE-SDD-3     | Category must match a project-configured craft category.             | 2.7     |
+| RULE-SDD-4     | Vectors array must be non-empty.                                     | 2.7     |
+| RULE-SDD-5     | Explicit callsign override must be unique.                           | 2.7     |
+| RULE-SDD-6     | Explicit captain must be certified for the spec's category.          | 2.7     |
+| RULE-SDD-7     | Explicit first officers must be certified for the spec's category.   | 2.7     |
+| RULE-SDD-8     | Auto-selected captains must be certified (RULE-PILOT-2 applies).     | 4.6.4   |
+| RULE-SDD-9     | No eligible pilot after filtering → fail with NO_CERTIFIED_PILOT.   | 4.6.4   |
+| RULE-SDD-10    | Same pilot must not be assigned as both captain and first officer.   | 4.6.4   |
+| RULE-SDD-11    | autoLaunch suppressed unless project sets allowAutoLaunch: true.     | 4.6.3   |
+| RULE-SDD-12    | Active TFR suppresses autoLaunch; craft created with holdingPattern. | 4.6.3   |
+| RULE-SDD-13    | API key must carry spec:autolaunch scope to enable autoLaunch.       | 4.6.3   |
+| RULE-SDD-14    | Agent-submitted specs cannot autoLaunch.                             | 4.6.3   |
+| RULE-SDD-15    | Submission interfaces must support dry-run mode (no side effects).   | 4.6.6   |
+| RULE-SDD-16    | SpecCreated bbox entry must record identity, source, autoLaunch outcome. | 4.6.6 |
+| RULE-SDD-17    | File-watch inbox must not process the same file twice.               | 4.6.5   |
