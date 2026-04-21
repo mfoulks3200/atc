@@ -115,7 +115,46 @@ If a UI change altered the dashboard or craft detail view, regenerate the README
 pnpm --filter @airtrafficcontrol/e2e test:screenshots
 ```
 
-### 6. Spec Compliance
+### 6. UX Review
+
+Changes that affect user-facing surfaces require UX review before landing. This applies to spec changes, protocol changes, and any implementation work that introduces or modifies user-visible behavior.
+
+#### 6a. UX Impact Triage (all changes)
+
+- [ ] **Assess whether the change has user-facing impact.** User-facing impact includes: new or modified UI components, error messages shown to users, submission or confirmation flows, dashboard views, CLI output formatting, or protocol sections that define user-visible behavior.
+- [ ] **If no user-facing impact:** No further UX review is needed. Proceed to step 7.
+
+#### 6b. UX Review Gate (user-facing changes)
+
+If the change has user-facing impact, complete the following:
+
+- [ ] **Create a UX review subtask** assigned to the UX Designer. The subtask must include:
+  - A summary of what changed and which user-facing surfaces are affected.
+  - Links to the relevant spec rules (`RULE-*`) or protocol sections, if applicable.
+  - Screenshots or mockups of the before/after state, when the change is visual.
+- [ ] **UX Designer sign-off** is required before landing. The reviewer evaluates against the UX review checklist (see below).
+
+Changes that **always** require UX review:
+
+- New or modified error message templates.
+- Changes to the SDD spec document schema or submission flow (§4.6).
+- New dashboard views, components, or layout changes in `@airtrafficcontrol/web`.
+- Changes to the operating manual (`docs/agent/operating-manual.md`) that alter pilot-facing guidance.
+- Protocol changes (§4.*) that introduce user-visible confirmation, notification, or interaction steps.
+
+#### UX Review Checklist
+
+The UX Designer evaluates the following during review:
+
+- [ ] **Consistency:** Does the change follow established patterns and terminology from the domain model (§1.1)?
+- [ ] **Clarity:** Are error messages, labels, and instructions understandable without domain expertise beyond what a pilot or operator would have?
+- [ ] **Completeness:** Are all user-visible states covered (success, error, loading, empty)?
+- [ ] **Accessibility:** Does the change maintain or improve accessibility (contrast, keyboard navigation, screen reader support)?
+- [ ] **Recoverability:** Can users recover from errors without losing work? Are destructive actions confirmed?
+
+> **See also:** RULE-UXR-1 through RULE-UXR-5 in `docs/specification.md`.
+
+### 7. Spec Compliance
 
 Every change must be checked against the formal specification at `docs/specification.md`. The implementation and the spec must agree — one or the other must be updated before merging.
 
@@ -135,7 +174,7 @@ Every change must be checked against the formal specification at `docs/specifica
 
 **When in doubt, ask.** It is always better to flag a potential spec discrepancy than to silently merge a change that contradicts the spec.
 
-### 7. Public API Changes
+### 8. Public API Changes
 
 If any change modifies the **public API surface** of a package (exported types, interfaces, functions, enums, or constants), the following additional steps are required:
 
@@ -177,4 +216,5 @@ pnpm run build
 | Type check | `pnpm run build` | Zero errors |
 | Tests | `pnpm run test` | All passing |
 | Coverage | `pnpm run test -- --coverage` | 90% minimum on changed files |
+| UX review | UX impact triage; subtask if user-facing | UX Designer sign-off on user-facing changes |
 | Spec compliance | Review against `docs/specification.md` | No discrepancies, or spec updated |

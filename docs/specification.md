@@ -1,11 +1,12 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Status:** Draft
 **Date:** 2026-04-21
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
+- 0.3.0 (2026-04-21): Add UX Review protocol (§4.7, RULE-UXR-1 through RULE-UXR-5).
 - 0.2.0 (2026-04-21): Add Spec-Driven Development protocol (§2.7, §4.6, RULE-SDD-1 through RULE-SDD-17).
 
 ## 1. Overview
@@ -685,6 +686,38 @@ Criteria express *what success looks like*. Structural gates (tests pass, lint c
 | `PILOT_ROLE_CONFLICT` | 422 | Same pilot assigned as both captain and first officer (RULE-SDD-10). |
 | `BRANCH_CREATION_FAILED` | 500 | Git branch could not be created. No craft record is written. |
 
+### 4.7 UX Review Protocol
+
+Changes that introduce or modify user-facing behavior require UX review before landing. This protocol ensures that user-visible surfaces — error messages, submission flows, dashboard components, and pilot-facing guidance — are evaluated for consistency, clarity, and recoverability before they ship.
+
+#### 4.7.1 Applicability
+
+A UX review is required when a change touches any of the following:
+
+- New or modified error message templates (§4.6.8 or any future error reference).
+- The SDD spec document schema or submission flow (§4.6).
+- Dashboard views, components, or layout in the web package.
+- The operating manual (`docs/agent/operating-manual.md`).
+- Protocol sections (§4.*) that introduce user-visible confirmation, notification, or interaction steps.
+- CLI output formatting or interactive prompts.
+
+Changes that are purely internal (refactors, backend logic with no user-visible surface, test-only changes) are exempt.
+
+#### 4.7.2 Review Procedure
+
+1. The implementing pilot performs a **UX impact triage** as part of the contribution checklist. If the change has user-facing impact, a UX review subtask is created.
+2. The UX review subtask is assigned to a designated UX reviewer. It includes: a summary of affected surfaces, links to relevant `RULE-*` identifiers, and before/after screenshots or mockups when applicable.
+3. The UX reviewer evaluates the change against the UX review criteria (§4.7.3).
+4. The UX reviewer either signs off or requests changes. UX sign-off is a blocking gate — the craft cannot proceed to landing clearance without it.
+
+#### 4.7.3 Review Criteria
+
+- **RULE-UXR-1:** User-facing changes MUST use terminology consistent with the domain model defined in §1.1. Introducing synonyms or alternative terms for established concepts (e.g., "task" instead of "craft") is not permitted without a spec update.
+- **RULE-UXR-2:** Error messages, labels, and instructions MUST be understandable by a pilot or operator with standard domain knowledge. Messages MUST NOT require reading source code to interpret.
+- **RULE-UXR-3:** All user-visible state transitions MUST have coverage for success, error, loading, and empty states. A new UI surface that only renders the happy path fails UX review.
+- **RULE-UXR-4:** Changes to the web package MUST maintain or improve accessibility: sufficient color contrast (WCAG AA), keyboard navigability, and screen-reader-compatible markup.
+- **RULE-UXR-5:** Destructive or irreversible actions MUST require explicit user confirmation before execution. Users MUST be able to recover from errors without losing in-progress work.
+
 ## 5. Appendices
 
 ### Appendix A: Rule Index
@@ -791,3 +824,8 @@ Criteria express *what success looks like*. Structural gates (tests pass, lint c
 | RULE-SDD-15    | Dry-run: full validation + computation, no persistence or side effects. | 4.6.6   |
 | RULE-SDD-16    | SpecCreated bbox entry must record identity, source, autoLaunch outcome. | 4.6.6 |
 | RULE-SDD-17    | File-watch inbox must not process the same file twice.               | 4.6.5   |
+| RULE-UXR-1     | User-facing changes must use domain model terminology from §1.1.     | 4.7.3   |
+| RULE-UXR-2     | Error messages/labels must be understandable without reading source.  | 4.7.3   |
+| RULE-UXR-3     | All user-visible states covered: success, error, loading, empty.     | 4.7.3   |
+| RULE-UXR-4     | Web changes must maintain/improve accessibility (WCAG AA).           | 4.7.3   |
+| RULE-UXR-5     | Destructive actions require confirmation; errors must be recoverable.| 4.7.3   |
