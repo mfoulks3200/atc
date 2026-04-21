@@ -73,6 +73,25 @@ export function useAllCrafts() {
   });
 }
 
+export function useCraftDiff(project: string, callsign: string) {
+  return useQuery({
+    queryKey: queryKeys.crafts.diff(project, callsign),
+    queryFn: () =>
+      apiClient.get<CraftDiffResponse>(`/api/v1/projects/${project}/crafts/${callsign}/diff`),
+  });
+}
+
+export function useCraftDiffFile(project: string, callsign: string, path: string | null) {
+  return useQuery({
+    queryKey: queryKeys.crafts.diffFile(project, callsign, path ?? ""),
+    queryFn: () =>
+      apiClient.get<CraftDiffFileResponse>(
+        `/api/v1/projects/${project}/crafts/${callsign}/diff/files/${path}`,
+      ),
+    enabled: path !== null,
+  });
+}
+
 export function useCraftBlackBox(project: string, callsign: string) {
   return useQuery({
     queryKey: queryKeys.crafts.blackBox(project, callsign),

@@ -15,6 +15,8 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { CraftStatus, BlackBoxEntryType } from "@airtrafficcontrol/types";
 import { createWorktree } from "../../git/worktree.js";
+import { getDefaultBranch } from "../../git/merge.js";
+import { listChangedFiles, getFileAtRef, isFileBinary } from "../../git/diff.js";
 import { loadProjectMetadata } from "../../config/loader.js";
 import { runChecklist } from "../../checklist/runner.js";
 import { publishCraftEvent, publishCraftRemoved } from "./broadcast.js";
@@ -61,6 +63,8 @@ interface EmergencyBody {
  * - `POST   /api/v1/projects/:name/crafts/:callsign/launch`    — Taxiing -> InFlight
  * - `POST   /api/v1/projects/:name/crafts/:callsign/checklist` — run landing checklist
  * - `POST   /api/v1/projects/:name/crafts/:callsign/emergency` — declare emergency
+ * - `GET    /api/v1/projects/:name/crafts/:callsign/diff`           — list changed files
+ * - `GET    /api/v1/projects/:name/crafts/:callsign/diff/files/*`   — get file diff content
  *
  * @param app - The Fastify instance to register routes on.
  *
@@ -475,6 +479,93 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       });
 
       return reply.send(craft);
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // GET /api/v1/projects/:name/crafts/:callsign/diff
+  // -------------------------------------------------------------------------
+
+  /**
+   * Returns the list of files changed between the craft branch and the
+   * project's main branch.
+   *
+   * @see RULE-CRAFT-1
+   */
+  app.get<{ Params: CraftParams }>(
+    "/api/v1/projects/:name/crafts/:callsign/diff",
+    async (request, reply) => {
+      const { name, callsign } = request.params;
+      const craft = app.craftStore.get(name, callsign);
+
+      if (!craft) {
+        return reply.code(404).send({ error: `Craft not found: ${callsign}` });
+      }
+
+      const bareDir = join(app.profileDir, "projects", name, "repo.git");
+
+      try {
+        const baseBranch = await getDefaultBranch(bareDir);
+        const files = await listChangedFiles(bareDir, baseBranch, craft.branch);
+        return reply.send({
+          baseBranch,
+          craftBranch: craft.branch,
+          files,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return reply.code(500).send({ error: `Failed to compute diff: ${msg}` });
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // GET /api/v1/projects/:name/crafts/:callsign/diff/files/*
+  // -------------------------------------------------------------------------
+
+  /**
+   * Returns the original and modified content for a single file in the diff.
+   *
+   * @see RULE-CRAFT-1
+   */
+  app.get<{ Params: CraftParams & { "*": string } }>(
+    "/api/v1/projects/:name/crafts/:callsign/diff/files/*",
+    async (request, reply) => {
+      const { name, callsign } = request.params;
+      const filePath = request.params["*"];
+      const craft = app.craftStore.get(name, callsign);
+
+      if (!craft) {
+        return reply.code(404).send({ error: `Craft not found: ${callsign}` });
+      }
+
+      if (!filePath) {
+        return reply.code(400).send({ error: "File path is required" });
+      }
+
+      const bareDir = join(app.profileDir, "projects", name, "repo.git");
+
+      try {
+        const baseBranch = await getDefaultBranch(bareDir);
+
+        const binary =
+          (await isFileBinary(bareDir, baseBranch, filePath)) ||
+          (await isFileBinary(bareDir, craft.branch, filePath));
+
+        if (binary) {
+          return reply.send({ path: filePath, original: null, modified: null, binary: true });
+        }
+
+        const [original, modified] = await Promise.all([
+          getFileAtRef(bareDir, baseBranch, filePath),
+          getFileAtRef(bareDir, craft.branch, filePath),
+        ]);
+
+        return reply.send({ path: filePath, original, modified });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return reply.code(500).send({ error: `Failed to get file diff: ${msg}` });
+      }
     },
   );
 }

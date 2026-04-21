@@ -213,7 +213,7 @@ export interface TfrState {
 }
 
 // ---------------------------------------------------------------------------
-// Diff types
+// Craft diff types — used by the diff view component
 // ---------------------------------------------------------------------------
 
 /** A file changed between the craft branch and its base branch. */
