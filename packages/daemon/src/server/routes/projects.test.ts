@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { execSync } from "node:child_process";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "../app.js";
+import { DEFAULT_PILOTS } from "../../default-pilots.js";
 
 describe("project routes", () => {
   let app: FastifyInstance;
@@ -91,6 +92,68 @@ describe("project routes", () => {
       expect(response.statusCode).toBe(201);
       const body = response.json<{ name: string }>();
       expect(body.name).toBe("bad-remote");
+    });
+
+    it("seeds all default pilots into the new project", async () => {
+      await app.inject({
+        method: "POST",
+        url: "/api/v1/projects",
+        payload: { name: "seeded", remoteUrl: sourceRepo, categories: [], checklist: [] },
+      });
+
+      const pilots = app.pilotStore.listForProject("seeded");
+      expect(pilots).toHaveLength(DEFAULT_PILOTS.length);
+
+      const identifiers = pilots.map((p) => p.identifier).sort();
+      expect(identifiers).toEqual(
+        [...DEFAULT_PILOTS].map((p) => p.identifier).sort(),
+      );
+    });
+
+    it("seeds default pilots with correct certifications", async () => {
+      await app.inject({
+        method: "POST",
+        url: "/api/v1/projects",
+        payload: { name: "cert-check", remoteUrl: sourceRepo, categories: [], checklist: [] },
+      });
+
+      const byId = Object.fromEntries(
+        app.pilotStore.listForProject("cert-check").map((p) => [p.identifier, p]),
+      );
+
+      expect(byId["pilot-frontend-ts"]?.certifications).toContain("Frontend Engineering");
+      expect(byId["pilot-backend-ts"]?.certifications).toContain("Backend Engineering");
+      expect(byId["pilot-architect-ts"]?.certifications).toContain("Frontend Engineering");
+      expect(byId["pilot-architect-ts"]?.certifications).toContain("Backend Engineering");
+    });
+
+    it("seeds default pilots with non-empty starter prompts", async () => {
+      await app.inject({
+        method: "POST",
+        url: "/api/v1/projects",
+        payload: { name: "prompt-check", remoteUrl: sourceRepo, categories: [], checklist: [] },
+      });
+
+      const pilots = app.pilotStore.listForProject("prompt-check");
+      for (const pilot of pilots) {
+        expect(pilot.systemPrompt, `${pilot.identifier} should have a systemPrompt`).toBeTruthy();
+      }
+    });
+
+    it("seeds default pilots independently for each project", async () => {
+      await app.inject({
+        method: "POST",
+        url: "/api/v1/projects",
+        payload: { name: "proj-a", remoteUrl: sourceRepo, categories: [], checklist: [] },
+      });
+      await app.inject({
+        method: "POST",
+        url: "/api/v1/projects",
+        payload: { name: "proj-b", remoteUrl: sourceRepo, categories: [], checklist: [] },
+      });
+
+      expect(app.pilotStore.listForProject("proj-a")).toHaveLength(DEFAULT_PILOTS.length);
+      expect(app.pilotStore.listForProject("proj-b")).toHaveLength(DEFAULT_PILOTS.length);
     });
   });
 

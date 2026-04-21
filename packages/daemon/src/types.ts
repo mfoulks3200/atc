@@ -243,6 +243,12 @@ export interface PilotRecord {
   certifications: string[];
   /** Named MCP server configurations available to this pilot. */
   mcpServers: Record<string, McpServerConfig>;
+  /**
+   * Optional role-specific context appended to the ATC pilot briefing when
+   * this pilot is launched. Use this to describe specializations, preferred
+   * patterns, or standing instructions that go beyond the generic briefing.
+   */
+  systemPrompt?: string;
 }
 
 // ---------------------------------------------------------------------------
