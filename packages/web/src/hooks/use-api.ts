@@ -19,6 +19,7 @@ import type {
   CraftDiffFileResponse,
 } from "@/types/api";
 
+
 export function useHealth() {
   return useQuery({
     queryKey: queryKeys.health(),
@@ -295,6 +296,28 @@ export function useCreateCraft(project: string) {
     }) => apiClient.post<CraftState>(`/api/v1/projects/${project}/crafts`, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.crafts.list(project) });
+    },
+  });
+}
+
+/**
+ * Submit a spec document (YAML or JSON) to create a craft or perform a dry run.
+ * Detects content type from the raw string: JSON when it starts with `{`, YAML otherwise.
+ * @see RULE-SDD-1 through RULE-SDD-15
+ */
+export function useSubmitSpec(project: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ content, dryRun }: { content: string; dryRun: boolean }) => {
+      const trimmed = content.trimStart();
+      const contentType = trimmed.startsWith("{") ? "application/json" : "application/yaml";
+      const url = `/api/v1/projects/${project}/crafts/from-spec${dryRun ? "?dryRun=true" : ""}`;
+      return apiClient.postRaw<CraftState>(url, content, contentType);
+    },
+    onSuccess: (_, { dryRun }) => {
+      if (!dryRun) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.crafts.list(project) });
+      }
     },
   });
 }
