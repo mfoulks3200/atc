@@ -7,16 +7,19 @@ import type { CreateCraftParams } from "./craft.js";
 const certifiedPilot: Pilot = {
   identifier: "captain-1",
   certifications: ["Backend Engineering"],
+  selectionCount: 0,
 };
 
 const certifiedFO: Pilot = {
   identifier: "fo-1",
   certifications: ["Backend Engineering"],
+  selectionCount: 0,
 };
 
 const uncertifiedPilot: Pilot = {
   identifier: "observer-1",
   certifications: ["Frontend Engineering"],
+  selectionCount: 0,
 };
 
 const sampleVectors: Vector[] = [

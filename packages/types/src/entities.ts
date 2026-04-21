@@ -53,6 +53,13 @@ export interface Pilot {
   readonly identifier: string;
   /** Craft categories this pilot is certified to fly. @see RULE-PILOT-2 */
   readonly certifications: readonly CraftCategory[];
+  /**
+   * Monotonic counter incremented each time this pilot is auto-selected as
+   * captain or first officer via SDD. Used for equitable workload distribution.
+   * Default: 0.
+   * @see RULE-SDD-9
+   */
+  selectionCount: number;
 }
 
 /**
