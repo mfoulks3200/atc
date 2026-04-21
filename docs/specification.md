@@ -573,18 +573,19 @@ When a craft passes its landing checklist, the pilot requests landing clearance 
 When a spec is submitted, ATC executes the following steps in order:
 
 1. **Parse** the spec document (YAML or JSON). On parse failure, return `SPEC_PARSE_ERROR`.
-2. **Validate** fields against RULE-SDD-1 through RULE-SDD-7. On failure, return `SPEC_VALIDATION_ERROR`, `UNKNOWN_CATEGORY`, `CALLSIGN_CONFLICT`, or `PILOT_NOT_CERTIFIED` as appropriate.
-3. **Dry-run exit** — if requested (RULE-SDD-15), return the would-be craft object without creating any records or branches.
-4. **Generate callsign** from the spec title if no override is provided (see §4.6.2).
-5. **Generate flight plan** — convert the `vectors` array into `Vector` objects in declaration order, each with status `Pending`.
-6. **Select pilots** via the auto-selection algorithm (see §4.6.4) for any unspecified seats.
-7. **Create git worktree branch** named `<callsign>` off the project's main branch. If this fails, return `BRANCH_CREATION_FAILED` — no craft record has been written.
-8. **Write craft record** in the `Taxiing` state to the craft store. If this fails, delete the worktree branch as a compensating action, then return the error.
-9. **Record black box entry** — append a `SpecCreated` entry recording: requester identity, submission source, spec title, notes, metadata, and whether `autoLaunch` was requested and whether it was executed or suppressed (RULE-SDD-16).
-10. **Evaluate autoLaunch** — if `autoLaunch: true` and all guards pass (RULE-SDD-11 through RULE-SDD-14), transition the craft to `InFlight` and start the captain's agent. Otherwise, record the suppression reason in the black box entry and leave the craft in `Taxiing`.
-11. **Return** the created craft object.
+2. **Validate** fields against RULE-SDD-1 through RULE-SDD-7. On failure, return `SPEC_VALIDATION_ERROR`, `UNKNOWN_CATEGORY`, `CALLSIGN_CONFLICT`, `PILOT_NOT_CERTIFIED`, or `PILOT_ROLE_CONFLICT` as appropriate.
+3. **Generate callsign** from the spec title if no override is provided (see §4.6.2). The callsign counter MUST NOT be persisted yet.
+4. **Generate flight plan** — convert the `vectors` array into `Vector` objects in declaration order, each with status `Pending`.
+5. **Select pilots** via the auto-selection algorithm (see §4.6.4) for any unspecified seats.
+6. **Dry-run exit** — if dry-run was requested (RULE-SDD-15), return the fully-computed would-be craft object (with callsign, flight plan, and crew) and stop. The callsign counter MUST NOT be persisted; `selectionCount` MUST NOT be incremented. No records, branches, or agents are created.
+7. **Persist callsign counter** to the project config store.
+8. **Create git worktree branch** named `<callsign>` off the project's main branch. If this fails, return `BRANCH_CREATION_FAILED` — no craft record has been written.
+9. **Write craft record** in the `Taxiing` state to the craft store. If this fails, delete the worktree branch as a compensating action, then return the error.
+10. **Record black box entry** — append a `SpecCreated` entry recording: requester identity, submission source, spec title, notes, metadata, and whether `autoLaunch` was requested and whether it was executed or suppressed (RULE-SDD-16).
+11. **Evaluate autoLaunch** — if `autoLaunch: true` and all guards pass (RULE-SDD-11 through RULE-SDD-14), transition the craft to `InFlight` and start the captain's agent. Otherwise, record the suppression reason in the black box entry and leave the craft in `Taxiing`.
+12. **Return** the created craft object.
 
-**Rollback (compensating transaction):** Steps 7 and 8 are not atomic. The git branch is created first because it is the cheaper operation to compensate: if step 8 (craft store write) fails, the branch is deleted and the error returned. On daemon startup, a reconciliation scan removes orphaned worktree branches that have no corresponding craft store record.
+**Rollback (compensating transaction):** Steps 8 and 9 are not atomic. The git branch is created first because it is the cheaper operation to compensate: if step 9 (craft store write) fails, the branch is deleted and the error returned. On daemon startup, a reconciliation scan removes orphaned worktree branches that have no corresponding craft store record.
 
 #### 4.6.2 Callsign Generation
 
@@ -592,8 +593,8 @@ When no callsign override is provided, ATC generates a callsign deterministicall
 
 1. Slugify the spec `title` (lowercase; replace spaces and special characters with hyphens; collapse consecutive hyphens; trim).
 2. Truncate to 40 characters at a word boundary.
-3. Append a zero-padded monotonic counter persisted in the project config store: `<slug>-<NN>` (e.g., `add-oauth2-login-01`). The counter increments per spec-created craft; it MUST be persisted before the branch creation step.
-4. If the result collides with an existing craft callsign, increment the counter until unique.
+3. Append a zero-padded monotonic counter from the project config store: `<slug>-<NN>` (e.g., `add-oauth2-login-01`). The counter increments per spec-created craft. Zero-padding expands as needed (`01` → `99` → `100`). The counter MUST be persisted to the project config store before the branch creation step (§4.6.1 step 7). In dry-run mode (§4.6.1 step 6), the counter MUST NOT be persisted.
+4. If the result collides with an existing craft callsign, increment the counter and retry. If 100 consecutive increments all collide, fail with `CALLSIGN_CONFLICT` rather than looping indefinitely.
 
 #### 4.6.3 AutoLaunch Safety
 
@@ -646,7 +647,7 @@ The endpoint accepts YAML or JSON. A YAML body parser MUST be registered in the 
 
 **Spec Inbox (File Watch):**
 
-When a project is configured with a `specInbox` directory, ATC watches it. Files with a `.spec.yaml` or `.spec.json` extension are automatically submitted on creation. Processed files are moved to `specInbox/.processed/`; failed files to `specInbox/.failed/` with a `.error` sidecar.
+When a project is configured with a `specInbox` directory, ATC watches it. Files with a `.spec.yaml` or `.spec.json` extension are automatically submitted on creation. Processed files are moved to `specInbox/.processed/`; failed files to `specInbox/.failed/` with a `.error` JSON sidecar containing at minimum: `{ code: string, message: string, timestamp: string, sourceFile: string }`.
 
 **CLI:**
 
@@ -657,7 +658,7 @@ atc spec submit --project <name> --file <path> --dry-run
 
 #### 4.6.6 Audit Trail
 
-- **RULE-SDD-15:** The spec submission interface MUST support a dry-run mode. In dry-run mode, the daemon validates the spec fully and returns the would-be craft object but creates no records, branches, or agents.
+- **RULE-SDD-15:** The spec submission interface MUST support a dry-run mode. In dry-run mode, the daemon validates the spec, generates the callsign, flight plan, and pilot selection, and returns the fully-computed would-be craft object — but creates no records, branches, or agents. The callsign counter MUST NOT be persisted and pilot `selectionCount` values MUST NOT be incremented in dry-run mode.
 - **RULE-SDD-16:** The `SpecCreated` black box entry MUST record: requester identity (`userId`, `apiKeyId`, or `agentId`), submission source (`rest`, `file-watch`, `cli`), whether `autoLaunch` was requested in the spec, and whether it was executed or suppressed — including the suppression reason if applicable.
 - **RULE-SDD-17:** The file-watch inbox processor MUST NOT process the same file twice. Deduplication MUST be enforced by inode + modification timestamp or by content hash.
 
@@ -673,15 +674,16 @@ Criteria express *what success looks like*. Structural gates (tests pass, lint c
 
 #### 4.6.8 Error Reference
 
-| Code | Description |
-|------|-------------|
-| `SPEC_PARSE_ERROR` | Spec document is malformed YAML/JSON. |
-| `SPEC_VALIDATION_ERROR` | Required field is missing or invalid. |
-| `UNKNOWN_CATEGORY` | `category` does not match any project-configured category. |
-| `CALLSIGN_CONFLICT` | Explicit callsign override is already in use. |
-| `NO_CERTIFIED_PILOT` | No pilots certified for the category remain after all filters. |
-| `PILOT_NOT_CERTIFIED` | Explicitly named pilot lacks required certification. |
-| `BRANCH_CREATION_FAILED` | Git branch could not be created. No craft record is written. |
+| Code | HTTP | Description |
+|------|------|-------------|
+| `SPEC_PARSE_ERROR` | 400 | Spec document is malformed YAML/JSON. |
+| `SPEC_VALIDATION_ERROR` | 422 | Required field is missing or invalid. |
+| `UNKNOWN_CATEGORY` | 422 | `category` does not match any project-configured category. |
+| `CALLSIGN_CONFLICT` | 409 | Callsign already in use (explicit override collision or 100 generated collisions). |
+| `NO_CERTIFIED_PILOT` | 422 | No pilots certified for the category remain after all filters. |
+| `PILOT_NOT_CERTIFIED` | 422 | Explicitly named pilot lacks required certification. |
+| `PILOT_ROLE_CONFLICT` | 422 | Same pilot assigned as both captain and first officer (RULE-SDD-10). |
+| `BRANCH_CREATION_FAILED` | 500 | Git branch could not be created. No craft record is written. |
 
 ## 5. Appendices
 
@@ -786,6 +788,6 @@ Criteria express *what success looks like*. Structural gates (tests pass, lint c
 | RULE-SDD-12    | Active TFR suppresses autoLaunch; craft created with holdingPattern. | 4.6.3   |
 | RULE-SDD-13    | API key must carry spec:autolaunch scope to enable autoLaunch.       | 4.6.3   |
 | RULE-SDD-14    | Agent-submitted specs cannot autoLaunch.                             | 4.6.3   |
-| RULE-SDD-15    | Submission interfaces must support dry-run mode (no side effects).   | 4.6.6   |
+| RULE-SDD-15    | Dry-run: full validation + computation, no persistence or side effects. | 4.6.6   |
 | RULE-SDD-16    | SpecCreated bbox entry must record identity, source, autoLaunch outcome. | 4.6.6 |
 | RULE-SDD-17    | File-watch inbox must not process the same file twice.               | 4.6.5   |
