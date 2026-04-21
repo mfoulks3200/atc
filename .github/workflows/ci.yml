@@ -128,4 +128,4 @@ jobs:
           key: nm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Run tests with coverage
-        run: pnpm run test -- --coverage
+        run: pnpm run test:coverage

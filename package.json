@@ -7,6 +7,7 @@
     "seed:demo": "pnpm --filter @airtrafficcontrol/daemon run seed:demo",
     "build": "tsc --build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "lint": "eslint 'packages/*/src/**/*.ts'",
     "format": "prettier --write 'packages/*/src/**/*.ts'",
