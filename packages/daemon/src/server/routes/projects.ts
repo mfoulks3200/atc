@@ -18,6 +18,7 @@ import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import { cloneBareRepo, fetchBareRepo } from "../../git/bare-repo.js";
 import { createProjectConfigStore } from "../../config/project-store.js";
+import { DEFAULT_PILOTS } from "../../default-pilots.js";
 import type { ProjectMetadataConfig } from "../../config/schema.js";
 import type { ConfigLogger } from "../../config/layered-store.js";
 
@@ -118,6 +119,11 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
       await cloneBareRepo(remoteUrl, bareDir);
     } catch {
       // Non-fatal: directory structure and config store are the important parts
+    }
+
+    // Seed base pilots so every project starts with certified JS/TS specialists.
+    for (const pilot of DEFAULT_PILOTS) {
+      app.pilotStore.set(name, pilot);
     }
 
     return reply.code(201).send(store.get());
