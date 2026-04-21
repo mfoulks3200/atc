@@ -331,9 +331,8 @@ A **spec document** is a structured YAML or JSON document submitted to ATC to au
 #### Rules
 
 - **RULE-SDD-1:** A spec document MUST include `title`, `cargo`, `category`, and at least one entry in `vectors`. Submissions missing any required field MUST be rejected with `SPEC_VALIDATION_ERROR`.
-- **RULE-SDD-2:** Each vector entry MUST include a `name` and at least one non-empty string in `criteria`. A vector with no criteria MUST be rejected.
+- **RULE-SDD-2:** Each vector entry MUST include a `name` and at least one non-empty string in `criteria`. A vector with no criteria MUST be rejected with `SPEC_VALIDATION_ERROR`.
 - **RULE-SDD-3:** The `category` field MUST match one of the project-configured craft categories. An unknown category MUST be rejected with `UNKNOWN_CATEGORY`.
-- **RULE-SDD-4:** The `vectors` array MUST contain at least one entry.
 - **RULE-SDD-5:** If an explicit callsign override is provided, it MUST be unique across all crafts in the project. A collision MUST be rejected with `CALLSIGN_CONFLICT`.
 - **RULE-SDD-6:** If an explicit `pilots.captain` is provided, that pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
 - **RULE-SDD-7:** If explicit `pilots.firstOfficers` are provided, each listed pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
@@ -659,7 +658,7 @@ atc spec submit --project <name> --file <path> --dry-run
 #### 4.6.6 Audit Trail
 
 - **RULE-SDD-15:** The spec submission interface MUST support a dry-run mode. In dry-run mode, the daemon validates the spec, generates the callsign, flight plan, and pilot selection, and returns the fully-computed would-be craft object — but creates no records, branches, or agents. The callsign counter MUST NOT be persisted and pilot `selectionCount` values MUST NOT be incremented in dry-run mode.
-- **RULE-SDD-16:** The `SpecCreated` black box entry MUST record: requester identity (`userId`, `apiKeyId`, or `agentId`), submission source (`rest`, `file-watch`, `cli`), whether `autoLaunch` was requested in the spec, and whether it was executed or suppressed — including the suppression reason if applicable.
+- **RULE-SDD-16:** The `SpecCreated` black box entry MUST record: requester identity (`userId`, `apiKeyId`, or `agentId`), submission source (`rest`, `file-watch`, `cli`), spec title, notes (if provided), metadata (if provided), whether `autoLaunch` was requested in the spec, and whether it was executed or suppressed — including the suppression reason if applicable.
 - **RULE-SDD-17:** The file-watch inbox processor MUST NOT process the same file twice. Deduplication MUST be enforced by inode + modification timestamp or by content hash.
 
 #### 4.6.7 Acceptance Criteria Guidelines
@@ -775,9 +774,8 @@ Criteria express *what success looks like*. Structural gates (tests pass, lint c
 | RULE-TFRP-6    | TFR events posted as intercom system notifications.                  | 4.5     |
 | RULE-TFRP-7    | Tower maintains log of all TFR events.                               | 4.5     |
 | RULE-SDD-1     | Spec must include title, cargo, category, and at least one vector.   | 2.7     |
-| RULE-SDD-2     | Each vector must have a name and at least one non-empty criterion.   | 2.7     |
+| RULE-SDD-2     | Each vector must have a name and at least one non-empty criterion; reject with SPEC_VALIDATION_ERROR. | 2.7     |
 | RULE-SDD-3     | Category must match a project-configured craft category.             | 2.7     |
-| RULE-SDD-4     | Vectors array must be non-empty.                                     | 2.7     |
 | RULE-SDD-5     | Explicit callsign override must be unique.                           | 2.7     |
 | RULE-SDD-6     | Explicit captain must be certified for the spec's category.          | 2.7     |
 | RULE-SDD-7     | Explicit first officers must be certified for the spec's category.   | 2.7     |
@@ -789,5 +787,5 @@ Criteria express *what success looks like*. Structural gates (tests pass, lint c
 | RULE-SDD-13    | API key must carry spec:autolaunch scope to enable autoLaunch.       | 4.6.3   |
 | RULE-SDD-14    | Agent-submitted specs cannot autoLaunch.                             | 4.6.3   |
 | RULE-SDD-15    | Dry-run: full validation + computation, no persistence or side effects. | 4.6.6   |
-| RULE-SDD-16    | SpecCreated bbox entry must record identity, source, autoLaunch outcome. | 4.6.6 |
+| RULE-SDD-16    | SpecCreated bbox entry must record identity, source, title, notes, metadata, autoLaunch outcome. | 4.6.6 |
 | RULE-SDD-17    | File-watch inbox must not process the same file twice.               | 4.6.5   |
