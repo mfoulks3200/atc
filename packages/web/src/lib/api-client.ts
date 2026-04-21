@@ -2,8 +2,8 @@ const BASE_URL = import.meta.env.VITE_DAEMON_URL ?? "";
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${BASE_URL}${path}`;
-  const headers: Record<string, string> = { ...options.headers as Record<string, string> };
-  if (options.body !== undefined) {
+  const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
+  if (options.body !== undefined && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
   }
   const response = await fetch(url, { ...options, headers });
@@ -25,6 +25,9 @@ export const apiClient = {
   get: <T>(path: string) => request<T>(path, { method: "GET" }),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
+  /** POST a raw string body with an explicit Content-Type (e.g. application/yaml). */
+  postRaw: <T>(path: string, body: string, contentType: string) =>
+    request<T>(path, { method: "POST", body, headers: { "Content-Type": contentType } }),
   patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
