@@ -108,7 +108,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
           agentId,
           worktreePath,
           craft,
-          systemPrompt: "",
+          systemPrompt: captain.systemPrompt ?? "",
           intercomHistory: craft.intercom,
           adapterConfig: adapterConfig ?? {},
           mcpServers: captain.mcpServers,

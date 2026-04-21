@@ -127,6 +127,19 @@ describe("project routes", () => {
       expect(byId["pilot-architect-ts"]?.certifications).toContain("Backend Engineering");
     });
 
+    it("seeds default pilots with non-empty starter prompts", async () => {
+      await app.inject({
+        method: "POST",
+        url: "/api/v1/projects",
+        payload: { name: "prompt-check", remoteUrl: sourceRepo, categories: [], checklist: [] },
+      });
+
+      const pilots = app.pilotStore.listForProject("prompt-check");
+      for (const pilot of pilots) {
+        expect(pilot.systemPrompt, `${pilot.identifier} should have a systemPrompt`).toBeTruthy();
+      }
+    });
+
     it("seeds default pilots independently for each project", async () => {
       await app.inject({
         method: "POST",
