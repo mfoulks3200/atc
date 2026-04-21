@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from "vitest";
 import { createIntercomMcpServer } from "./intercom-tool.js";
 
 describe("createIntercomMcpServer", () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fetchSpy: MockInstance<any>;
 
   beforeEach(() => {
     fetchSpy = vi
@@ -37,9 +38,11 @@ describe("createIntercomMcpServer", () => {
     });
     // Access the tool handler via the registered tools on the MCP server
     // instance. We call it directly to verify the fetch shape.
-    const tools = (cfg.instance as unknown as {
-      _registeredTools: Record<string, { handler: (args: unknown) => Promise<unknown> }>;
-    })._registeredTools;
+    const tools = (
+      cfg.instance as unknown as {
+        _registeredTools: Record<string, { handler: (args: unknown) => Promise<unknown> }>;
+      }
+    )._registeredTools;
     const sendTool = tools.intercom_send;
     expect(sendTool).toBeDefined();
 
@@ -65,9 +68,7 @@ describe("createIntercomMcpServer", () => {
   });
 
   it("reports an error when the daemon returns non-ok", async () => {
-    fetchSpy.mockResolvedValueOnce(
-      new Response("craft not found", { status: 404 }),
-    );
+    fetchSpy.mockResolvedValueOnce(new Response("craft not found", { status: 404 }));
     const cfg = createIntercomMcpServer({
       daemonUrl: "http://localhost:7700",
       projectName: "demo",
@@ -75,9 +76,11 @@ describe("createIntercomMcpServer", () => {
       pilotId: "pilot-1",
       seat: "captain",
     });
-    const tools = (cfg.instance as unknown as {
-      _registeredTools: Record<string, { handler: (args: unknown) => Promise<unknown> }>;
-    })._registeredTools;
+    const tools = (
+      cfg.instance as unknown as {
+        _registeredTools: Record<string, { handler: (args: unknown) => Promise<unknown> }>;
+      }
+    )._registeredTools;
     const result = (await tools.intercom_send.handler({ content: "hi" })) as {
       content: Array<{ type: string; text: string }>;
       isError?: boolean;
@@ -95,9 +98,11 @@ describe("createIntercomMcpServer", () => {
       pilotId: "pilot-1",
       seat: "captain",
     });
-    const tools = (cfg.instance as unknown as {
-      _registeredTools: Record<string, { handler: (args: unknown) => Promise<unknown> }>;
-    })._registeredTools;
+    const tools = (
+      cfg.instance as unknown as {
+        _registeredTools: Record<string, { handler: (args: unknown) => Promise<unknown> }>;
+      }
+    )._registeredTools;
     const result = (await tools.intercom_send.handler({ content: "hi" })) as {
       content: Array<{ type: string; text: string }>;
       isError?: boolean;

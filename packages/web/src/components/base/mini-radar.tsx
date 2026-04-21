@@ -106,13 +106,13 @@ export function MiniRadar({ craft, height = 90 }: MiniRadarProps) {
       {/* waypoint markers */}
       {segments.map((seg) => {
         const cls = waypointClass(seg).replace(/waypoint-/g, "mr-wp-");
-        const end = pointAt(seg.exitT);
+        const end = pointAt(seg.tEnd);
         return <circle key={`mr-wp-${seg.index}`} className={cls} cx={end.x} cy={end.y} r={6} />;
       })}
 
       {/* plane marker */}
       {plane && (
-        <g transform={`translate(${plane.x}, ${plane.y}) rotate(${plane.angle})`}>
+        <g transform={`translate(${plane.x}, ${plane.y}) rotate(${plane.rotateDeg})`}>
           <path
             className={planeClass}
             d="M -12 0 L 6 -6 L 14 0 L 6 6 Z"

@@ -105,9 +105,7 @@ describe("project routes", () => {
       expect(pilots).toHaveLength(DEFAULT_PILOTS.length);
 
       const identifiers = pilots.map((p) => p.identifier).sort();
-      expect(identifiers).toEqual(
-        [...DEFAULT_PILOTS].map((p) => p.identifier).sort(),
-      );
+      expect(identifiers).toEqual([...DEFAULT_PILOTS].map((p) => p.identifier).sort());
     });
 
     it("seeds default pilots with correct certifications", async () => {

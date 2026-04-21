@@ -97,7 +97,13 @@ describe("PUT /api/v1/projects/:name/config", () => {
     const res = await app.inject({
       method: "PUT",
       url: "/api/v1/projects/nonexistent/config",
-      payload: { name: "nonexistent", remoteUrl: "", categories: [], checklist: [], mcpServers: {} },
+      payload: {
+        name: "nonexistent",
+        remoteUrl: "",
+        categories: [],
+        checklist: [],
+        mcpServers: {},
+      },
     });
     expect(res.statusCode).toBe(404);
     await app.close();

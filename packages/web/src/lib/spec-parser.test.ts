@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  extractSection,
-  parseGlossary,
-  parseMarkdownTable,
-  parseRules,
-} from "./spec-parser.js";
+import { extractSection, parseGlossary, parseMarkdownTable, parseRules } from "./spec-parser.js";
 
 const SAMPLE_SPEC = `# Spec
 
@@ -38,9 +33,7 @@ Some prose that should not be captured.
 
 describe("parseMarkdownTable", () => {
   it("returns rows excluding the header", () => {
-    const rows = parseMarkdownTable(
-      "| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n",
-    );
+    const rows = parseMarkdownTable("| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n");
     expect(rows).toEqual([
       ["1", "2"],
       ["3", "4"],

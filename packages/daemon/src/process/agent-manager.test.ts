@@ -12,11 +12,13 @@ import type { CapturedLine } from "./output-pipe.js";
 
 function makeAdapter(overrides: Partial<AgentAdapter> = {}): AgentAdapter {
   return {
-    launch: vi.fn(async (opts: AgentLaunchOptions): Promise<AgentHandle> => ({
-      agentId: opts.agentId,
-      pid: 12345,
-      adapterMeta: { session: "sess-1" },
-    })),
+    launch: vi.fn(
+      async (opts: AgentLaunchOptions): Promise<AgentHandle> => ({
+        agentId: opts.agentId,
+        pid: 12345,
+        adapterMeta: { session: "sess-1" },
+      }),
+    ),
     pause: vi.fn(),
     resume: vi.fn(),
     terminate: vi.fn(),
@@ -32,6 +34,7 @@ function makeAdapter(overrides: Partial<AgentAdapter> = {}): AgentAdapter {
 function baseLaunchOptions(agentId: string): AgentLaunchOptions {
   return {
     agentId,
+    projectName: "test-project",
     worktreePath: "/tmp/wt",
     craft: {
       callsign: "WHISKEY",
@@ -377,7 +380,9 @@ describe("AgentManager", () => {
 
     it("drains output and transitions to terminated when onExit fires", async () => {
       const stdout = makeStream();
-      let exitCb: ((info: { code: number | null; signal: NodeJS.Signals | null }) => void) | undefined;
+      let exitCb:
+        | ((info: { code: number | null; signal: NodeJS.Signals | null }) => void)
+        | undefined;
       const adapter = makeAdapter({
         launch: vi.fn(async (opts: AgentLaunchOptions) => ({
           agentId: opts.agentId,

@@ -2,7 +2,7 @@ const BASE_URL = import.meta.env.VITE_DAEMON_URL ?? "";
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${BASE_URL}${path}`;
-  const headers: Record<string, string> = { ...options.headers as Record<string, string> };
+  const headers: Record<string, string> = { ...(options.headers as Record<string, string>) };
   if (options.body !== undefined) {
     headers["Content-Type"] = "application/json";
   }

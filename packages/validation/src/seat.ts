@@ -37,7 +37,11 @@ export function isValidSeatAssignment(
  * @throws {SeatAssignmentError} If the pilot is not certified for the seat.
  * @see RULE-SEAT-2, RULE-SEAT-3
  */
-export function validateSeatAssignment(pilot: Pilot, seat: SeatType, craftCategory: CraftCategory): void {
+export function validateSeatAssignment(
+  pilot: Pilot,
+  seat: SeatType,
+  craftCategory: CraftCategory,
+): void {
   if (!isValidSeatAssignment(pilot, seat, craftCategory)) {
     throw new SeatAssignmentError(
       `Pilot "${pilot.identifier}" is not certified for category "${craftCategory}" ` +

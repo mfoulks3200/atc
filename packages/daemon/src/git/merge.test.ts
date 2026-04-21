@@ -15,11 +15,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-  getDefaultBranch,
-  isBranchUpToDate,
-  mergeBranchIntoMain,
-} from "./merge.js";
+import { getDefaultBranch, isBranchUpToDate, mergeBranchIntoMain } from "./merge.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -67,7 +63,16 @@ async function addFeatureBranch(
   const wt = await mkdtemp(join(tmpdir(), `atc-merge-feat-${safe}-`));
   const wtRepo = join(wt, "wt");
   try {
-    execFileSync("git", ["--git-dir", bareDir, "worktree", "add", "-b", branchName, wtRepo, "main"]);
+    execFileSync("git", [
+      "--git-dir",
+      bareDir,
+      "worktree",
+      "add",
+      "-b",
+      branchName,
+      wtRepo,
+      "main",
+    ]);
     execFileSync("git", ["config", "user.name", "test"], { cwd: wtRepo });
     execFileSync("git", ["config", "user.email", "test@test.com"], { cwd: wtRepo });
     for (const [path, content] of Object.entries(files)) {
@@ -273,7 +278,14 @@ describe("mergeBranchIntoMain", () => {
       execFileSync("git", ["commit", "-m", "feat/b rebased"], { cwd: rebaseRepo });
     } finally {
       try {
-        execFileSync("git", ["--git-dir", scratch.bareDir, "worktree", "remove", "--force", rebaseRepo]);
+        execFileSync("git", [
+          "--git-dir",
+          scratch.bareDir,
+          "worktree",
+          "remove",
+          "--force",
+          rebaseRepo,
+        ]);
       } catch {
         // ignore
       }

@@ -211,3 +211,35 @@ export interface TfrState {
   issuedAt: string;
   liftedAt: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Diff types
+// ---------------------------------------------------------------------------
+
+/** A file changed between the craft branch and its base branch. */
+export interface DiffFile {
+  path: string;
+  status: "added" | "modified" | "deleted";
+}
+
+/**
+ * Response from GET /api/v1/projects/:name/crafts/:callsign/diff.
+ * @see RULE-CRAFT-1
+ */
+export interface CraftDiffResponse {
+  baseBranch: string;
+  craftBranch: string;
+  files: DiffFile[];
+}
+
+/**
+ * Response from GET /api/v1/projects/:name/crafts/:callsign/diff/files/{filePath}.
+ * `original` is null for added files; `modified` is null for deleted files.
+ * Both are null and `binary` is true for binary files.
+ */
+export interface CraftDiffFileResponse {
+  path: string;
+  original: string | null;
+  modified: string | null;
+  binary?: boolean;
+}

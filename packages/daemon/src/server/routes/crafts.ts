@@ -243,14 +243,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       const manager = app.agentManager;
       const adapterType = "claude-agent-sdk";
       if (manager !== null && app.adapterRegistry.get(adapterType) !== undefined) {
-        const worktreePath = join(
-          app.profileDir,
-          "projects",
-          name,
-          "crafts",
-          callsign,
-          "worktree",
-        );
+        const worktreePath = join(app.profileDir, "projects", name, "crafts", callsign, "worktree");
         mkdirSync(worktreePath, { recursive: true });
 
         const pilotsToSpawn = [craft.captain, ...craft.firstOfficers];

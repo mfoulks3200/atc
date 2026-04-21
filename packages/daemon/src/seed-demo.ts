@@ -103,7 +103,17 @@ async function initScratchRepo(scratchRepoDir: string, workDir: string): Promise
     "utf-8",
   );
   await execFile("git", ["-C", workDir, "add", "README.md"]);
-  await execFile("git", ["-C", workDir, "-c", "user.email=seed@atc.local", "-c", "user.name=ATC Seed", "commit", "-m", "seed: initial commit"]);
+  await execFile("git", [
+    "-C",
+    workDir,
+    "-c",
+    "user.email=seed@atc.local",
+    "-c",
+    "user.name=ATC Seed",
+    "commit",
+    "-m",
+    "seed: initial commit",
+  ]);
   await execFile("git", ["-C", workDir, "branch", "-M", "main"]);
   await execFile("git", ["-C", workDir, "push", "origin", "main"]);
 }
@@ -285,9 +295,7 @@ export async function runSeedDemoCli(
   const result = await seedDemo({ profileDir, force });
 
   if (!result.seeded) {
-    print(
-      `Demo project already exists at ${result.projectDir}. Pass --force to recreate.`,
-    );
+    print(`Demo project already exists at ${result.projectDir}. Pass --force to recreate.`);
   } else {
     print(`Seeded demo project at ${result.projectDir}`);
     print(`  scratch repo: ${result.scratchRepoDir}`);

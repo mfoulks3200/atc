@@ -108,9 +108,7 @@ describe("shareControls", () => {
   });
 
   it("skips seat validation when seatAssignments is not provided", () => {
-    const areas: SharedControlArea[] = [
-      { pilotIdentifier: "anyone-1", area: "src/api/" },
-    ];
+    const areas: SharedControlArea[] = [{ pilotIdentifier: "anyone-1", area: "src/api/" }];
 
     // Should not throw even though we don't know seat types
     const controls = shareControls(areas);

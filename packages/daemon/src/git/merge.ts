@@ -47,7 +47,13 @@ export type GitMergeOutcome =
  * @see RULE-TOWER-3
  */
 export async function getDefaultBranch(bareDir: string): Promise<string> {
-  const { stdout } = await execFile("git", ["--git-dir", bareDir, "symbolic-ref", "--short", "HEAD"]);
+  const { stdout } = await execFile("git", [
+    "--git-dir",
+    bareDir,
+    "symbolic-ref",
+    "--short",
+    "HEAD",
+  ]);
   return stdout.trim();
 }
 
@@ -130,22 +136,11 @@ export async function mergeBranchIntoMain(
   const worktreePath = join(tmpRoot, "main-wt");
 
   try {
-    await execFile("git", [
-      "--git-dir",
-      bareDir,
-      "worktree",
-      "add",
-      worktreePath,
-      mainBranch,
-    ]);
+    await execFile("git", ["--git-dir", bareDir, "worktree", "add", worktreePath, mainBranch]);
 
     // Merge the craft branch into the checked-out main worktree.
     try {
-      await execFile(
-        "git",
-        ["merge", "--no-ff", "-m", message, branch],
-        { cwd: worktreePath },
-      );
+      await execFile("git", ["merge", "--no-ff", "-m", message, branch], { cwd: worktreePath });
     } catch (err) {
       // Conflict or other merge failure — abort and report.
       try {

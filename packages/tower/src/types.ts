@@ -73,11 +73,7 @@ export interface MergeExecutor {
    * Execute the actual merge into main. Implementations MUST NOT throw on
    * merge conflict — they MUST return a structured outcome instead.
    */
-  merge(
-    mainBranch: string,
-    branch: string,
-    message: string,
-  ): MergeOutcome | Promise<MergeOutcome>;
+  merge(mainBranch: string, branch: string, message: string): MergeOutcome | Promise<MergeOutcome>;
 }
 
 export interface EmergencyReport {

@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from "vitest";
 import { createTowerMcpServer } from "./tower-tool.js";
 
 describe("createTowerMcpServer", () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fetchSpy: MockInstance<any>;
 
   beforeEach(() => {
     fetchSpy = vi
@@ -15,9 +16,11 @@ describe("createTowerMcpServer", () => {
   });
 
   function getTools(cfg: ReturnType<typeof createTowerMcpServer>) {
-    return (cfg.instance as unknown as {
-      _registeredTools: Record<string, { handler: (args: unknown) => Promise<unknown> }>;
-    })._registeredTools;
+    return (
+      cfg.instance as unknown as {
+        _registeredTools: Record<string, { handler: (args: unknown) => Promise<unknown> }>;
+      }
+    )._registeredTools;
   }
 
   it("registers both clearance and merge tools", () => {

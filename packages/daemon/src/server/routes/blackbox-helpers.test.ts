@@ -82,14 +82,7 @@ describe("appendBlackBoxEntry", () => {
       },
     ];
 
-    appendBlackBoxEntry(
-      app,
-      PROJECT,
-      craft,
-      "pilot-1",
-      BlackBoxEntryType.Launched,
-      "launched",
-    );
+    appendBlackBoxEntry(app, PROJECT, craft, "pilot-1", BlackBoxEntryType.Launched, "launched");
 
     expect(craft.blackBox).toHaveLength(2);
     expect(craft.blackBox[0].content).toBe("seed");

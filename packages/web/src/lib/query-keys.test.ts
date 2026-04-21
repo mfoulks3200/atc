@@ -39,6 +39,19 @@ describe("queryKeys", () => {
       "fix-auth",
       "vectors",
     ]);
+    expect(queryKeys.crafts.diff("acme", "fix-auth")).toEqual([
+      "crafts",
+      "acme",
+      "fix-auth",
+      "diff",
+    ]);
+    expect(queryKeys.crafts.diffFile("acme", "fix-auth", "src/index.ts")).toEqual([
+      "crafts",
+      "acme",
+      "fix-auth",
+      "diff",
+      "src/index.ts",
+    ]);
   });
 
   it("generates agent keys", () => {

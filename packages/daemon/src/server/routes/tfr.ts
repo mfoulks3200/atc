@@ -184,9 +184,7 @@ function affectedCrafts(
     return app.craftStore.listAll();
   }
   if (!projectName) return [];
-  return app.craftStore
-    .listForProject(projectName)
-    .map((craft) => ({ projectName, craft }));
+  return app.craftStore.listForProject(projectName).map((craft) => ({ projectName, craft }));
 }
 
 /**

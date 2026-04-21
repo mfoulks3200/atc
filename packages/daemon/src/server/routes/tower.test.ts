@@ -278,11 +278,9 @@ describe("tower merge route", () => {
     expect(towerStore.getQueue(PROJECT)).toHaveLength(0);
 
     // Verify the merge is actually present on main in the bare repo.
-    const log = execFileSync(
-      "git",
-      ["--git-dir", bareDir, "log", "--oneline", "main"],
-      { encoding: "utf8" },
-    );
+    const log = execFileSync("git", ["--git-dir", bareDir, "log", "--oneline", "main"], {
+      encoding: "utf8",
+    });
     expect(log).toContain("Tower merge: land craft");
   });
 

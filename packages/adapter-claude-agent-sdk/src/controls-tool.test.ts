@@ -1,13 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi, type MockInstance } from "vitest";
 import { createControlsMcpServer } from "./controls-tool.js";
 
 describe("createControlsMcpServer", () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fetchSpy: MockInstance<any>;
 
   beforeEach(() => {
     fetchSpy = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(new Response(JSON.stringify({ mode: "exclusive", holder: "fo-1" }), { status: 200 }));
+      .mockResolvedValue(
+        new Response(JSON.stringify({ mode: "exclusive", holder: "fo-1" }), { status: 200 }),
+      );
   });
 
   afterEach(() => {
@@ -15,9 +18,11 @@ describe("createControlsMcpServer", () => {
   });
 
   function getTools(cfg: ReturnType<typeof createControlsMcpServer>) {
-    return (cfg.instance as unknown as {
-      _registeredTools: Record<string, { handler: (args: unknown) => Promise<unknown> }>;
-    })._registeredTools;
+    return (
+      cfg.instance as unknown as {
+        _registeredTools: Record<string, { handler: (args: unknown) => Promise<unknown> }>;
+      }
+    )._registeredTools;
   }
 
   it("registers both controls_transfer and controls_read tools", () => {

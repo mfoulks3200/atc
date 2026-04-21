@@ -248,11 +248,7 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
     // core briefing.
     const pilotIdForPrompt = options.pilotId ?? options.craft.captain;
     const seat = deriveSeat(options.craft, pilotIdForPrompt);
-    const autoPrompt = buildSystemPrompt(
-      options.craft,
-      pilotIdForPrompt,
-      options.projectName,
-    );
+    const autoPrompt = buildSystemPrompt(options.craft, pilotIdForPrompt, options.projectName);
     const finalSystemPrompt =
       options.systemPrompt && options.systemPrompt.trim().length > 0
         ? `${autoPrompt}\n\n---\n\n## Project-specific notes\n\n${options.systemPrompt}`
