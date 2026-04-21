@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { mkdtempSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "../app.js";
 import { CraftStore } from "../../state/craft-store.js";
@@ -10,10 +13,16 @@ import type { CraftState } from "../../types.js";
 describe("vector routes", () => {
   let app: FastifyInstance;
   let craftStore: CraftStore;
+  let profileDir: string;
 
   const PROJECT = "test-project";
 
-  function seedCraft(): void {
+  function ensureWorktree(callsign: string): void {
+    const worktree = join(profileDir, "projects", PROJECT, "crafts", callsign, "worktree");
+    mkdirSync(worktree, { recursive: true });
+  }
+
+  function seedCraft(overrides: Partial<CraftState> = {}): void {
     const craft: CraftState = {
       callsign: "bravo-1",
       createdAt: "2026-04-11T00:00:00.000Z",
@@ -25,9 +34,52 @@ describe("vector routes", () => {
       firstOfficers: [],
       jumpseaters: [],
       flightPlan: [
-        { name: "design", acceptanceCriteria: "Design done", status: "Pending" },
-        { name: "implement", acceptanceCriteria: "Code done", status: "Pending" },
-        { name: "test", acceptanceCriteria: "Tests pass", status: "Pending" },
+        { name: "design", criteria: ["Design done"], status: "Pending" },
+        { name: "implement", criteria: ["Code done"], status: "Pending" },
+        { name: "test", criteria: ["Tests pass"], status: "Pending" },
+      ],
+      blackBox: [],
+      intercom: [],
+      controls: { mode: "exclusive", holder: "pilot-1" },
+      holdingPattern: false,
+      ...overrides,
+    };
+    craftStore.set(PROJECT, craft);
+  }
+
+  function seedCraftWithCommand(): void {
+    const craft: CraftState = {
+      callsign: "cmd-craft",
+      createdAt: "2026-04-11T00:00:00.000Z",
+      branch: "feat/cmd",
+      cargo: "Build with command gate",
+      category: "backend",
+      status: CraftStatus.InFlight,
+      captain: "pilot-1",
+      firstOfficers: [],
+      jumpseaters: [],
+      flightPlan: [
+        {
+          name: "setup",
+          criteria: ["DB migrated"],
+          command: { run: "exit 0", severity: "required" },
+          gateType: "command",
+          status: "Pending",
+        },
+        {
+          name: "implement",
+          criteria: ["Code done"],
+          command: { run: "exit 1", severity: "required" },
+          gateType: "command",
+          status: "Pending",
+        },
+        {
+          name: "lint",
+          criteria: ["Lint clean"],
+          command: { run: "exit 1", severity: "advisory" },
+          gateType: "command",
+          status: "Pending",
+        },
       ],
       blackBox: [],
       intercom: [],
@@ -38,13 +90,18 @@ describe("vector routes", () => {
   }
 
   beforeEach(() => {
-    craftStore = new CraftStore("/tmp/atc-vec-test");
+    profileDir = mkdtempSync(join(tmpdir(), "atc-vec-test-"));
+    craftStore = new CraftStore(profileDir);
     app = createApp({
       craftStore,
-      agentStore: new AgentStore("/tmp/atc-vec-test"),
-      towerStore: new TowerStore("/tmp/atc-vec-test"),
+      agentStore: new AgentStore(profileDir),
+      towerStore: new TowerStore(profileDir),
+      profileDir,
     });
     seedCraft();
+    ensureWorktree("bravo-1");
+    seedCraftWithCommand();
+    ensureWorktree("cmd-craft");
   });
 
   afterEach(async () => {
@@ -75,10 +132,10 @@ describe("vector routes", () => {
   });
 
   // -------------------------------------------------------------------------
-  // POST vector report
+  // POST vector report — NL-only vectors
   // -------------------------------------------------------------------------
 
-  describe("POST vector report", () => {
+  describe("POST vector report — NL-only", () => {
     it("marks the next pending vector as passed", async () => {
       const res = await app.inject({
         method: "POST",
@@ -118,6 +175,369 @@ describe("vector routes", () => {
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/nonexistent/report`,
         payload: { evidence: "nope" },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("returns 400 when evidence is missing for NL-only vector (RULE-VRPT-2)", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+        payload: {},
+      });
+      expect(res.statusCode).toBe(400);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // POST vector report — command gate (RULE-VCMD-5, RULE-VRPT-3)
+  // -------------------------------------------------------------------------
+
+  describe("POST vector report — command gate", () => {
+    it("records report when required command exits 0 without evidence (RULE-VRPT-2)", async () => {
+      // 'setup' vector has command: { run: "exit 0", severity: "required" }
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/cmd-craft/vectors/setup/report`,
+        payload: {},
+      });
+      expect(res.statusCode).toBe(200);
+      const plan = res.json<Array<{ name: string; status: string }>>();
+      expect(plan[0].status).toBe("Passed");
+    });
+
+    it("records VectorCommandRun black box entry on every execution (RULE-VCMD-8)", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/cmd-craft/vectors/setup/report`,
+        payload: {},
+      });
+      const craft = craftStore.get(PROJECT, "cmd-craft")!;
+      const cmdEntries = craft.blackBox.filter((e) => e.type === "VectorCommandRun");
+      expect(cmdEntries).toHaveLength(1);
+      const payload = JSON.parse(cmdEntries[0].content) as Record<string, unknown>;
+      expect(payload.vectorName).toBe("setup");
+      expect(payload.outcome).toBe("passed");
+      expect(payload.severity).toBe("required");
+    });
+
+    it("persists commandResult on the vector state after execution (RULE-VCMD-11)", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/cmd-craft/vectors/setup/report`,
+        payload: {},
+      });
+      const craft = craftStore.get(PROJECT, "cmd-craft")!;
+      const vector = craft.flightPlan[0];
+      expect(vector.commandResult).toBeDefined();
+      expect(vector.commandResult?.status).toBe("passed");
+    });
+
+    it("blocks report when required command exits non-zero (RULE-VCMD-5)", async () => {
+      // Seed a craft where the FIRST vector has a failing required command
+      const craft: CraftState = {
+        callsign: "fail-cmd-craft",
+        createdAt: "2026-04-11T00:00:00.000Z",
+        branch: "feat/fail",
+        cargo: "Fail cmd test",
+        category: "backend",
+        status: CraftStatus.InFlight,
+        captain: "pilot-1",
+        firstOfficers: [],
+        jumpseaters: [],
+        flightPlan: [
+          {
+            name: "first-fail",
+            criteria: ["should fail"],
+            command: { run: "exit 1", severity: "required" },
+            gateType: "command",
+            status: "Pending",
+          },
+        ],
+        blackBox: [],
+        intercom: [],
+        controls: { mode: "exclusive", holder: "pilot-1" },
+        holdingPattern: false,
+      };
+      craftStore.set(PROJECT, craft);
+      ensureWorktree("fail-cmd-craft");
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/fail-cmd-craft/vectors/first-fail/report`,
+        payload: { evidence: "I think it's done" },
+      });
+      expect(res.statusCode).toBe(422);
+      const body = res.json<{ error: string }>();
+      expect(body.error).toBe("VECTOR_COMMAND_FAILED");
+    });
+
+    it("does not update vector status when required command fails (RULE-VRPT-3)", async () => {
+      const craft: CraftState = {
+        callsign: "no-update-craft",
+        createdAt: "2026-04-11T00:00:00.000Z",
+        branch: "feat/no-update",
+        cargo: "No update test",
+        category: "backend",
+        status: CraftStatus.InFlight,
+        captain: "pilot-1",
+        firstOfficers: [],
+        jumpseaters: [],
+        flightPlan: [
+          {
+            name: "first",
+            criteria: ["should fail"],
+            command: { run: "exit 1", severity: "required" },
+            gateType: "command",
+            status: "Pending",
+          },
+        ],
+        blackBox: [],
+        intercom: [],
+        controls: { mode: "exclusive", holder: "pilot-1" },
+        holdingPattern: false,
+      };
+      craftStore.set(PROJECT, craft);
+      ensureWorktree("no-update-craft");
+
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/no-update-craft/vectors/first/report`,
+        payload: { evidence: "attempt" },
+      });
+      const stored = craftStore.get(PROJECT, "no-update-craft")!;
+      expect(stored.flightPlan[0].status).toBe("Pending");
+    });
+
+    it("records advisory failure but proceeds with report (RULE-VCMD-5)", async () => {
+      // Pass 'setup' and 'implement' first so 'lint' becomes next
+      // 'lint' has command: { run: "exit 1", severity: "advisory" }
+      // But we can't easily test this without passing the earlier vectors...
+      // Seed a simpler craft with advisory-only vector first
+      const craft: CraftState = {
+        callsign: "advisory-craft",
+        createdAt: "2026-04-11T00:00:00.000Z",
+        branch: "feat/advisory",
+        cargo: "Advisory test",
+        category: "backend",
+        status: CraftStatus.InFlight,
+        captain: "pilot-1",
+        firstOfficers: [],
+        jumpseaters: [],
+        flightPlan: [
+          {
+            name: "check",
+            criteria: ["Check done"],
+            command: { run: "exit 2", severity: "advisory" },
+            gateType: "command",
+            status: "Pending",
+          },
+        ],
+        blackBox: [],
+        intercom: [],
+        controls: { mode: "exclusive", holder: "pilot-1" },
+        holdingPattern: false,
+      };
+      craftStore.set(PROJECT, craft);
+      ensureWorktree("advisory-craft");
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/advisory-craft/vectors/check/report`,
+        payload: { evidence: "Manually confirmed" },
+      });
+      expect(res.statusCode).toBe(200);
+      const plan = res.json<Array<{ name: string; status: string }>>();
+      expect(plan[0].status).toBe("Passed");
+
+      const stored = craftStore.get(PROJECT, "advisory-craft")!;
+      const cmdEntries = stored.blackBox.filter((e) => e.type === "VectorCommandRun");
+      expect(cmdEntries).toHaveLength(1);
+      const payload = JSON.parse(cmdEntries[0].content) as Record<string, unknown>;
+      expect(payload.outcome).toBe("failed");
+      expect(payload.severity).toBe("advisory");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // POST override-command-gate (RULE-VCMD-10)
+  // -------------------------------------------------------------------------
+
+  describe("POST override-command-gate", () => {
+    it("captain can override a failing required command gate", async () => {
+      // Seed a craft where the first vector has a failing required command
+      const craft: CraftState = {
+        callsign: "override-craft",
+        createdAt: "2026-04-11T00:00:00.000Z",
+        branch: "feat/override",
+        cargo: "Override test",
+        category: "backend",
+        status: CraftStatus.InFlight,
+        captain: "pilot-1",
+        firstOfficers: [],
+        jumpseaters: [],
+        flightPlan: [
+          {
+            name: "gate",
+            criteria: ["Gate passed"],
+            command: { run: "exit 1", severity: "required" },
+            gateType: "command",
+            status: "Pending",
+            commandResult: {
+              status: "failed",
+              exitCode: 1,
+              stdout: "",
+              stderr: "test failure",
+              ranAt: new Date().toISOString(),
+              durationMs: 100,
+              timedOut: false,
+            },
+          },
+        ],
+        blackBox: [],
+        intercom: [],
+        controls: { mode: "exclusive", holder: "pilot-1" },
+        holdingPattern: false,
+      };
+      craftStore.set(PROJECT, craft);
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/override-craft/vectors/gate/override-command-gate`,
+        payload: { pilotId: "pilot-1", justification: "Manually verified the migration" },
+      });
+      expect(res.statusCode).toBe(200);
+      const plan = res.json<Array<{ name: string; status: string }>>();
+      expect(plan[0].status).toBe("Passed");
+    });
+
+    it("records VectorCommandGateOverridden black box entry (RULE-VCMD-8)", async () => {
+      const craft: CraftState = {
+        callsign: "override-bb-craft",
+        createdAt: "2026-04-11T00:00:00.000Z",
+        branch: "feat/override-bb",
+        cargo: "Override BB test",
+        category: "backend",
+        status: CraftStatus.InFlight,
+        captain: "pilot-1",
+        firstOfficers: [],
+        jumpseaters: [],
+        flightPlan: [
+          {
+            name: "gate",
+            criteria: ["Gate passed"],
+            command: { run: "exit 1", severity: "required" },
+            gateType: "command",
+            status: "Pending",
+          },
+        ],
+        blackBox: [],
+        intercom: [],
+        controls: { mode: "exclusive", holder: "pilot-1" },
+        holdingPattern: false,
+      };
+      craftStore.set(PROJECT, craft);
+
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/override-bb-craft/vectors/gate/override-command-gate`,
+        payload: { pilotId: "pilot-1", justification: "Verified manually" },
+      });
+
+      const stored = craftStore.get(PROJECT, "override-bb-craft")!;
+      const overrideEntries = stored.blackBox.filter(
+        (e) => e.type === "VectorCommandGateOverridden",
+      );
+      expect(overrideEntries).toHaveLength(1);
+      const payload = JSON.parse(overrideEntries[0].content) as Record<string, unknown>;
+      expect(payload.captainPilotId).toBe("pilot-1");
+      expect(payload.justification).toBe("Verified manually");
+    });
+
+    it("rejects override from non-captain (RULE-VCMD-10)", async () => {
+      const craft: CraftState = {
+        callsign: "override-reject-craft",
+        createdAt: "2026-04-11T00:00:00.000Z",
+        branch: "feat/override-reject",
+        cargo: "Reject override",
+        category: "backend",
+        status: CraftStatus.InFlight,
+        captain: "pilot-1",
+        firstOfficers: ["pilot-2"],
+        jumpseaters: [],
+        flightPlan: [
+          {
+            name: "gate",
+            criteria: ["Gate passed"],
+            command: { run: "exit 1", severity: "required" },
+            gateType: "command",
+            status: "Pending",
+          },
+        ],
+        blackBox: [],
+        intercom: [],
+        controls: { mode: "exclusive", holder: "pilot-1" },
+        holdingPattern: false,
+      };
+      craftStore.set(PROJECT, craft);
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/override-reject-craft/vectors/gate/override-command-gate`,
+        payload: { pilotId: "pilot-2", justification: "FO trying to override" },
+      });
+      expect(res.statusCode).toBe(403);
+    });
+
+    it("rejects override with missing justification", async () => {
+      const craft: CraftState = {
+        callsign: "no-justification-craft",
+        createdAt: "2026-04-11T00:00:00.000Z",
+        branch: "feat/nj",
+        cargo: "No justification",
+        category: "backend",
+        status: CraftStatus.InFlight,
+        captain: "pilot-1",
+        firstOfficers: [],
+        jumpseaters: [],
+        flightPlan: [
+          {
+            name: "gate",
+            criteria: ["Gate passed"],
+            command: { run: "exit 1", severity: "required" },
+            gateType: "command",
+            status: "Pending",
+          },
+        ],
+        blackBox: [],
+        intercom: [],
+        controls: { mode: "exclusive", holder: "pilot-1" },
+        holdingPattern: false,
+      };
+      craftStore.set(PROJECT, craft);
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/no-justification-craft/vectors/gate/override-command-gate`,
+        payload: { pilotId: "pilot-1", justification: "" },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("rejects override on a vector with no command gate", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/override-command-gate`,
+        payload: { pilotId: "pilot-1", justification: "No gate to override" },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("returns 404 for unknown craft", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/ghost/vectors/gate/override-command-gate`,
+        payload: { pilotId: "pilot-1", justification: "Testing" },
       });
       expect(res.statusCode).toBe(404);
     });

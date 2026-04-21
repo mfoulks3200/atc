@@ -44,3 +44,12 @@ export type {
 
 export { TfrScope, TfrMode } from "./tfr.js";
 export type { TfrIssuer, TemporaryFlightRestriction } from "./tfr.js";
+
+export type {
+  SddErrorCode,
+  SpecPriority,
+  SpecVectorCommand,
+  SpecVector,
+  SpecPilotHints,
+  SpecDocument,
+} from "./sdd.js";

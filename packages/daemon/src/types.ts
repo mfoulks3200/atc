@@ -8,7 +8,7 @@
  * @see RULE-CTRL-1 through RULE-CTRL-5 for controls state rules.
  */
 
-import type { BlackBoxEntryType, CraftStatus } from "@airtrafficcontrol/types";
+import type { BlackBoxEntryType, CraftStatus, SpecVectorCommand } from "@airtrafficcontrol/types";
 
 // ---------------------------------------------------------------------------
 // Configuration types
@@ -103,17 +103,65 @@ export interface AgentRecord {
 // ---------------------------------------------------------------------------
 
 /**
+ * Result of a vector command execution, persisted in VectorState.
+ * @see RULE-VCMD-11
+ */
+export interface VectorCommandResult {
+  /** Outcome of the command run. */
+  status: "passed" | "failed" | "timed_out";
+  /** Exit code (present when status is failed or timed_out). */
+  exitCode?: number;
+  /** Captured stdout, truncated to 4096 chars in API responses (64 KB in black box). */
+  stdout: string;
+  /** Captured stderr, truncated to 4096 chars in API responses (16 KB in black box). */
+  stderr: string;
+  /** ISO-8601 timestamp when the command ran. */
+  ranAt: string;
+  /** Wall-clock duration in milliseconds. */
+  durationMs: number;
+  /** Whether the command was killed due to timeout. */
+  timedOut: boolean;
+}
+
+/**
  * Persisted state of a single vector within a craft's flight plan.
  *
  * @see RULE-VEC-1 through RULE-VEC-5 for vector rules.
+ * @see RULE-VCMD-11 for commandResult lifecycle.
  */
 export interface VectorState {
   /** Vector name / title. */
   name: string;
-  /** Human-readable acceptance criteria for this vector. */
-  acceptanceCriteria: string;
+  /**
+   * Natural language acceptance criteria. Absent when the vector has a
+   * command-only gate. When both `criteria` and `command` are present,
+   * `criteria` documents the human intent behind the command.
+   * @see RULE-SDD-2, RULE-VCMD-2
+   */
+  criteria?: string[];
+  /**
+   * Legacy single-string acceptance criteria field. Kept for backward
+   * compatibility with existing craft records. New vectors created via SDD
+   * use `criteria[]` instead.
+   * @deprecated Use `criteria` array instead.
+   */
+  acceptanceCriteria?: string;
+  /** Optional machine-executable verification gate. @see RULE-VCMD-1 */
+  command?: SpecVectorCommand;
+  /**
+   * Gate type derived from whether `command` is present.
+   * `"nl"` = natural-language only; `"command"` = has command gate.
+   * @see RULE-VCMD-1
+   */
+  gateType?: "nl" | "command";
   /** Current pass/fail/pending status. */
   status: "Pending" | "Passed" | "Failed";
+  /**
+   * Last command execution result. Populated after the first command run;
+   * updated on each subsequent run. Absent for NL-only vectors.
+   * @see RULE-VCMD-11
+   */
+  commandResult?: VectorCommandResult;
   /** Optional evidence string submitted when the vector was evaluated. */
   evidence?: string;
   /** ISO-8601 timestamp when the vector was reported on. */

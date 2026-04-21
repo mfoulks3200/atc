@@ -38,7 +38,14 @@ interface CreateCraftBody {
   captain: string;
   firstOfficers?: string[];
   jumpseaters?: string[];
-  flightPlan: Array<{ name: string; acceptanceCriteria: string }>;
+  flightPlan: Array<{
+    name: string;
+    /** New-style criteria array per spec. */
+    criteria?: string[];
+    /** Legacy single-string field kept for backward compat. */
+    acceptanceCriteria?: string;
+    command?: { run: string; timeout?: number; severity?: "required" | "advisory" };
+  }>;
 }
 
 interface EmergencyBody {
@@ -82,7 +89,10 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
 
       const vectors: VectorState[] = flightPlan.map((v) => ({
         name: v.name,
+        criteria: v.criteria,
         acceptanceCriteria: v.acceptanceCriteria,
+        command: v.command,
+        gateType: v.command ? ("command" as const) : ("nl" as const),
         status: "Pending" as const,
       }));
 

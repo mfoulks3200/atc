@@ -141,4 +141,14 @@ export enum BlackBoxEntryType {
   MergeStale = "MergeStale",
   /** Tower attempted a merge but encountered conflicts. @see RULE-TMRG-3 */
   MergeConflict = "MergeConflict",
+  /**
+   * A vector's `command.run` was executed (pass or fail, required or advisory).
+   * @see RULE-VCMD-8
+   */
+  VectorCommandRun = "VectorCommandRun",
+  /**
+   * The craft's captain bypassed a failing command gate.
+   * @see RULE-VCMD-8, RULE-VCMD-10
+   */
+  VectorCommandGateOverridden = "VectorCommandGateOverridden",
 }
