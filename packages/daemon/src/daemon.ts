@@ -30,7 +30,6 @@ import type { GlobalConfig, ProjectMetadataConfig } from "./config/schema.js";
 import { ChannelRegistry } from "./server/websocket/channels.js";
 import { appendBlackBoxEntryWithRegistry } from "./server/routes/blackbox-helpers.js";
 import { BlackBoxEntryType } from "@airtrafficcontrol/types";
-import { ClaudeAgentSdkAdapter } from "@airtrafficcontrol/adapter-claude-agent-sdk";
 
 /** Path of the PID file relative to the profile directory. */
 const PID_FILE = "daemon.pid";
@@ -53,6 +52,7 @@ const PID_FILE = "daemon.pid";
 export class Daemon {
   private readonly _profileDir: string;
   private readonly _atcDir: string;
+  private readonly _adapterRegistry: AdapterRegistry | undefined;
   private _globalConfigStore: LayeredConfigStore<GlobalConfig> | null = null;
   private _channelRegistry: ChannelRegistry | null = null;
   private _running = false;
@@ -70,10 +70,17 @@ export class Daemon {
    *   a `config.json` file and the standard subdirectory layout.
    * @param atcDir - Absolute path to the `.atc` root directory. Used as the
    *   location of the global `config.json` file.
+   * @param adapterRegistry - Optional pre-configured adapter registry. If
+   *   omitted, an empty registry is used (callers should register adapters
+   *   before calling {@link start} or pass one here). This parameter exists
+   *   to break the compile-time circular dependency between daemon and
+   *   adapter packages — the entry point (start.ts) registers adapters after
+   *   importing them independently.
    */
-  constructor(profileDir: string, atcDir: string) {
+  constructor(profileDir: string, atcDir: string, adapterRegistry?: AdapterRegistry) {
     this._profileDir = profileDir;
     this._atcDir = atcDir;
+    this._adapterRegistry = adapterRegistry;
   }
 
   /**
@@ -119,8 +126,7 @@ export class Daemon {
     await agentStore.load();
     await pilotStore.load();
 
-    const adapterRegistry = new AdapterRegistry();
-    adapterRegistry.register("claude-agent-sdk", new ClaudeAgentSdkAdapter());
+    const adapterRegistry = this._adapterRegistry ?? new AdapterRegistry();
     const channelRegistry = new ChannelRegistry();
 
     // The intercom is an explicit MCP tool on the agent side (see
