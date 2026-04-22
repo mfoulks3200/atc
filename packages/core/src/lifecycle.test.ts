@@ -18,6 +18,7 @@ import {
 const captain: Pilot = {
   identifier: "captain-1",
   certifications: ["Backend Engineering"],
+  selectionCount: 0,
 };
 
 function makeCraft(overrides?: Partial<Craft>): Craft {

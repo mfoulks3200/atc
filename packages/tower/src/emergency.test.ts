@@ -16,7 +16,7 @@ function makeCraft(overrides: Partial<Craft> = {}): Craft {
     branch: "feat/test-1",
     cargo: "Add widget endpoint",
     category: "Backend Engineering",
-    captain: { identifier: "pilot-a", certifications: ["Backend Engineering"] },
+    captain: { identifier: "pilot-a", certifications: ["Backend Engineering"], selectionCount: 0 },
     firstOfficers: [],
     jumpseaters: [],
     flightPlan: [

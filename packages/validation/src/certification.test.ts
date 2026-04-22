@@ -6,16 +6,19 @@ describe("isPilotCertified", () => {
   const certifiedPilot: Pilot = {
     identifier: "pilot-1",
     certifications: ["Backend Engineering", "Frontend Engineering"],
+    selectionCount: 0,
   };
 
   const uncertifiedPilot: Pilot = {
     identifier: "pilot-2",
     certifications: [],
+    selectionCount: 0,
   };
 
   const singleCertPilot: Pilot = {
     identifier: "pilot-3",
     certifications: ["Infrastructure"],
+    selectionCount: 0,
   };
 
   it("returns true when pilot is certified for the category", () => {

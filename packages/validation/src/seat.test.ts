@@ -8,16 +8,19 @@ import { isValidSeatAssignment, validateSeatAssignment, validateCraftCrew } from
 const certifiedPilot: Pilot = {
   identifier: "ace",
   certifications: ["Backend Engineering", "Frontend Engineering"],
+  selectionCount: 0,
 };
 
 const uncertifiedPilot: Pilot = {
   identifier: "rookie",
   certifications: [],
+  selectionCount: 0,
 };
 
 const infraPilot: Pilot = {
   identifier: "ops",
   certifications: ["Infrastructure"],
+  selectionCount: 0,
 };
 
 const CATEGORY = "Backend Engineering";
@@ -143,6 +146,7 @@ describe("validateCraftCrew", () => {
     const secondUncertified: Pilot = {
       identifier: "also-rookie",
       certifications: [],
+      selectionCount: 0,
     };
     expect(() =>
       validateCraftCrew(certifiedPilot, [certifiedPilot, secondUncertified], CATEGORY),

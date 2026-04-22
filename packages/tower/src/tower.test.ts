@@ -21,7 +21,7 @@ function makeCraft(overrides: Partial<Craft> = {}): Craft {
     branch: "feat/craft-1",
     cargo: "Add widget endpoint",
     category: "Backend Engineering",
-    captain: { identifier: "pilot-a", certifications: ["Backend Engineering"] },
+    captain: { identifier: "pilot-a", certifications: ["Backend Engineering"], selectionCount: 0 },
     firstOfficers: [],
     jumpseaters: [],
     flightPlan: [
@@ -298,7 +298,11 @@ describe("Tower.declareEmergency", () => {
   it("only allows the captain to declare emergency (RULE-EMER-1)", () => {
     const craft = makeCraft({
       callsign: "SOS-2",
-      captain: { identifier: "captain-x", certifications: ["Backend Engineering"] },
+      captain: {
+        identifier: "captain-x",
+        certifications: ["Backend Engineering"],
+        selectionCount: 0,
+      },
     });
     expect(() => tower.declareEmergency(craft, "not-the-captain", "Reasons")).toThrow();
   });
@@ -306,7 +310,11 @@ describe("Tower.declareEmergency", () => {
   it("does not throw when captainId matches the craft captain (RULE-EMER-1)", () => {
     const craft = makeCraft({
       callsign: "SOS-3",
-      captain: { identifier: "captain-y", certifications: ["Backend Engineering"] },
+      captain: {
+        identifier: "captain-y",
+        certifications: ["Backend Engineering"],
+        selectionCount: 0,
+      },
     });
     expect(() => tower.declareEmergency(craft, "captain-y", "Reasons")).not.toThrow();
   });
