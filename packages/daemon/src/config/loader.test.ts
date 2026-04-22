@@ -12,6 +12,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ConfigValidationError } from "@airtrafficcontrol/errors";
 import { loadProfileConfig, loadProjectMetadata, resolveProfilePath } from "./loader.js";
 import { PROFILE_CONFIG_DEFAULTS } from "./schema.js";
+import type { EnvOverrides } from "./env.js";
 
 let tmpDir: string;
 
@@ -78,6 +79,93 @@ describe("loadProfileConfig", () => {
       expect(err).toBeInstanceOf(ConfigValidationError);
       expect((err as ConfigValidationError).scope).toBe("profile");
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// loadProfileConfig — env var priority (env > file > default)
+// ---------------------------------------------------------------------------
+
+describe("loadProfileConfig with envOverrides", () => {
+  function makeOverrides(
+    partial: Partial<EnvOverrides["profileOverrides"]>,
+  ): Pick<EnvOverrides, "profileOverrides"> {
+    return { profileOverrides: partial };
+  }
+
+  it("env overrides win over file config", async () => {
+    const profileDir = join(tmpDir, "profiles", "env-wins");
+    await mkdir(profileDir, { recursive: true });
+    await writeFile(join(profileDir, "config.json"), JSON.stringify({ port: 8080 }));
+    const config = await loadProfileConfig(profileDir, makeOverrides({ port: 9999 }));
+    expect(config.port).toBe(9999);
+  });
+
+  it("env overrides win over defaults when no file present", async () => {
+    const profileDir = join(tmpDir, "profiles", "env-no-file");
+    await mkdir(profileDir, { recursive: true });
+    const config = await loadProfileConfig(profileDir, makeOverrides({ host: "0.0.0.0" }));
+    expect(config.host).toBe("0.0.0.0");
+    expect(config.port).toBe(PROFILE_CONFIG_DEFAULTS.port);
+  });
+
+  it("file config wins over defaults when no env override set", async () => {
+    const profileDir = join(tmpDir, "profiles", "file-wins");
+    await mkdir(profileDir, { recursive: true });
+    await writeFile(join(profileDir, "config.json"), JSON.stringify({ logLevel: "debug" }));
+    const config = await loadProfileConfig(profileDir, makeOverrides({}));
+    expect(config.logLevel).toBe("debug");
+  });
+
+  it("unset env overrides do not shadow file values", async () => {
+    const profileDir = join(tmpDir, "profiles", "no-shadow");
+    await mkdir(profileDir, { recursive: true });
+    await writeFile(join(profileDir, "config.json"), JSON.stringify({ port: 8181 }));
+    // envOverrides has no port — file value should survive
+    const config = await loadProfileConfig(profileDir, makeOverrides({ host: "0.0.0.0" }));
+    expect(config.port).toBe(8181);
+    expect(config.host).toBe("0.0.0.0");
+  });
+
+  it("all three layers stack correctly (env > file > default)", async () => {
+    const profileDir = join(tmpDir, "profiles", "all-layers");
+    await mkdir(profileDir, { recursive: true });
+    await writeFile(
+      join(profileDir, "config.json"),
+      JSON.stringify({ port: 8080, logLevel: "debug" }),
+    );
+    const config = await loadProfileConfig(profileDir, makeOverrides({ port: 9000 }));
+    expect(config.port).toBe(9000); // env wins
+    expect(config.logLevel).toBe("debug"); // file wins over default
+    expect(config.host).toBe(PROFILE_CONFIG_DEFAULTS.host); // default
+    expect(config.autoRecover).toBe(PROFILE_CONFIG_DEFAULTS.autoRecover); // default
+  });
+
+  it("env logLevel override is applied", async () => {
+    const profileDir = join(tmpDir, "profiles", "env-loglevel");
+    await mkdir(profileDir, { recursive: true });
+    const config = await loadProfileConfig(profileDir, makeOverrides({ logLevel: "warn" }));
+    expect(config.logLevel).toBe("warn");
+  });
+
+  it("omitting envOverrides uses file config only (backward compatibility)", async () => {
+    const profileDir = join(tmpDir, "profiles", "no-env");
+    await mkdir(profileDir, { recursive: true });
+    await writeFile(join(profileDir, "config.json"), JSON.stringify({ port: 7777 }));
+    const config = await loadProfileConfig(profileDir);
+    expect(config.port).toBe(7777);
+  });
+
+  it("adapter in file config is preserved when env overrides other fields", async () => {
+    const profileDir = join(tmpDir, "profiles", "adapter-preserved");
+    await mkdir(profileDir, { recursive: true });
+    await writeFile(
+      join(profileDir, "config.json"),
+      JSON.stringify({ port: 8080, adapter: { type: "my-adapter", config: { key: "val" } } }),
+    );
+    const config = await loadProfileConfig(profileDir, makeOverrides({ port: 9090 }));
+    expect(config.port).toBe(9090);
+    expect(config.adapter.type).toBe("my-adapter");
   });
 });
 

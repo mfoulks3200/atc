@@ -4,6 +4,11 @@
  * The global config loader has moved to `LayeredConfigStore` (see
  * `./global-store.ts`). This module now only handles one-shot profile
  * reads used during daemon boot.
+ *
+ * Priority order for profile config:
+ *   1. Environment variables (highest) — see {@link loadEnvOverrides}
+ *   2. `<profileDir>/config.json` file
+ *   3. Built-in defaults ({@link PROFILE_CONFIG_DEFAULTS})
  */
 
 import { readFile } from "node:fs/promises";
@@ -16,6 +21,7 @@ import {
   type GlobalConfig,
 } from "./schema.js";
 import type { ProjectMetadata } from "../types.js";
+import type { EnvOverrides } from "./env.js";
 
 /**
  * Reads a JSON file and parses it, returning `null` if absent.
@@ -45,28 +51,44 @@ export function resolveProfilePath(atcDir: string, profileName?: string): string
 
 /**
  * Loads a profile config from `<profileDir>/config.json`, merges it with
- * defaults, and validates all present fields using the Zod schema.
+ * defaults and optional environment variable overrides, then validates the
+ * result using the Zod schema.
+ *
+ * Priority order (highest first):
+ *   1. `envOverrides.profileOverrides` — values from `ATC_PORT`, `ATC_HOST`,
+ *      `ATC_LOG_LEVEL` environment variables
+ *   2. `<profileDir>/config.json` file values
+ *   3. {@link PROFILE_CONFIG_DEFAULTS}
  *
  * @param profileDir - Path to the profile directory.
+ * @param envOverrides - Pre-validated env var overrides from
+ *   {@link loadEnvOverrides}. When omitted no env overrides are applied
+ *   (useful for isolated unit tests).
  * @throws {ConfigValidationError} if any field has an invalid type or value.
  */
-export async function loadProfileConfig(profileDir: string): Promise<ProfileConfig> {
+export async function loadProfileConfig(
+  profileDir: string,
+  envOverrides?: Pick<EnvOverrides, "profileOverrides">,
+): Promise<ProfileConfig> {
   const raw = await readJsonFile(join(profileDir, "config.json"));
-  if (raw === null || typeof raw !== "object") {
-    return {
-      ...PROFILE_CONFIG_DEFAULTS,
-      adapter: { ...PROFILE_CONFIG_DEFAULTS.adapter },
-    };
-  }
+
+  const fileValues =
+    raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+
+  // Env overrides with undefined values filtered out so they do not shadow
+  // lower-priority layers when a variable is absent from the environment.
+  const envValues = Object.fromEntries(
+    Object.entries(envOverrides?.profileOverrides ?? {}).filter(([, v]) => v !== undefined),
+  );
 
   const candidate = {
     ...PROFILE_CONFIG_DEFAULTS,
-    ...(raw as Record<string, unknown>),
+    ...fileValues,
+    ...envValues, // env vars win over file config
     adapter: {
       ...PROFILE_CONFIG_DEFAULTS.adapter,
-      ...((raw as Record<string, unknown>)["adapter"] &&
-      typeof (raw as Record<string, unknown>)["adapter"] === "object"
-        ? ((raw as Record<string, unknown>)["adapter"] as Record<string, unknown>)
+      ...(fileValues["adapter"] && typeof fileValues["adapter"] === "object"
+        ? (fileValues["adapter"] as Record<string, unknown>)
         : {}),
     },
   };

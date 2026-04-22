@@ -13,6 +13,7 @@
 
 import { join } from "node:path";
 import { loadProfileConfig } from "./config/loader.js";
+import { loadEnvOverrides } from "./config/env.js";
 import { AgentStore } from "./state/agent-store.js";
 import { CraftStore } from "./state/craft-store.js";
 import { TowerStore } from "./state/tower-store.js";
@@ -115,9 +116,12 @@ export class Daemon {
    * @returns Resolves when the server is listening and fully initialized.
    */
   async start(): Promise<void> {
-    const config = await loadProfileConfig(this._profileDir);
+    // Validate env vars once; throws ConfigValidationError on bad values so
+    // misconfigured deployments fail fast with a clear explanation.
+    const envOverrides = loadEnvOverrides();
+    const config = await loadProfileConfig(this._profileDir, envOverrides);
 
-    const stateDir = join(this._profileDir, "state");
+    const stateDir = envOverrides.stateDir ?? join(this._profileDir, "state");
     const agentStore = new AgentStore(stateDir);
     const craftStore = new CraftStore(stateDir);
     const towerStore = new TowerStore(stateDir);
