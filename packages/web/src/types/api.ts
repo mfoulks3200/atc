@@ -93,6 +93,12 @@ export interface CraftState {
   blackBox: BlackBoxEntry[];
   intercom: IntercomMessage[];
   controls: ControlState;
+  /** Present only on dry-run responses. @see RULE-SDD-15 */
+  autoLaunchRequested?: boolean;
+  /** Present only on dry-run responses. True when all guards pass. @see RULE-SDD-11 through RULE-SDD-14 */
+  autoLaunchWillFire?: boolean;
+  /** Present only on dry-run responses. Non-null when autoLaunch is suppressed. @see RULE-SDD-12 */
+  autoLaunchSuppressionReason?: string | null;
 }
 
 export interface ProjectMetadata {

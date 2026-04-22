@@ -259,6 +259,26 @@ export function SpecImportPanel({ project, onSuccess }: SpecImportPanelProps) {
                 </span>
               </div>
             )}
+            {dryRunResult.autoLaunchRequested === true && (
+              <div className="col-span-2">
+                <span style={{ color: "var(--text-dim)" }}>AUTO-LAUNCH </span>
+                {dryRunResult.autoLaunchWillFire ? (
+                  <span
+                    style={{ color: "var(--accent-green)" }}
+                    data-testid="preview-autolaunch-status"
+                  >
+                    ✓ Yes — pilot: {dryRunResult.captain}
+                  </span>
+                ) : (
+                  <span
+                    style={{ color: "var(--accent-yellow)" }}
+                    data-testid="preview-autolaunch-status"
+                  >
+                    ✗ Suppressed — {dryRunResult.autoLaunchSuppressionReason}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="mt-2.5">

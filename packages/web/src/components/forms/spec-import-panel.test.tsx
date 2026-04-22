@@ -214,6 +214,88 @@ describe("Dry Run", () => {
     expect(screen.queryByTestId("dry-run-preview")).toBeNull();
   });
 
+  it("shows AUTO-LAUNCH green row when autoLaunchWillFire is true", async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify(
+          makeCraft({
+            captain: "pilot-alice",
+            autoLaunchRequested: true,
+            autoLaunchWillFire: true,
+            autoLaunchSuppressionReason: null,
+          }),
+        ),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    renderPanel();
+    await userEvent.type(screen.getByTestId("spec-textarea"), "title: test");
+    await userEvent.click(screen.getByTestId("dry-run-button"));
+
+    const el = await screen.findByTestId("preview-autolaunch-status");
+    expect(el.textContent).toMatch(/✓ Yes — pilot: pilot-alice/);
+  });
+
+  it("shows AUTO-LAUNCH amber row with reason when autoLaunchWillFire is false", async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify(
+          makeCraft({
+            autoLaunchRequested: true,
+            autoLaunchWillFire: false,
+            autoLaunchSuppressionReason: "allowAutoLaunch is not enabled for this project (RULE-SDD-11)",
+          }),
+        ),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    renderPanel();
+    await userEvent.type(screen.getByTestId("spec-textarea"), "title: test");
+    await userEvent.click(screen.getByTestId("dry-run-button"));
+
+    const el = await screen.findByTestId("preview-autolaunch-status");
+    expect(el.textContent).toMatch(/✗ Suppressed/);
+    expect(el.textContent).toMatch(/allowAutoLaunch is not enabled/);
+  });
+
+  it("hides the AUTO-LAUNCH row when autoLaunchRequested is false", async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify(makeCraft({ autoLaunchRequested: false })),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    renderPanel();
+    await userEvent.type(screen.getByTestId("spec-textarea"), "title: test");
+    await userEvent.click(screen.getByTestId("dry-run-button"));
+
+    await waitFor(() => screen.getByTestId("dry-run-preview"));
+    expect(screen.queryByTestId("preview-autolaunch-status")).toBeNull();
+  });
+
+  it("hides the AUTO-LAUNCH row when autoLaunchRequested is absent (legacy response)", async () => {
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify(makeCraft()), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    renderPanel();
+    await userEvent.type(screen.getByTestId("spec-textarea"), "title: test");
+    await userEvent.click(screen.getByTestId("dry-run-button"));
+
+    await waitFor(() => screen.getByTestId("dry-run-preview"));
+    expect(screen.queryByTestId("preview-autolaunch-status")).toBeNull();
+  });
+
   it("clears the dry-run preview when content is edited after a successful dry run", async () => {
     const fetchMock = vi.mocked(globalThis.fetch);
     fetchMock.mockResolvedValueOnce(
