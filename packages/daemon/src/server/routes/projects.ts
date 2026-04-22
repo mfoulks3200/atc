@@ -107,6 +107,9 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
       categories,
       checklist,
       mcpServers: mcpServers ?? {},
+      allowAutoLaunch: false,
+      specInbox: null,
+      callsignCounter: 1,
     };
 
     await store.replace(metadata);

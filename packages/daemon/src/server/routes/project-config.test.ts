@@ -78,6 +78,9 @@ describe("PUT /api/v1/projects/:name/config", () => {
       categories: ["backend"],
       checklist: [],
       mcpServers: {},
+      allowAutoLaunch: false,
+      specInbox: null,
+      callsignCounter: 1,
     };
     const res = await app.inject({
       method: "PUT",
@@ -103,6 +106,9 @@ describe("PUT /api/v1/projects/:name/config", () => {
         categories: [],
         checklist: [],
         mcpServers: {},
+        allowAutoLaunch: false,
+        specInbox: null,
+        callsignCounter: 1,
       },
     });
     expect(res.statusCode).toBe(404);

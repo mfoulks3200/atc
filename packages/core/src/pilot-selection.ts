@@ -6,7 +6,7 @@ import { NoCertifiedPilotError } from "@airtrafficcontrol/errors";
 const ACTIVE_STATUSES: ReadonlySet<CraftStatus> = new Set([
   CraftStatus.Taxiing,
   CraftStatus.InFlight,
-  CraftStatus.LandingClearanceRequested,
+  CraftStatus.LandingChecklist,
 ]);
 
 /**

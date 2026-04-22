@@ -79,6 +79,10 @@ describe("BlackBoxEntryType", () => {
     expect(Object.values(BlackBoxEntryType)).toHaveLength(22);
   });
 
+  it("includes SpecCreated entry type (RULE-SDD-16)", () => {
+    expect(BlackBoxEntryType.SpecCreated).toBe("SpecCreated");
+  });
+
   it("contains all entry types", () => {
     expect(BlackBoxEntryType.Decision).toBe("Decision");
     expect(BlackBoxEntryType.VectorPassed).toBe("VectorPassed");
