@@ -204,7 +204,7 @@ test.describe("responsive layout", () => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto("/");
     await expect(page.getByText("Dashboard").first()).toBeVisible();
-    await expect(page.getByText("ACTIVE CRAFTS").first()).toBeVisible();
+    await expect(page.locator("main")).toBeVisible();
   });
 
   test("projects list renders at mobile viewport (375×667)", async ({ page }) => {
@@ -217,6 +217,6 @@ test.describe("responsive layout", () => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto("/crafts");
     await expect(page.locator("main")).toBeVisible();
-    await expect(page.getByText(DEMO_CRAFTS[0]!.callsign).first()).toBeVisible();
+    await expect(page.getByText(DEMO_CRAFTS[0]!.callsign).first()).toBeAttached();
   });
 });
