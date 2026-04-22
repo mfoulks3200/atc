@@ -219,13 +219,21 @@ export async function reconcileOrphanWorktrees(
       }
 
       // Derive callsign from path: <projectDir>/crafts/<callsign>/worktree
-      // Resolve craftsDir via realpath so that symlinked temp prefixes (e.g.
-      // /tmp → /private/tmp on macOS) don't break the relative-path comparison
-      // against paths git reports in `git worktree list --porcelain`.
-      const craftsDir = await realpath(join(projectDir, "crafts")).catch(
-        () => join(projectDir, "crafts"),
-      );
-      const relPath = relative(craftsDir, wt.path);
+      // Resolve symlinks on both sides so that macOS's /var → /private/var
+      // symlink doesn't cause a spurious ".." prefix from relative(). Git stores
+      // worktree paths exactly as given to `worktree add`, while realpath on the
+      // crafts dir resolves to the canonical prefix — both sides must match.
+      let craftsDir: string;
+      let resolvedWtPath: string;
+      try {
+        [craftsDir, resolvedWtPath] = await Promise.all([
+          realpath(join(projectDir, "crafts")),
+          realpath(wt.path),
+        ]);
+      } catch {
+        continue;
+      }
+      const relPath = relative(craftsDir, resolvedWtPath);
 
       // Reject paths outside the crafts directory or with unexpected layouts.
       if (relPath.startsWith("..") || relPath === "") continue;
