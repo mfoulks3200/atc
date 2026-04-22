@@ -1,0 +1,49 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build TypeScript
+        run: pnpm run build
+
+      - name: Build web bundle
+        run: pnpm --filter @airtrafficcontrol/web build
+
+      - name: Install Playwright Chromium with Linux dependencies
+        run: pnpm --filter @airtrafficcontrol/e2e exec playwright install --with-deps chromium
+
+      - name: Run e2e tests
+        run: pnpm --filter @airtrafficcontrol/e2e test
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: packages/e2e/test-results/
+          retention-days: 7
