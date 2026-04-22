@@ -130,6 +130,10 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
           command: vector.command.run,
         });
 
+        // GIT_DIR is intentionally omitted: the worktree was created via
+        // `git worktree add`, so its `.git` file already points back to the
+        // bare repo. Git resolves the repository correctly without an explicit
+        // GIT_DIR override (RULE-VCMD-4 advisory — safe for worktree contexts).
         const cmdResult = await runVectorCommand(
           vector.command.run,
           worktreePath,
@@ -190,10 +194,15 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
         if (!commandPassed && severity === "required") {
           // Persist the commandResult before returning (so callers can inspect it)
           app.craftStore.set(name, craft);
+          // RULE-VCMD-7: API responses cap stdout at 4096 chars (black box retains full 64 KB).
           return reply.code(422).send({
             error: "VECTOR_COMMAND_FAILED",
             message: `Vector command for "${vectorName}" failed with ${cmdResult.timedOut ? "timeout" : `exit code ${cmdResult.exitCode ?? "unknown"}`}`,
-            commandResult: cmdResult,
+            commandResult: {
+              ...cmdResult,
+              stdout: cmdResult.stdout.slice(0, 4096),
+              stderr: cmdResult.stderr.slice(0, 4096),
+            },
           });
         }
 
@@ -266,8 +275,13 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      if (!justification || justification.trim().length === 0) {
-        return reply.code(400).send({ error: "justification is required for override" });
+      // RULE-VCMD-10: justification must contain at least 20 non-whitespace characters.
+      const nonWhitespace = (justification ?? "").replace(/\s/g, "");
+      if (nonWhitespace.length < 20) {
+        return reply.code(400).send({
+          error: "SPEC_VALIDATION_ERROR",
+          message: "justification must contain at least 20 non-whitespace characters",
+        });
       }
 
       const vector = craft.flightPlan.find((v) => v.name === vectorName);

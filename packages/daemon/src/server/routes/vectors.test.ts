@@ -170,6 +170,15 @@ describe("vector routes", () => {
       expect(res.statusCode).toBe(409);
     });
 
+    it("returns 404 for unknown craft", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/ghost/vectors/design/report`,
+        payload: { evidence: "nope" },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
     it("returns 404 for unknown vector name", async () => {
       const res = await app.inject({
         method: "POST",
@@ -309,6 +318,48 @@ describe("vector routes", () => {
       expect(stored.flightPlan[0].status).toBe("Pending");
     });
 
+    it("publishes timeout event and returns 422 when command times out (RULE-VCMD-12)", async () => {
+      const craft: CraftState = {
+        callsign: "timeout-craft",
+        createdAt: "2026-04-11T00:00:00.000Z",
+        branch: "feat/timeout",
+        cargo: "Timeout test",
+        category: "backend",
+        status: CraftStatus.InFlight,
+        captain: "pilot-1",
+        firstOfficers: [],
+        jumpseaters: [],
+        flightPlan: [
+          {
+            name: "slow-gate",
+            criteria: ["slow"],
+            command: { run: "sleep 5", severity: "required", timeout: 50 },
+            gateType: "command",
+            status: "Pending",
+          },
+        ],
+        blackBox: [],
+        intercom: [],
+        controls: { mode: "exclusive", holder: "pilot-1" },
+        holdingPattern: false,
+      };
+      craftStore.set(PROJECT, craft);
+      ensureWorktree("timeout-craft");
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/timeout-craft/vectors/slow-gate/report`,
+        payload: {},
+      });
+      // Timed-out required command must block the report
+      expect(res.statusCode).toBe(422);
+      const stored = craftStore.get(PROJECT, "timeout-craft")!;
+      const cmdEntry = stored.blackBox.find((e) => e.type === "VectorCommandRun");
+      expect(cmdEntry).toBeDefined();
+      const payload = JSON.parse(cmdEntry!.content) as Record<string, unknown>;
+      expect(payload.timedOut).toBe(true);
+    }, 10_000);
+
     it("records advisory failure but proceeds with report (RULE-VCMD-5)", async () => {
       // Pass 'setup' and 'implement' first so 'lint' becomes next
       // 'lint' has command: { run: "exit 1", severity: "advisory" }
@@ -441,7 +492,7 @@ describe("vector routes", () => {
       await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/crafts/override-bb-craft/vectors/gate/override-command-gate`,
-        payload: { pilotId: "pilot-1", justification: "Verified manually" },
+        payload: { pilotId: "pilot-1", justification: "Manually verified the command gate behavior" },
       });
 
       const stored = craftStore.get(PROJECT, "override-bb-craft")!;
@@ -451,7 +502,7 @@ describe("vector routes", () => {
       expect(overrideEntries).toHaveLength(1);
       const payload = JSON.parse(overrideEntries[0].content) as Record<string, unknown>;
       expect(payload.captainPilotId).toBe("pilot-1");
-      expect(payload.justification).toBe("Verified manually");
+      expect(payload.justification).toBe("Manually verified the command gate behavior");
     });
 
     it("rejects override from non-captain (RULE-VCMD-10)", async () => {
@@ -528,7 +579,7 @@ describe("vector routes", () => {
       const res = await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/override-command-gate`,
-        payload: { pilotId: "pilot-1", justification: "No gate to override" },
+        payload: { pilotId: "pilot-1", justification: "No command gate exists on this design vector" },
       });
       expect(res.statusCode).toBe(400);
     });
@@ -540,6 +591,172 @@ describe("vector routes", () => {
         payload: { pilotId: "pilot-1", justification: "Testing" },
       });
       expect(res.statusCode).toBe(404);
+    });
+
+    it("returns 404 when vector name is not found (craft exists)", async () => {
+      const craft: CraftState = {
+        callsign: "override-no-vec",
+        createdAt: "2026-04-11T00:00:00.000Z",
+        branch: "feat/override-no-vec",
+        cargo: "Vector not found test",
+        category: "backend",
+        status: CraftStatus.InFlight,
+        captain: "pilot-1",
+        firstOfficers: [],
+        jumpseaters: [],
+        flightPlan: [
+          {
+            name: "gate",
+            criteria: ["Gate passed"],
+            command: { run: "exit 1", severity: "required" },
+            gateType: "command",
+            status: "Pending",
+          },
+        ],
+        blackBox: [],
+        intercom: [],
+        controls: { mode: "exclusive", holder: "pilot-1" },
+        holdingPattern: false,
+      };
+      craftStore.set(PROJECT, craft);
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/override-no-vec/vectors/nonexistent/override-command-gate`,
+        payload: {
+          pilotId: "pilot-1",
+          justification: "this justification is long enough to satisfy the minimum",
+        },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("returns 409 when target vector is not the next pending (RULE-VEC-2)", async () => {
+      const craft: CraftState = {
+        callsign: "override-wrong-order",
+        createdAt: "2026-04-11T00:00:00.000Z",
+        branch: "feat/override-wrong-order",
+        cargo: "Out-of-order override test",
+        category: "backend",
+        status: CraftStatus.InFlight,
+        captain: "pilot-1",
+        firstOfficers: [],
+        jumpseaters: [],
+        flightPlan: [
+          {
+            name: "first",
+            criteria: ["First done"],
+            status: "Pending",
+          },
+          {
+            name: "second",
+            criteria: ["Second done"],
+            command: { run: "exit 1", severity: "required" },
+            gateType: "command",
+            status: "Pending",
+          },
+        ],
+        blackBox: [],
+        intercom: [],
+        controls: { mode: "exclusive", holder: "pilot-1" },
+        holdingPattern: false,
+      };
+      craftStore.set(PROJECT, craft);
+
+      // "second" has a command gate but "first" is the next pending — should be 409
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/override-wrong-order/vectors/second/override-command-gate`,
+        payload: {
+          pilotId: "pilot-1",
+          justification: "this justification is long enough to satisfy the minimum",
+        },
+      });
+      expect(res.statusCode).toBe(409);
+    });
+
+    it("rejects override when justification has fewer than 20 non-whitespace chars (RULE-VCMD-10)", async () => {
+      const craft: CraftState = {
+        callsign: "short-just-craft",
+        createdAt: "2026-04-11T00:00:00.000Z",
+        branch: "feat/short-just",
+        cargo: "Short justification test",
+        category: "backend",
+        status: CraftStatus.InFlight,
+        captain: "pilot-1",
+        firstOfficers: [],
+        jumpseaters: [],
+        flightPlan: [
+          {
+            name: "gate",
+            criteria: ["Gate passed"],
+            command: { run: "exit 1", severity: "required" },
+            gateType: "command",
+            status: "Pending",
+          },
+        ],
+        blackBox: [],
+        intercom: [],
+        controls: { mode: "exclusive", holder: "pilot-1" },
+        holdingPattern: false,
+      };
+      craftStore.set(PROJECT, craft);
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/short-just-craft/vectors/gate/override-command-gate`,
+        payload: { pilotId: "pilot-1", justification: "short" },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json<{ error: string }>().error).toBe("SPEC_VALIDATION_ERROR");
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // 422 response output cap (RULE-VCMD-7)
+  // -------------------------------------------------------------------------
+
+  describe("POST vector report — 422 API output cap", () => {
+    it("truncates stdout and stderr in 422 response to 4096 chars (RULE-VCMD-7)", async () => {
+      const craft: CraftState = {
+        callsign: "truncation-craft",
+        createdAt: "2026-04-11T00:00:00.000Z",
+        branch: "feat/truncation",
+        cargo: "Output cap test",
+        category: "backend",
+        status: CraftStatus.InFlight,
+        captain: "pilot-1",
+        firstOfficers: [],
+        jumpseaters: [],
+        flightPlan: [
+          {
+            name: "loud-failure",
+            criteria: ["loud"],
+            command: {
+              run: `node -e "process.stdout.write('x'.repeat(5000)); process.stderr.write('e'.repeat(5000)); process.exit(1);"`,
+              severity: "required",
+            },
+            gateType: "command",
+            status: "Pending",
+          },
+        ],
+        blackBox: [],
+        intercom: [],
+        controls: { mode: "exclusive", holder: "pilot-1" },
+        holdingPattern: false,
+      };
+      craftStore.set(PROJECT, craft);
+      ensureWorktree("truncation-craft");
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/truncation-craft/vectors/loud-failure/report`,
+        payload: {},
+      });
+      expect(res.statusCode).toBe(422);
+      const body = res.json<{ commandResult: { stdout: string; stderr: string } }>();
+      expect(body.commandResult.stdout.length).toBeLessThanOrEqual(4096);
+      expect(body.commandResult.stderr.length).toBeLessThanOrEqual(4096);
     });
   });
 });
