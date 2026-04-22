@@ -39,7 +39,6 @@ async function getFreePort(): Promise<number> {
         resolve(port);
       });
     });
-    // @ts-expect-error — Server inherits .on() from EventEmitter at runtime
     server.on("error", reject);
   });
 }

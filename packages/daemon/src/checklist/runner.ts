@@ -89,7 +89,6 @@ function runItem(item: ChecklistItemConfig, cwd: string): Promise<ChecklistItemR
     });
 
     // Suppress unhandled-error events; the callback above handles everything.
-    // @ts-expect-error — ChildProcess inherits .on() from EventEmitter at runtime
     child.on("error", () => undefined);
   });
 }

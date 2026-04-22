@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useStatus, useHealth, useProjects, useCrafts } from "@/hooks/use-api";
+import { useStatus, useHealth, useProjects, useCrafts, useAllCrafts } from "@/hooks/use-api";
 import { useWsManager } from "@/hooks/ws-context";
 import { useSubscription } from "@/hooks/use-subscription";
 import { StatCard } from "@/components/base/stat-card";
@@ -16,9 +16,12 @@ export function Component() {
   const { data: status } = useStatus();
   const { data: health } = useHealth();
   const { data: projects } = useProjects();
+  const { data: allCrafts } = useAllCrafts();
   const [events, setEvents] = useState<WsEvent[]>([]);
   const wsManager = useWsManager();
   useSubscription(wsManager, "*");
+
+  const emergencyCount = allCrafts?.filter((c) => c.status === "Emergency").length ?? 0;
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -43,7 +46,7 @@ export function Component() {
         <StatCard label="ACTIVE CRAFTS" value={status?.crafts ?? 0} color="var(--accent-green)" />
         <StatCard label="TOWER QUEUE" value={0} color="var(--accent-yellow)" />
         <StatCard label="PILOTS" value={status?.agents ?? 0} color="var(--accent-purple)" />
-        <StatCard label="EMERGENCIES" value={0} color="var(--accent-red)" />
+        <StatCard label="EMERGENCIES" value={emergencyCount} color="var(--accent-red)" />
       </div>
       <div className="mt-5 grid grid-cols-2 gap-4">
         {/* Recent Events */}

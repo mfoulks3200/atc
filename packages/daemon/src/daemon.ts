@@ -30,6 +30,7 @@ import type { GlobalConfig, ProjectMetadataConfig } from "./config/schema.js";
 import { ChannelRegistry } from "./server/websocket/channels.js";
 import { appendBlackBoxEntryWithRegistry } from "./server/routes/blackbox-helpers.js";
 import { BlackBoxEntryType } from "@airtrafficcontrol/types";
+import { reconcileOrphanWorktrees } from "./git/worktree-reconciler.js";
 
 /** Path of the PID file relative to the profile directory. */
 const PID_FILE = "daemon.pid";
@@ -103,14 +104,15 @@ export class Daemon {
    *
    * Sequence:
    * 1. Load profile config via `loadProfileConfig`.
-   * 2. Load persisted agent state via `agentStore.load()`.
-   * 3. Create a Fastify app via `createApp` with the profile dir and all stores.
-   * 4. Listen on `config.port` / `config.host`.
-   * 5. Capture the bound port from the server address.
-   * 6. Start a `FlushScheduler` for periodic state persistence.
-   * 7. Write PID file to `<profileDir>/daemon.pid`.
-   * 8. Register SIGTERM/SIGINT signal handlers for graceful shutdown.
-   * 9. Set `running = true`.
+   * 2. Load persisted agent and pilot state.
+   * 3. Reconcile orphaned git worktrees via `reconcileOrphanWorktrees`.
+   * 4. Create a Fastify app via `createApp` with the profile dir and all stores.
+   * 5. Listen on `config.port` / `config.host`.
+   * 6. Capture the bound port from the server address.
+   * 7. Start a `FlushScheduler` for periodic state persistence.
+   * 8. Write PID file to `<profileDir>/daemon.pid`.
+   * 9. Register SIGTERM/SIGINT signal handlers for graceful shutdown.
+   * 10. Set `running = true`.
    *
    * @returns Resolves when the server is listening and fully initialized.
    */
@@ -198,6 +200,11 @@ export class Daemon {
     } catch {
       // No projects dir yet — empty map is fine
     }
+
+    // Prune worktrees that have no matching active craft (orphaned from a prior
+    // crash or incomplete cleanup). Runs before the HTTP server accepts traffic
+    // so no routes can race against the prune operations.
+    await reconcileOrphanWorktrees(this._profileDir, craftStore, logger);
 
     const app = createApp({
       profileDir: this._profileDir,
