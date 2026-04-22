@@ -34,8 +34,8 @@ jobs:
       - name: Build web bundle
         run: pnpm --filter @airtrafficcontrol/web build
 
-      - name: Install Playwright browsers
-        run: pnpm --filter @airtrafficcontrol/e2e run install-browsers
+      - name: Install Playwright Chromium with Linux dependencies
+        run: pnpm --filter @airtrafficcontrol/e2e exec playwright install --with-deps chromium
 
       - name: Run e2e tests
         run: pnpm --filter @airtrafficcontrol/e2e test
@@ -45,7 +45,5 @@ jobs:
         if: failure()
         with:
           name: playwright-results
-          path: |
-            packages/e2e/playwright-report/
-            packages/e2e/test-results/
+          path: packages/e2e/test-results/
           retention-days: 7

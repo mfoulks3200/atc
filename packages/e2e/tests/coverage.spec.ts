@@ -30,8 +30,12 @@ async function apiPost(path: string, body?: unknown): Promise<Response> {
   });
 }
 
-async function apiDelete(path: string): Promise<void> {
-  await fetch(`${API_BASE}${path}`, { method: "DELETE" });
+async function apiDelete(path: string): Promise<Response> {
+  const res = await fetch(`${API_BASE}${path}`, { method: "DELETE" });
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`DELETE ${path} failed: ${res.status} ${res.statusText}`);
+  }
+  return res;
 }
 
 // ─────────────────────────────────────────────
@@ -46,12 +50,13 @@ test.describe("navigation", () => {
 
   test("all main nav items are visible in the sidebar", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText("Dashboard").first()).toBeVisible();
-    await expect(page.getByText("Projects").first()).toBeVisible();
-    await expect(page.getByText("Crafts").first()).toBeVisible();
-    await expect(page.getByText("Pilots").first()).toBeVisible();
-    await expect(page.getByText("Event Stream").first()).toBeVisible();
-    await expect(page.getByText("Settings").first()).toBeVisible();
+    const sidebar = page.locator("aside");
+    await expect(sidebar.getByRole("link", { name: "Dashboard" })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "Projects" })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "Crafts" })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "Pilots" })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "Event Stream" })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "Settings" })).toBeVisible();
   });
 
   test("clicking nav links routes to correct pages", async ({ page }) => {
@@ -79,9 +84,10 @@ test.describe("navigation", () => {
 
   test("settings sub-nav shows general, profile, and about sections", async ({ page }) => {
     await page.goto("/settings/general");
-    await expect(page.getByText("General").first()).toBeVisible();
-    await expect(page.getByText("Profile").first()).toBeVisible();
-    await expect(page.getByText("About").first()).toBeVisible();
+    const sidebar = page.locator("aside");
+    await expect(sidebar.getByRole("link", { name: "General" })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "Profile" })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "About" })).toBeVisible();
   });
 });
 
@@ -178,6 +184,11 @@ test.describe("craft lifecycle visibility", () => {
 // ─────────────────────────────────────────────
 
 test.describe("empty state and error resilience", () => {
+  test.beforeAll(async () => {
+    await resetDemoDataset();
+    await seedDemoDataset();
+  });
+
   test("unknown route renders a page without crashing", async ({ page }) => {
     await page.goto("/this-route-does-not-exist-abc123");
     // The React app shell should render even for unknown routes
