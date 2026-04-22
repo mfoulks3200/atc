@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { runVectorCommand, buildCommandEnv } from "./vector-command.js";
 import * as os from "node:os";
-import * as path from "node:path";
 import { realpathSync } from "node:fs";
 
 const CWD = os.tmpdir();

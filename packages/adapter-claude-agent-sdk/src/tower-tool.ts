@@ -21,7 +21,6 @@
 
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { McpSdkServerConfigWithInstance } from "@anthropic-ai/claude-agent-sdk";
-import { z } from "zod";
 
 /**
  * Context a pilot agent needs in order to drive tower landing operations
