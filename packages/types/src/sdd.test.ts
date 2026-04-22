@@ -1,5 +1,11 @@
 import { describe, it, expectTypeOf } from "vitest";
-import type { SpecDocument, SpecVector, SpecPilotHints, SddErrorCode, SpecPriority } from "./sdd.js";
+import type {
+  SpecDocument,
+  SpecVector,
+  SpecPilotHints,
+  SddErrorCode,
+  SpecPriority,
+} from "./sdd.js";
 
 describe("SpecVector", () => {
   it("accepts valid vector shape", () => {

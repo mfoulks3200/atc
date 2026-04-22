@@ -19,7 +19,6 @@ import type {
   CraftDiffFileResponse,
 } from "@/types/api";
 
-
 export function useHealth() {
   return useQuery({
     queryKey: queryKeys.health(),

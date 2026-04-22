@@ -256,10 +256,8 @@ export const SDD_ERROR_MESSAGES: Record<SddErrorCode, string> = {
   UNKNOWN_CATEGORY: "Category does not match any project-configured categories.",
   CALLSIGN_CONFLICT:
     "This callsign is already in use. Remove the callsign override to auto-generate one.",
-  NO_CERTIFIED_PILOT:
-    "No available pilot holds the required certification for this category.",
-  PILOT_NOT_CERTIFIED:
-    "A named pilot does not hold the required certification for this category.",
+  NO_CERTIFIED_PILOT: "No available pilot holds the required certification for this category.",
+  PILOT_NOT_CERTIFIED: "A named pilot does not hold the required certification for this category.",
   PILOT_ROLE_CONFLICT: "The same pilot cannot be both captain and first officer.",
   BRANCH_CREATION_FAILED: "Git branch could not be created. The craft was not saved — try again.",
 };
