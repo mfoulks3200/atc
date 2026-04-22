@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { ConnectionIndicator } from "@/components/base/connection-indicator";
 import { GlossaryModal } from "@/components/glossary/glossary-modal";
+import { ThemeToggle } from "@/components/layout/theme-toggle.js";
 import { useConnectionStatus } from "@/hooks/use-websocket";
 import { useWsManager, useWsUrl } from "@/hooks/ws-context";
 import { usePageHeaderState } from "@/hooks/page-header-context";
@@ -42,6 +43,7 @@ export function Header() {
       </div>
       <div className="flex items-center gap-3">
         {right}
+        <ThemeToggle />
         <button
           type="button"
           onClick={() => setReferenceOpen(true)}

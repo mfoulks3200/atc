@@ -9,6 +9,15 @@
   border-color: var(--border);
 }
 
+/* Applied only during user-initiated theme toggle to prevent load flash */
+html.theme-transition,
+html.theme-transition * {
+  transition:
+    background-color 250ms ease,
+    border-color 250ms ease,
+    color 250ms ease !important;
+}
+
 body {
   margin: 0;
   background-color: var(--bg-base);
