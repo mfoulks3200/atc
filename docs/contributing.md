@@ -207,6 +207,18 @@ Changelog categories: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`.
 pnpm run build
 ```
 
+### 9. Gap Tracking
+
+Before signing off on any change, verify that every named gap, known limitation, or deferred concern surfaced during the work has been formally tracked. Gaps that live only in closed-task comments have no owner and will be lost.
+
+- [ ] **Audit the task thread and routing comments.** Review all comments on the current task (and any parent or related tasks you contributed to) for mentions of known gaps, scope limitations, deferred concerns, or "out of scope" decisions.
+
+- [ ] **For each named gap, do one of the following:**
+  - **(a) Create a follow-up issue** that captures the gap with enough context to act on later (what the gap is, why it matters, and which spec rules or components are affected), **or**
+  - **(b) Add an explicit deferral note** in a task comment stating the gap, the reason for deferral, and any conditions under which it should be revisited.
+
+- [ ] **Verify completeness.** No gap should exist only as an unresolved mention in a comment thread. Every gap must have either a linked follow-up issue or a documented deferral before the change is considered ready to land.
+
 ## Quick Reference
 
 | Step | Command | Must Pass |
@@ -218,3 +230,4 @@ pnpm run build
 | Coverage | `pnpm run test -- --coverage` | 90% minimum on changed files |
 | UX review | UX impact triage; subtask if user-facing | UX Designer sign-off on user-facing changes |
 | Spec compliance | Review against `docs/specification.md` | No discrepancies, or spec updated |
+| Gap tracking | Audit task thread for named gaps | Every gap has a follow-up issue or documented deferral |

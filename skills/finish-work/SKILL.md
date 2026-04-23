@@ -94,7 +94,17 @@ Quick documentation check on changed files:
 
 Do not do a deep documentation rewrite here — just verify the basics are covered per `docs/contributing.md`.
 
-### 4. Commit changes
+### 4. Gap tracking
+
+Before committing, review the task thread for any named gaps, known limitations, or deferred concerns that were surfaced during this work.
+
+- [ ] Fetch the current task's comment thread from the Paperclip API and scan for mentions of known gaps, scope limitations, "out of scope" decisions, or deferred concerns.
+- [ ] For each named gap, verify that either (a) a follow-up issue already exists, or (b) the gap has an explicit deferral note with a reason in the task comments.
+- [ ] If any gap is untracked, create a follow-up issue or post a deferral comment before proceeding. Gaps that live only in closed-task comments have no owner.
+
+Per `docs/contributing.md` step 9, no change is ready to land with untracked gaps.
+
+### 5. Commit changes
 
 Stage and commit all work, including any fixes made during quality gates.
 
@@ -119,7 +129,7 @@ EOF
 
 If there are no uncommitted changes (everything was already committed), skip this step.
 
-### 5. Push branch
+### 6. Push branch
 
 ```bash
 git push -u origin "$(git branch --show-current)"
@@ -127,11 +137,11 @@ git push -u origin "$(git branch --show-current)"
 
 If the branch is already up to date with the remote, this is a no-op.
 
-### 6. Ticket resolution
+### 7. Ticket resolution
 
 This step determines how to signal completion based on the Paperclip issue structure.
 
-#### 6a. Fetch the current issue
+#### 7a. Fetch the current issue
 
 ```bash
 ISSUE=$(curl -sS "$PAPERCLIP_API_URL/api/issues/$PAPERCLIP_TASK_ID" \
@@ -147,7 +157,7 @@ TITLE=$(echo "$ISSUE" | jq -r '.title')
 BRANCH=$(git branch --show-current)
 ```
 
-#### 6b. If no parent ticket — create a PR
+#### 7b. If no parent ticket — create a PR
 
 When the issue has no `parentId`, the work is standalone and needs a PR for review.
 
@@ -180,7 +190,7 @@ Replace the summary bullets and test plan with specifics for this change. Includ
 
 If a PR already exists for this branch, skip creation — just verify it is up to date with the latest push.
 
-#### 6c. If parent ticket exists — notify the parent
+#### 7c. If parent ticket exists — notify the parent
 
 When the issue has a `parentId`, the work is a subtask. Instead of creating a PR, post a comment on the parent ticket indicating the work is done.
 
@@ -224,7 +234,7 @@ curl -sS -X POST "$PAPERCLIP_API_URL/api/issues/$PARENT_ID/comments" \
   -d "$(jq -n --arg body "$COMMENT_BODY" '{body: $body}')"
 ```
 
-### 7. Update issue status
+### 8. Update issue status
 
 Mark the current issue as done with a summary comment:
 
@@ -247,6 +257,7 @@ curl -sS -X PATCH "$PAPERCLIP_API_URL/api/issues/$PAPERCLIP_TASK_ID" \
 | PR already exists but is stale | Push latest changes; verify PR is up to date. |
 | Missing `PAPERCLIP_TASK_ID` env var | You are not in a heartbeat run. Do steps 1-5 only (quality gates, commit, push). Skip ticket resolution. |
 | Parent issue owner cannot be resolved | Post the comment without the @-mention. Do not fail the whole skill. |
+| Named gap in task thread with no follow-up issue or deferral | Create a follow-up issue or post a deferral comment before committing. Do not sign off with untracked gaps. |
 
 ## Common Mistakes
 
