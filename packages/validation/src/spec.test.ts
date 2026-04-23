@@ -46,7 +46,9 @@ describe("validateSpecDocument", () => {
   });
 
   it("throws SpecValidationError when title is whitespace only", () => {
-    expect(() => validateSpecDocument({ ...VALID_SPEC, title: "   " })).toThrow(SpecValidationError);
+    expect(() => validateSpecDocument({ ...VALID_SPEC, title: "   " })).toThrow(
+      SpecValidationError,
+    );
   });
 
   it("thrown error for missing title references 'title' field", () => {
@@ -76,9 +78,9 @@ describe("validateSpecDocument", () => {
   });
 
   it("throws SpecValidationError when category is empty string", () => {
-    expect(() =>
-      validateSpecDocument({ ...VALID_SPEC, category: "" as typeof CATEGORY }),
-    ).toThrow(SpecValidationError);
+    expect(() => validateSpecDocument({ ...VALID_SPEC, category: "" as typeof CATEGORY })).toThrow(
+      SpecValidationError,
+    );
   });
 
   it("thrown error for missing category references 'category' field", () => {
@@ -145,13 +147,15 @@ describe("validateSpecVectors", () => {
   });
 
   it("throws SpecValidationError when a vector has no name (RULE-SDD-2)", () => {
-    expect(() => validateSpecVectors([{ name: "", criteria: ["ok"] }])).toThrow(SpecValidationError);
+    expect(() => validateSpecVectors([{ name: "", criteria: ["ok"] }])).toThrow(
+      SpecValidationError,
+    );
   });
 
   it("throws SpecValidationError when a vector name is whitespace only", () => {
-    expect(() =>
-      validateSpecVectors([{ name: "   ", criteria: ["ok"] }]),
-    ).toThrow(SpecValidationError);
+    expect(() => validateSpecVectors([{ name: "   ", criteria: ["ok"] }])).toThrow(
+      SpecValidationError,
+    );
   });
 
   it("thrown error for missing name has ruleId RULE-SDD-2", () => {
@@ -164,13 +168,15 @@ describe("validateSpecVectors", () => {
   });
 
   it("throws SpecValidationError when a vector has no criteria (RULE-SDD-2)", () => {
-    expect(() => validateSpecVectors([{ name: "Step", criteria: [] }])).toThrow(SpecValidationError);
+    expect(() => validateSpecVectors([{ name: "Step", criteria: [] }])).toThrow(
+      SpecValidationError,
+    );
   });
 
   it("throws SpecValidationError when all criteria are empty strings (RULE-SDD-2)", () => {
-    expect(() =>
-      validateSpecVectors([{ name: "Step", criteria: ["", "   "] }]),
-    ).toThrow(SpecValidationError);
+    expect(() => validateSpecVectors([{ name: "Step", criteria: ["", "   "] }])).toThrow(
+      SpecValidationError,
+    );
   });
 
   it("thrown error for empty criteria references vectors[].criteria field", () => {
@@ -310,21 +316,19 @@ describe("validateSpecPilots", () => {
 
   describe("explicit captain (RULE-SDD-6)", () => {
     it("does not throw when explicit captain is certified", () => {
-      expect(() =>
-        validateSpecPilots({ captain: "ace" }, PILOTS, CATEGORY),
-      ).not.toThrow();
+      expect(() => validateSpecPilots({ captain: "ace" }, PILOTS, CATEGORY)).not.toThrow();
     });
 
     it("throws PilotNotCertifiedError when captain is not certified", () => {
-      expect(() =>
-        validateSpecPilots({ captain: "rookie" }, PILOTS, CATEGORY),
-      ).toThrow(PilotNotCertifiedError);
+      expect(() => validateSpecPilots({ captain: "rookie" }, PILOTS, CATEGORY)).toThrow(
+        PilotNotCertifiedError,
+      );
     });
 
     it("throws PilotNotCertifiedError when captain ID is not in the pilots pool", () => {
-      expect(() =>
-        validateSpecPilots({ captain: "ghost-pilot" }, PILOTS, CATEGORY),
-      ).toThrow(PilotNotCertifiedError);
+      expect(() => validateSpecPilots({ captain: "ghost-pilot" }, PILOTS, CATEGORY)).toThrow(
+        PilotNotCertifiedError,
+      );
     });
 
     it("thrown error for uncertified captain has ruleId RULE-SDD-6", () => {
@@ -363,15 +367,15 @@ describe("validateSpecPilots", () => {
     });
 
     it("throws PilotNotCertifiedError when an FO is not certified", () => {
-      expect(() =>
-        validateSpecPilots({ firstOfficers: ["rookie"] }, PILOTS, CATEGORY),
-      ).toThrow(PilotNotCertifiedError);
+      expect(() => validateSpecPilots({ firstOfficers: ["rookie"] }, PILOTS, CATEGORY)).toThrow(
+        PilotNotCertifiedError,
+      );
     });
 
     it("throws PilotNotCertifiedError when an FO ID is not in the pilots pool", () => {
-      expect(() =>
-        validateSpecPilots({ firstOfficers: ["ghost-fo"] }, PILOTS, CATEGORY),
-      ).toThrow(PilotNotCertifiedError);
+      expect(() => validateSpecPilots({ firstOfficers: ["ghost-fo"] }, PILOTS, CATEGORY)).toThrow(
+        PilotNotCertifiedError,
+      );
     });
 
     it("thrown error for uncertified FO has ruleId RULE-SDD-7", () => {
@@ -399,27 +403,25 @@ describe("validateSpecPilots", () => {
     });
 
     it("does not throw for an empty firstOfficers array", () => {
-      expect(() =>
-        validateSpecPilots({ firstOfficers: [] }, PILOTS, CATEGORY),
-      ).not.toThrow();
+      expect(() => validateSpecPilots({ firstOfficers: [] }, PILOTS, CATEGORY)).not.toThrow();
     });
   });
 
   describe("role conflict (RULE-SDD-10)", () => {
     it("throws PilotRoleConflictError when same pilot is captain and in firstOfficers", () => {
       expect(() =>
-        validateSpecPilots({ captain: "ace", firstOfficers: ["ace", "other-ace"] }, PILOTS, CATEGORY),
+        validateSpecPilots(
+          { captain: "ace", firstOfficers: ["ace", "other-ace"] },
+          PILOTS,
+          CATEGORY,
+        ),
       ).toThrow(PilotRoleConflictError);
     });
 
     it("role conflict is detected before certification check", () => {
       // rookie is uncertified, but role conflict should be the error thrown
       expect(() =>
-        validateSpecPilots(
-          { captain: "rookie", firstOfficers: ["rookie"] },
-          PILOTS,
-          CATEGORY,
-        ),
+        validateSpecPilots({ captain: "rookie", firstOfficers: ["rookie"] }, PILOTS, CATEGORY),
       ).toThrow(PilotRoleConflictError);
     });
 
@@ -443,11 +445,7 @@ describe("validateSpecPilots", () => {
 
     it("does not throw when different certified pilots fill captain and FO roles", () => {
       expect(() =>
-        validateSpecPilots(
-          { captain: "ace", firstOfficers: ["other-ace"] },
-          PILOTS,
-          CATEGORY,
-        ),
+        validateSpecPilots({ captain: "ace", firstOfficers: ["other-ace"] }, PILOTS, CATEGORY),
       ).not.toThrow();
     });
   });

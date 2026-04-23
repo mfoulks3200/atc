@@ -96,7 +96,7 @@ export class SpecInboxWatcher {
       if (!filename.endsWith(".spec.yaml") && !filename.endsWith(".spec.json")) return;
       void this.processExisting();
     });
-    this.fsWatcher.on("error", () => undefined);
+    (this.fsWatcher as unknown as NodeJS.EventEmitter).on("error", () => undefined);
   }
 
   /** Stops the fs.watch listener. */
@@ -105,7 +105,11 @@ export class SpecInboxWatcher {
     this.fsWatcher = null;
   }
 
-  private async _processFile(filePath: string, filename: string, dedupKey: DedupKey): Promise<void> {
+  private async _processFile(
+    filePath: string,
+    filename: string,
+    dedupKey: DedupKey,
+  ): Promise<void> {
     // Mark immediately to prevent double-processing during concurrent scans
     this.processed.add(dedupKey);
 

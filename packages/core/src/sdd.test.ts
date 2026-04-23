@@ -46,8 +46,9 @@ describe("generateCallsign", () => {
   });
 
   it("handles counter rolling from 99 to 100 without padding", () => {
-    const existing = Array.from({ length: 99 }, (_, i) =>
-      `my-slug-${String(i + 1).padStart(2, "0")}`,
+    const existing = Array.from(
+      { length: 99 },
+      (_, i) => `my-slug-${String(i + 1).padStart(2, "0")}`,
     );
     const { callsign } = generateCallsign("My Slug", 1, existing);
     expect(callsign).toBe("my-slug-100");
@@ -76,10 +77,7 @@ const makePilot = (id: string, certs: string[], count = 0) => ({
 
 describe("selectCaptain", () => {
   it("selects a pilot certified for the category (RULE-SDD-8)", () => {
-    const pilots = [
-      makePilot("alice", ["backend"]),
-      makePilot("bob", ["frontend"]),
-    ];
+    const pilots = [makePilot("alice", ["backend"]), makePilot("bob", ["frontend"])];
     const { identifier } = selectCaptain({
       category: "backend",
       pilots,
@@ -96,16 +94,13 @@ describe("selectCaptain", () => {
 
   it("throws NO_CERTIFIED_PILOT when no pilot holds the category cert (RULE-SDD-9)", () => {
     const pilots = [makePilot("bob", ["frontend"])];
-    expect(() =>
-      selectCaptain({ category: "backend", pilots, activeCrafts: [] }),
-    ).toThrow(/NO_CERTIFIED_PILOT/);
+    expect(() => selectCaptain({ category: "backend", pilots, activeCrafts: [] })).toThrow(
+      /NO_CERTIFIED_PILOT/,
+    );
   });
 
   it("error message enumerates category and available pilot certs (RULE-SDD-9)", () => {
-    const pilots = [
-      makePilot("bob", ["frontend"]),
-      makePilot("carol", []),
-    ];
+    const pilots = [makePilot("bob", ["frontend"]), makePilot("carol", [])];
     expect(() => selectCaptain({ category: "backend", pilots, activeCrafts: [] })).toThrow(
       /backend/,
     );
@@ -119,10 +114,7 @@ describe("selectCaptain", () => {
   });
 
   it("respects requireCertifications filter (RULE-SDD-8)", () => {
-    const pilots = [
-      makePilot("alice", ["backend"]),
-      makePilot("bob", ["backend", "security"]),
-    ];
+    const pilots = [makePilot("alice", ["backend"]), makePilot("bob", ["backend", "security"])];
     const { identifier } = selectCaptain({
       category: "backend",
       pilots,
@@ -145,19 +137,13 @@ describe("selectCaptain", () => {
   });
 
   it("picks pilot with lowest selectionCount for workload balance", () => {
-    const pilots = [
-      makePilot("alice", ["backend"], 5),
-      makePilot("bob", ["backend"], 2),
-    ];
+    const pilots = [makePilot("alice", ["backend"], 5), makePilot("bob", ["backend"], 2)];
     const { identifier } = selectCaptain({ category: "backend", pilots, activeCrafts: [] });
     expect(identifier).toBe("bob");
   });
 
   it("prefers pilot not currently captain on an active craft as tiebreak", () => {
-    const pilots = [
-      makePilot("alice", ["backend"], 1),
-      makePilot("bob", ["backend"], 1),
-    ];
+    const pilots = [makePilot("alice", ["backend"], 1), makePilot("bob", ["backend"], 1)];
     const activeCrafts = [{ captain: "alice" }];
     const { identifier } = selectCaptain({
       category: "backend",
@@ -168,10 +154,7 @@ describe("selectCaptain", () => {
   });
 
   it("excludes pilots listed in spec.pilots.exclude", () => {
-    const pilots = [
-      makePilot("alice", ["backend"]),
-      makePilot("bob", ["backend"]),
-    ];
+    const pilots = [makePilot("alice", ["backend"]), makePilot("bob", ["backend"])];
     const { identifier } = selectCaptain({
       category: "backend",
       pilots,

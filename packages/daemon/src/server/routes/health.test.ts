@@ -1,6 +1,9 @@
 import { describe, it, expect, afterEach } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "../app.js";
+import { CraftStore } from "../../state/craft-store.js";
+import { AgentStore } from "../../state/agent-store.js";
+import type { CraftStatus } from "@airtrafficcontrol/types";
 
 describe("health routes", () => {
   let app: FastifyInstance;
@@ -63,6 +66,59 @@ describe("health routes", () => {
       expect(typeof body.projects).toBe("number");
       expect(typeof body.crafts).toBe("number");
       expect(typeof body.agents).toBe("number");
+    });
+
+    it("reflects live craft count when crafts are present", async () => {
+      const craftStore = new CraftStore("/tmp/atc-health-test");
+      craftStore.set("proj", {
+        callsign: "alpha-1",
+        createdAt: new Date().toISOString(),
+        branch: "feat/alpha",
+        cargo: "test",
+        category: "backend",
+        status: "Taxiing" as CraftStatus,
+        captain: "p1",
+        firstOfficers: [],
+        jumpseaters: [],
+        flightPlan: [],
+        blackBox: [],
+        intercom: [],
+        controls: { mode: "exclusive", holder: "p1" },
+        holdingPattern: false,
+      });
+      app = createApp({ craftStore });
+      const response = await app.inject({ method: "GET", url: "/api/v1/status" });
+
+      const body = response.json<{ crafts: number }>();
+      expect(body.crafts).toBe(1);
+    });
+
+    it("reflects live agent count when agents are present", async () => {
+      const agentStore = new AgentStore("/tmp/atc-health-test");
+      agentStore.set({
+        id: "agent-1",
+        adapterType: "claude-agent-sdk",
+        projectName: "proj",
+        callsign: "alpha-1",
+        status: "running",
+        adapterMeta: {},
+      });
+      app = createApp({ agentStore });
+      const response = await app.inject({ method: "GET", url: "/api/v1/status" });
+
+      const body = response.json<{ agents: number }>();
+      expect(body.agents).toBe(1);
+    });
+
+    it("reflects live project count when projects are registered", async () => {
+      // Map.size is what /status reads — any entry counts as a registered project.
+      const projectConfigStores = new Map<string, unknown>();
+      projectConfigStores.set("my-project", {});
+      app = createApp({ projectConfigStores: projectConfigStores as never });
+      const response = await app.inject({ method: "GET", url: "/api/v1/status" });
+
+      const body = response.json<{ projects: number }>();
+      expect(body.projects).toBe(1);
     });
   });
 

@@ -368,10 +368,9 @@ describe("POST /api/v1/projects/:name/crafts/from-spec", () => {
   });
 
   it("rejects when no certified pilot is available with 422 NO_CERTIFIED_PILOT (RULE-SDD-9)", async () => {
-    const boot = await bootApp(
-      { categories: ["frontend"] },
-      [{ identifier: "pilot-1", certifications: ["backend"], mcpServers: {} }],
-    );
+    const boot = await bootApp({ categories: ["frontend"] }, [
+      { identifier: "pilot-1", certifications: ["backend"], mcpServers: {} },
+    ]);
     app = boot.app;
     profileDir = boot.profileDir;
 
@@ -649,9 +648,8 @@ describe("POST /api/v1/projects/:name/crafts/from-spec", () => {
   // -------------------------------------------------------------------------
 
   it("calls removeWorktree when craft persistence fails (compensating rollback)", async () => {
-    const { createWorktree: mockCreate, removeWorktree: mockRemove } = await import(
-      "../../git/worktree.js"
-    );
+    const { createWorktree: mockCreate, removeWorktree: mockRemove } =
+      await import("../../git/worktree.js");
     const boot = await bootApp({ categories: ["backend"] });
     app = boot.app;
     profileDir = boot.profileDir;

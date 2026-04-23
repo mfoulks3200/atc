@@ -1,4 +1,10 @@
-import type { CraftCategory, Pilot, SpecDocument, SpecPilotHints, SpecVector } from "@airtrafficcontrol/types";
+import type {
+  CraftCategory,
+  Pilot,
+  SpecDocument,
+  SpecPilotHints,
+  SpecVector,
+} from "@airtrafficcontrol/types";
 import {
   CallsignConflictError,
   PilotNotCertifiedError,
@@ -93,10 +99,7 @@ export function validateSpecCategory(
  * @throws {CallsignConflictError} If the callsign is already in use.
  * @see RULE-SDD-5
  */
-export function validateSpecCallsign(
-  callsign: string,
-  existingCallsigns: readonly string[],
-): void {
+export function validateSpecCallsign(callsign: string, existingCallsigns: readonly string[]): void {
   if (existingCallsigns.includes(callsign)) {
     throw new CallsignConflictError(
       `Callsign "${callsign}" is already in use by another craft in this project.`,

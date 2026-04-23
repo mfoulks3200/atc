@@ -1,15 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { computeWorkloadScore, selectCaptain, selectFirstOfficers } from "./pilot-selection.js";
 import type { SelectionParams } from "./pilot-selection.js";
-import { NoCertifiedPilotError, PilotRoleConflictError } from "@airtrafficcontrol/errors";
+import { NoCertifiedPilotError } from "@airtrafficcontrol/errors";
 import type { Pilot, Craft } from "@airtrafficcontrol/types";
-import {
-  CraftStatus,
-  CraftCategoryEnum,
-  SeatType,
-  ControlMode,
-  VectorStatus,
-} from "@airtrafficcontrol/types";
+import { CraftStatus, CraftCategoryEnum, ControlMode } from "@airtrafficcontrol/types";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,17 +35,12 @@ function makeCraft(captain: Pilot, status: CraftStatus, firstOfficers: Pilot[] =
   };
 }
 
-const ACTIVE_STATUSES = [
-  CraftStatus.Taxiing,
-  CraftStatus.InFlight,
-  CraftStatus.LandingClearanceRequested,
-];
+const ACTIVE_STATUSES = [CraftStatus.Taxiing, CraftStatus.InFlight, CraftStatus.ClearedToLand];
 
 const INACTIVE_STATUSES = [
   CraftStatus.Landed,
   CraftStatus.LandingChecklist,
   CraftStatus.GoAround,
-  CraftStatus.ClearedToLand,
   CraftStatus.Emergency,
   CraftStatus.ReturnToOrigin,
 ];

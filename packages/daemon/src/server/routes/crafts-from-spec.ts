@@ -19,7 +19,6 @@ import { load as yamlLoad } from "js-yaml";
 import type { FastifyInstance } from "fastify";
 import { CraftStatus, BlackBoxEntryType } from "@airtrafficcontrol/types";
 import { generateCallsign, selectCaptain } from "@airtrafficcontrol/core";
-import { isPilotCertified } from "@airtrafficcontrol/validation";
 import { createWorktree, removeWorktree } from "../../git/worktree.js";
 import { appendBlackBoxEntry } from "./blackbox-helpers.js";
 import { publishCraftEvent } from "./broadcast.js";
@@ -177,21 +176,19 @@ export async function craftsFromSpecRoutes(app: FastifyInstance): Promise<void> 
       callsign = spec.callsignOverride;
     } else {
       const existingCallsigns = app.craftStore.listForProject(name).map((c) => c.callsign);
-      const result = generateCallsign(
-        spec.title,
-        projectConfig.callsignCounter,
-        existingCallsigns,
-      );
+      const result = generateCallsign(spec.title, projectConfig.callsignCounter, existingCallsigns);
       callsign = result.callsign;
       nextCounter = result.nextCounter;
     }
 
     // Step 4: Generate flight plan
-    const flightPlan: VectorState[] = spec.vectors.map((v: { name: string; criteria: string[] }) => ({
-      name: v.name,
-      acceptanceCriteria: v.criteria.join("\n"),
-      status: "Pending" as const,
-    }));
+    const flightPlan: VectorState[] = spec.vectors.map(
+      (v: { name: string; criteria: string[] }) => ({
+        name: v.name,
+        acceptanceCriteria: v.criteria.join("\n"),
+        status: "Pending" as const,
+      }),
+    );
 
     // Step 5: Resolve pilot crew
     const allPilots = app.pilotStore.listForProject(name);
@@ -215,7 +212,7 @@ export async function craftsFromSpecRoutes(app: FastifyInstance): Promise<void> 
           message: `Pilot "${spec.pilots.captain}" not found in project.`,
         });
       }
-      if (!isPilotCertified(captainPilot as Parameters<typeof isPilotCertified>[0], spec.category)) {
+      if (!captainPilot.certifications.includes(spec.category)) {
         return reply.code(422).send({
           code: "PILOT_NOT_CERTIFIED",
           message: `Pilot "${spec.pilots.captain}" is not certified for category "${spec.category}". Holds: ${captainPilot.certifications.join(", ") || "(none)"}`,
@@ -340,8 +337,7 @@ export async function craftsFromSpecRoutes(app: FastifyInstance): Promise<void> 
         suppressionReason = "Active TFR suppresses autoLaunch (RULE-SDD-12)";
       } else if (!hasAutoLaunchScope(request.headers["x-atc-scope"])) {
         // RULE-SDD-13: API key or session must carry spec:autolaunch scope
-        suppressionReason =
-          "API key lacks spec:autolaunch permission scope (RULE-SDD-13)";
+        suppressionReason = "API key lacks spec:autolaunch permission scope (RULE-SDD-13)";
       } else if (request.headers["x-atc-agent-id"]) {
         // RULE-SDD-14: agent-submitted specs cannot autoLaunch
         suppressionReason =
@@ -436,9 +432,7 @@ export async function processSpec(
 
   if (!projectConfig.categories.includes(spec.category)) {
     throw Object.assign(
-      new Error(
-        `Category "${spec.category}" is not configured for project "${projectName}".`,
-      ),
+      new Error(`Category "${spec.category}" is not configured for project "${projectName}".`),
       { code: "UNKNOWN_CATEGORY" },
     );
   }
@@ -480,10 +474,7 @@ export async function processSpec(
 
   if (spec.pilots?.captain) {
     const captainPilot = allPilots.find((p) => p.identifier === spec.pilots!.captain);
-    if (
-      !captainPilot ||
-      !isPilotCertified(captainPilot as Parameters<typeof isPilotCertified>[0], spec.category)
-    ) {
+    if (!captainPilot || !captainPilot.certifications.includes(spec.category)) {
       throw Object.assign(
         new Error(
           `Pilot "${spec.pilots.captain}" is not certified for category "${spec.category}".`,
