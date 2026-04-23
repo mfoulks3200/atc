@@ -1,12 +1,13 @@
 {
   "name": "@airtrafficcontrol/checklist",
   "version": "0.0.1",
-  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md", "CHANGELOG.md"],
   "scripts": {
-    "build": "tsc --build"
+    "build": "tsc --build",
+    "prepublishOnly": "tsc --build"
   },
   "dependencies": {
     "@airtrafficcontrol/types": "workspace:*",

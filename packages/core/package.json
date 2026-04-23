@@ -1,14 +1,19 @@
 {
   "name": "@airtrafficcontrol/core",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "clean:shadow": "rm -f scripts/contributors.js scripts/contributors.js.map scripts/contributors.d.ts scripts/contributors.d.ts.map",
-    "prebuild": "pnpm clean:shadow",
+    "prebuild": "pnpm clean:shadow && codegen:contributors",
     "build": "tsc --build",
+    "prepublishOnly": "tsc --build",
     "codegen:contributors": "tsx scripts/contributors.ts"
   },
   "dependencies": {
