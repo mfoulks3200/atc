@@ -89,3 +89,56 @@ jobs:
 
       - name: Run tests with coverage
         run: pnpm run test:coverage
+
+  publish:
+    needs: [format, lint, typecheck, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: "https://registry.npmjs.org"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Publish changed packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          published_any=0
+          for pkg in packages/*/package.json; do
+            dir=$(dirname "$pkg")
+            name=$(node -p "require('./$pkg').name")
+            version=$(node -p "require('./$pkg').version")
+            private=$(node -p "require('./$pkg').private === true")
+            if [ "$private" = "true" ]; then
+              echo "skip $name (private)"
+              continue
+            fi
+            current=$(npm view "$name" version 2>/dev/null || true)
+            if [ "$current" = "$version" ]; then
+              echo "skip $name@$version (already on registry)"
+              continue
+            fi
+            echo "publish $name@$version (registry had: ${current:-none})"
+            (cd "$dir" && npm publish --access public --provenance)
+            published_any=1
+          done
+          if [ "$published_any" = "0" ]; then
+            echo "No package versions changed; nothing published."
+          fi
