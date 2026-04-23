@@ -39,7 +39,7 @@ async function getFreePort(): Promise<number> {
         resolve(port);
       });
     });
-    server.on("error", reject);
+    (server as unknown as NodeJS.EventEmitter).on("error", reject);
   });
 }
 

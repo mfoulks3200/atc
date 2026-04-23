@@ -88,8 +88,7 @@ function runItem(item: ChecklistItemConfig, cwd: string): Promise<ChecklistItemR
       });
     });
 
-    // Suppress unhandled-error events; the callback above handles everything.
-    child.on("error", () => undefined);
+    (child as unknown as NodeJS.EventEmitter).on("error", () => undefined);
   });
 }
 
