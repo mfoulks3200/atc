@@ -60,7 +60,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   // React initial state (edge case: localStorage changed between script and hydration).
   useEffect(() => {
     applyThemeToDom(theme);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const setTheme = useCallback((next: Theme) => {
     document.documentElement.classList.add(TRANSITION_CLASS);
