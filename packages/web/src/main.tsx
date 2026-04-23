@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getWsUrl } from "@/lib/api-client";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { WsProvider } from "@/hooks/ws-context";
+import { ThemeProvider } from "@/hooks/use-theme.js";
 import { Shell } from "@/components/layout/shell";
 import { SpotlightProvider, tours, useSpotlight } from "@/components/spotlight";
 import "./theme/globals.css";
@@ -93,8 +94,10 @@ function SpotlightDevBridge() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

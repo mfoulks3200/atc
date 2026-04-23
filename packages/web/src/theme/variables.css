@@ -1,4 +1,5 @@
-:root {
+:root,
+[data-theme="dark"] {
   --bg-base: #0a0f1a;
   --bg-surface: #0d1424;
   --bg-elevated: #162033;
@@ -12,6 +13,35 @@
   --accent-red: #ff5555;
   --accent-blue: #78b4ff;
   --accent-purple: #b48eff;
+  --font-mono: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+  --radius-sm: 3px;
+  --radius-md: 6px;
+
+  /* Derived tokens for shadcn compatibility */
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
+  --card: var(--bg-surface);
+  --card-foreground: var(--text-secondary);
+  --muted: var(--bg-elevated);
+  --muted-foreground: var(--text-muted);
+  --border-color: var(--border);
+  --ring: var(--accent-green);
+}
+
+[data-theme="light"] {
+  --bg-base: #f0f4f8;
+  --bg-surface: #ffffff;
+  --bg-elevated: #e4eaf4;
+  --border: #c4d0e4;
+  --text-primary: #0a1628;
+  --text-secondary: #1e3454;
+  --text-muted: #4a6080;
+  --text-dim: #8099b8;
+  --accent-green: #007a4a;
+  --accent-yellow: #a07000;
+  --accent-red: #c42000;
+  --accent-blue: #2563eb;
+  --accent-purple: #6d28d9;
   --font-mono: "JetBrains Mono", "Fira Code", "Consolas", monospace;
   --radius-sm: 3px;
   --radius-md: 6px;
