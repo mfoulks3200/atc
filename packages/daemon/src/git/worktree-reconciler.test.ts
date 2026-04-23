@@ -56,12 +56,7 @@ function makeLogger() {
 
 describe("parseWorktreeList", () => {
   it("parses a bare-only output (single main worktree)", () => {
-    const output = [
-      "worktree /path/to/bare.git",
-      "HEAD abc123def456",
-      "bare",
-      "",
-    ].join("\n");
+    const output = ["worktree /path/to/bare.git", "HEAD abc123def456", "bare", ""].join("\n");
 
     const entries = parseWorktreeList(output);
     expect(entries).toHaveLength(1);
@@ -168,10 +163,9 @@ describe("reconcileOrphanWorktrees (integration)", () => {
     // Create a source repo with an initial commit, then clone it as bare.
     const sourceDir = join(tmpDir, "source");
     execSync(`git init ${sourceDir}`);
-    execSync(
-      'git -c user.name="test" -c user.email="t@t.com" commit --allow-empty -m "init"',
-      { cwd: sourceDir },
-    );
+    execSync('git -c user.name="test" -c user.email="t@t.com" commit --allow-empty -m "init"', {
+      cwd: sourceDir,
+    });
     execSync(`git clone --bare ${sourceDir} ${bareDir}`);
 
     craftStore = new CraftStore(stateDir);
@@ -213,9 +207,7 @@ describe("reconcileOrphanWorktrees (integration)", () => {
     await reconcileOrphanWorktrees(profileDir, craftStore, logger);
 
     expect(existsSync(worktreePath)).toBe(false);
-    expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining(`${projectName}/${callsign}`),
-    );
+    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining(`${projectName}/${callsign}`));
     expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("no matching craft in store"));
   });
 
@@ -246,9 +238,7 @@ describe("reconcileOrphanWorktrees (integration)", () => {
     await reconcileOrphanWorktrees(profileDir, craftStore, logger);
 
     expect(existsSync(worktreePath)).toBe(false);
-    expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining("terminal state Landed"),
-    );
+    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("terminal state Landed"));
   });
 
   it("prunes a worktree whose craft is in terminal state ReturnToOrigin", async () => {
@@ -312,9 +302,7 @@ describe("reconcileOrphanWorktrees (integration)", () => {
 
     // Worktree must still exist because it was skipped
     expect(existsSync(worktreePath)).toBe(true);
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining("Skipping locked worktree"),
-    );
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("Skipping locked worktree"));
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining(worktreePath));
   });
 

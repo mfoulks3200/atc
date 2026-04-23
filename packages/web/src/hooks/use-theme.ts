@@ -80,10 +80,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     setTheme(theme === "dark" ? "light" : "dark");
   }, [theme, setTheme]);
 
-  const value = useMemo(
-    () => ({ theme, toggleTheme, setTheme }),
-    [theme, toggleTheme, setTheme],
-  );
+  const value = useMemo(() => ({ theme, toggleTheme, setTheme }), [theme, toggleTheme, setTheme]);
 
   return createElement(ThemeContext.Provider, { value }, children);
 }
