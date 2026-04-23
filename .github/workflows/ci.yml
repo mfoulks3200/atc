@@ -116,6 +116,4 @@ jobs:
         run: pnpm run build
 
       - name: Publish changed packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: pnpm -r publish --access public --no-git-checks --provenance
