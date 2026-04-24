@@ -12,6 +12,7 @@
     { "path": "../errors" },
     { "path": "../core" },
     { "path": "../tower" },
-    { "path": "../checklist" }
+    { "path": "../checklist" },
+    { "path": "../mcp-server" }
   ]
 }
