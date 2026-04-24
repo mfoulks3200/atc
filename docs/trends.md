@@ -4,7 +4,7 @@ Distilled findings from Hacker News and AI industry research, maintained for ref
 
 **Freshness policy:** Prune entries older than 6 months that are no longer in active discussion, or sooner if a technology has clearly been superseded. Refresh on each AIR-149 heartbeat.
 
-**Last updated:** 2026-04-24
+**Last updated:** 2026-04-24 (AIR-229)
 
 ---
 
@@ -30,7 +30,9 @@ Multiple practitioners and vendors (Anthropic, Augment Code, Upsun, AppxLab) doc
 
 **Emdash (Feb 2026)** takes this a step further with *worktree pooling*: pre-warming a set of idle worktrees so agent dispatch latency drops from seconds to milliseconds. The pool is replenished lazily after each task completes. This is analogous to connection-pool patterns from database engineering applied to agent execution environments.
 
-**ATC implication:** ATC's existing worktree support is well-positioned. Worktree pooling (pre-warmed worktrees assigned to crafts at checkout time) is a v2 path that could significantly reduce agent ramp-up overhead for short vectors. The gap today is tooling for worktree lifecycle events (creation, cleanup, conflict detection) surfaced in the UI.
+**Stoneforge (Apr 2026)** — a [new open-source orchestration system](https://news.ycombinator.com/item?id=47267105) built entirely around worktrees — introduces a context-handoff pattern directly relevant to ATC: when an agent hits its context limit mid-task, it commits current state, writes a structured handoff note to a known path, and exits cleanly. The *next* agent worker picks up in a fresh context with that handoff note as its starting state. This is a concrete, implementable answer to the context-rotation problem identified in trends #7 and #9.
+
+**ATC implication:** ATC's existing worktree support is well-positioned. Worktree pooling (pre-warmed worktrees assigned to crafts at checkout time) is a v2 path that could significantly reduce agent ramp-up overhead for short vectors. The gap today is tooling for worktree lifecycle events (creation, cleanup, conflict detection) surfaced in the UI. Stoneforge's handoff-note pattern should inform the graceful-mode wind-down design: a structured context snapshot committed to the worktree before the agent exits is the concrete implementation target.
 
 ---
 
@@ -95,8 +97,9 @@ Key insights from the discussion:
 - Sequential workflows with verification gates outperform collaborative shared-state models in practice
 - Accounting for ~20% task failure rates with automatic retry mechanisms is essential
 - "Microservices" task scoping for agents (tight, independent boundaries) is the prerequisite for safe parallelism
+- **"Consensus on shared bias"** — a new failure mode identified in April 2026 discussions: multiple agents sharing the same training data fail *identically* on ambiguous prompts, undermining the assumption that diversity catches errors. Parallel agents don't provide the error-detection benefit of independent reviewers when they share a common blind spot.
 
-**ATC implication:** The checklist-before-landing pattern (RULE-LCHK-3) and the vector ordering constraint (RULE-VEC-2) are sound. The Go-Around lifecycle state (conflict → return to holding) maps directly to the automatic-retry principle. The spec should document the failure-rate design assumption explicitly.
+**ATC implication:** The checklist-before-landing pattern (RULE-LCHK-3) and the vector ordering constraint (RULE-VEC-2) are sound. The Go-Around lifecycle state (conflict → return to holding) maps directly to the automatic-retry principle. The spec should document the failure-rate design assumption explicitly. The shared-bias finding suggests that deterministic quality gates (compilation, tests, linting) are *more* important than they appear — not because agents can't write good code, but because multiple agents running review can agree on a broken output without any of them flagging it.
 
 ---
 
@@ -140,16 +143,34 @@ The bottleneck is no longer writing code — it's task decomposition, agent spec
 
 ---
 
+---
+
+### 10. Model Context Protocol (MCP) Has Won the Agent Interface Standard
+
+The "no winner yet" note from prior trends reports is now obsolete. **MCP has emerged as the de facto standard interface for connecting AI agents to tools and external systems.** As of April 2026:
+
+- **5,000+ MCP servers** publicly available across tool categories (databases, APIs, dev tools, SaaS)
+- **Gartner projects 75%** of API gateway vendors will add MCP support by end-2026
+- Anthropic, OpenAI, Google, and Microsoft have all committed to MCP compatibility
+- A tooling ecosystem has formed: MCPShark (traffic inspector), `mcpc` (universal CLI client), WASM+MCP for sandboxed execution, and structured secrets management patterns for production deployments
+
+MCP's model is a "USB-C port" for agents: any agent runtime that speaks MCP can connect to any MCP server without adapter glue code. For orchestration systems, this means the coordination layer can be exposed as MCP tools rather than proprietary APIs — agents already know how to speak MCP.
+
+**ATC implication (design question for steering committee):** ATC's daemon exposes a REST API at `/api/v1`. Wrapping that as MCP tools would allow any MCP-compatible agent (Claude Code, GitHub Copilot Agent, GPT-4 with tools, etc.) to interact with the Tower, request clearance, report vectors, and read craft state — without requiring a custom adapter per agent runtime. The current `adapter-claude-agent-sdk` stub would be replaced by a universal MCP server layer. This is a significant architectural opportunity but also a scope decision that changes where the integration boundary lives. A steering committee brainstorm is warranted.
+
+---
+
 ## Signals to Watch
 
 These items are not yet strong trends but have appeared enough to warrant monitoring:
 
 - **PR review effort prediction** — MSR 2026 research on forecasting high-effort AI-generated PRs before they land; could inform Tower clearance criteria weighting
 - **Agent identity and signing** — emerging discussion about cryptographically-signed agent commits for accountability; relates to ATC's pilot certification model
-- **Standardized agent communication protocols** — no winner yet, but the space is active; ATC's intercom model could be positioned as an implementation
+- **Shared memory coordination patterns** — active experimentation with TTL-based claim locks and pub/sub key-value stores for 20+ parallel agents (e.g., [Ensue pattern on HN](https://news.ycombinator.com/item?id=46990733)); successful tactics and failed strategies persist so follow-on agents benefit from prior work. Direct analogue to ATC's Black Box — watch for emerging standards in this space. *(Revisit: 2026-07-01)*
 - **"Over-editing" as a structural flaw** — practitioners are documenting a failure mode where agents pad output (code, prose, generated specs) beyond task scope, increasing review burden and introducing unintended changes. This suggests that acceptance criteria need explicit *scope ceilings*, not just completion gates. Watch for spec proposals addressing this at the framework level. *(Revisit: 2026-07-01)*
 - **Context/cache TTL optimization** — as context windows grow and provider caching improves (Anthropic prompt cache TTL, OpenAI Predicted Outputs), agent cost models are shifting. Long-lived agent sessions may become cheaper to maintain than spawn-per-task patterns; relevant to ATC's session lifecycle design. *(Revisit: 2026-07-01)*
 - **"Toxic Flow" critique** — a recurring argument that high-throughput multi-agent PR pipelines degrade codebase quality over time by optimizing for merge rate rather than correctness, accumulating subtle architectural debt. If this gains traction, it would argue for Tower-level quality gates beyond passing tests — e.g., required human review above a diff-size threshold. *(Revisit: 2026-07-01)*
+- **Enterprise multi-agent production adoption** — 57% of organizations now deploy multi-step agent workflows in production (Vellum 2026 survey); LangGraph and CrewAI are mainstream enterprise choices. As adoption scales, demand for coordination infrastructure (what ATC provides) will grow. Monitor whether LangGraph/CrewAI develop native Tower-like merge coordination or remain execution-only. *(Revisit: 2026-07-01)*
 
 ---
 
