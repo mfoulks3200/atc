@@ -629,6 +629,15 @@ describe("craft routes", () => {
       });
       expect(res.statusCode).toBe(403);
     });
+
+    it("returns 404 when craft does not exist", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/ghost/emergency`,
+        payload: { pilotId: "pilot-1", reason: "Craft not found" },
+      });
+      expect(res.statusCode).toBe(404);
+    });
   });
 
   // -------------------------------------------------------------------------
