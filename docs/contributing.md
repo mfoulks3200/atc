@@ -160,6 +160,8 @@ Every change must be checked against the formal specification at `docs/specifica
 
 - [ ] **Review changed code against the spec.** For each file you modified, identify the relevant `RULE-*` identifiers and verify that your implementation matches the spec's definitions, constraints, and state transitions.
 
+- [ ] **Verify RULE-\* test coverage.** For each `@see RULE-*` reference in changed files, confirm that at least one test explicitly exercises that rule. A referenced rule without test backing is a gap — either add the missing test or flag the gap before merging. (Reviewers: use `grep -r '@see RULE-' <changed-files>` to enumerate, then cross-check against test files.)
+
 - [ ] **If the implementation differs from the spec:** Stop and surface the discrepancy to the user. Do not merge until one of the following is resolved:
   - The implementation is corrected to match the spec, **or**
   - The spec is updated to reflect the intended change (with the user's approval).
@@ -207,6 +209,14 @@ Changelog categories: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`.
 pnpm run build
 ```
 
+### 9. Review-to-Ticket Completeness
+
+Any work that produces a review, analysis, or set of recommendations must create tracked follow-up issues **in the same heartbeat** as the review itself. Comment bullets alone are not sufficient — they are not discoverable, not assignable, and not tracked.
+
+- [ ] **Every actionable recommendation has a tracked issue.** For each open question, implementation choice, or follow-up action identified during a review or analysis, create a subtask or standalone issue. The issue must enumerate the specific work, not just reference "the recommendations from review X."
+- [ ] **Follow-up issues are linked.** Each follow-up issue must reference the source review (via `parentId`, `blockedByIssueIds`, or an explicit link in the description) so the review and its outcomes remain connected.
+- [ ] **No deferred ticket creation.** Do not mark a review task as done with a plan to "create follow-up tickets later." The tickets must exist before the review task closes.
+
 ## Quick Reference
 
 | Step | Command | Must Pass |
@@ -218,3 +228,5 @@ pnpm run build
 | Coverage | `pnpm run test -- --coverage` | 90% minimum on changed files |
 | UX review | UX impact triage; subtask if user-facing | UX Designer sign-off on user-facing changes |
 | Spec compliance | Review against `docs/specification.md` | No discrepancies, or spec updated |
+| RULE-* test coverage | `grep -r '@see RULE-'` on changed files | Every referenced rule has test backing |
+| Review-to-ticket | Review outputs produce tracked issues | All recommendations have linked follow-up issues |
