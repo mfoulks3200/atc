@@ -4,7 +4,7 @@ Distilled findings from Hacker News and AI industry research, maintained for ref
 
 **Freshness policy:** Prune entries older than 6 months that are no longer in active discussion, or sooner if a technology has clearly been superseded. Refresh on each AIR-149 heartbeat.
 
-**Last updated:** 2026-04-22
+**Last updated:** 2026-04-24
 
 ---
 
@@ -16,6 +16,8 @@ If 2025 was about single-agent coding assistants, 2026 is about coordinated team
 
 **Evidence of scale:** Incident.io runs 4–5 parallel Claude agents routinely. Teams using high-adoption multi-agent workflows report 98% more PRs merged — but also 91% longer code review times and 154% larger PR sizes.
 
+**Model capability signal:** Anthropic released Claude Opus 4.7 on April 16, 2026, with documented improvements in multi-step agentic task completion. Its release confirms the model provider's continued investment in orchestration-capable models that can sustain complex instruction contexts across long-running agent tasks — directly relevant to ATC's pilot model.
+
 **ATC implication:** ATC's craft-per-branch model and Tower merge coordination are directly validated by this trajectory. The system is infrastructure for a pattern the industry is independently arriving at.
 
 ---
@@ -26,7 +28,9 @@ Git worktrees have emerged as the consensus isolation mechanism for parallel age
 
 Multiple practitioners and vendors (Anthropic, Augment Code, Upsun, AppxLab) document this pattern. Tooling like `agentree` and `worktree-cli` has emerged to automate worktree lifecycle management.
 
-**ATC implication:** ATC's existing worktree support is well-positioned. The gap is tooling for worktree lifecycle events (creation, cleanup, conflict detection) that surfaces in the UI.
+**Emdash (Feb 2026)** takes this a step further with *worktree pooling*: pre-warming a set of idle worktrees so agent dispatch latency drops from seconds to milliseconds. The pool is replenished lazily after each task completes. This is analogous to connection-pool patterns from database engineering applied to agent execution environments.
+
+**ATC implication:** ATC's existing worktree support is well-positioned. Worktree pooling (pre-warmed worktrees assigned to crafts at checkout time) is a v2 path that could significantly reduce agent ramp-up overhead for short vectors. The gap today is tooling for worktree lifecycle events (creation, cleanup, conflict detection) surfaced in the UI.
 
 ---
 
@@ -39,7 +43,11 @@ The [AgenticFlict dataset](https://arxiv.org/html/2604.03551v1) (MSR 2026) provi
 - Strong PR-size correlation: ~10% for small PRs, ~30% for medium-sized changes
 - Agent variation: Copilot 15.24% ↔ OpenAI Codex 31.85%; Claude Code at 25.93%
 
-**ATC implication:** These statistics are a strong design-validation argument for the Tower merge queue. A coordination system that prevents concurrent landing attempts is not over-engineering — it is the correct response to a measured 27.67% failure rate. The PR-size finding also supports ATC's vector milestone model: smaller, scoped increments are safer to merge.
+**Entity-level merging (Weave):** A new class of merge tools resolves conflicts at the AST entity level (functions, classes, declarations) rather than text line ranges. Weave, evaluated against the conflicting-PR subset of AgenticFlict (i.e., PRs already known to produce textual conflicts), achieved ~100% clean resolution vs. ~48% for line-based git on that same subset. *Dataset scope note: these figures apply only to the conflicting 27.67% slice; they are not a comparison across all PRs.* Even bounded to conflicting PRs, a ~2× improvement is a meaningful signal that line-based merge is the wrong primitive for AI-generated code. Tree-sitter grammars (the underlying parser) are production-grade for TypeScript, Python, Go, and Rust.
+
+**Preemptive conflict detection (Clash):** Clash detects likely merge conflicts before a branch is submitted, enabling earlier intervention. Rather than discovering conflicts at merge time, agents can be notified mid-flight and adjust their scope.
+
+**ATC implication:** These statistics are a strong design-validation argument for the Tower merge queue. A coordination system that prevents concurrent landing attempts is not over-engineering — it is the correct response to a measured 27.67% failure rate. The PR-size finding also supports ATC's vector milestone model: smaller, scoped increments are safer to merge. Looking forward, Tower's merge execution (currently unimplemented) should be designed with pluggable merge strategies — line-based git as the default, with entity-level as an opt-in for projects with good tree-sitter grammar coverage.
 
 ---
 
@@ -72,7 +80,9 @@ Practitioners building multi-agent systems at scale consistently converge on the
 
 The author built an append-only NDJSON receipt ledger linking every agent decision to git commits and quality verdicts.
 
-**ATC implication:** ATC's Black Box is the right abstraction. The "deterministic quality gates" principle maps directly to the checklist runner. The "context rotation" problem is exactly what TFRs + the hold-pattern mechanism addresses. The receipt ledger pattern suggests that Black Box entries should be exported in a structured format (not just readable in the UI) for analysis.
+**Regulatory urgency — EU AI Act (August 2026):** The EU AI Act's enforcement deadline for high-risk AI systems is August 2026. Multi-agent software development systems that operate in regulated sectors (finance, healthcare, infrastructure) may fall under high-risk classification requirements, including mandatory audit trails, human oversight mechanisms, and transparency documentation. This creates urgency for ATC's Black Box completeness: incomplete or non-exportable audit trails are not just a UX gap — they are a potential compliance gap for teams operating under EU jurisdiction.
+
+**ATC implication:** ATC's Black Box is the right abstraction. The "deterministic quality gates" principle maps directly to the checklist runner. The "context rotation" problem is exactly what TFRs + the hold-pattern mechanism addresses. The receipt ledger pattern suggests that Black Box entries should be exported in a structured format (not just readable in the UI) for analysis. EU AI Act enforcement is a hard external deadline pushing this work to higher priority.
 
 ---
 
@@ -104,7 +114,9 @@ State persistence strategies (from [Indium Tech survey](https://www.indium.tech/
 
 LinkedIn's Cognitive Memory Agent and Mem0's "State of AI Agent Memory 2026" both document that statelessness is the root cause of agents duplicating work or losing context mid-task.
 
-**ATC implication:** The current `buildSystemPrompt` in the Claude adapter seeds the agent with craft state, but there is no structured context handover for multi-session work. When a craft enters a TFR holding pattern and resumes, the agent's context is likely lost. A structured context snapshot as part of the graceful-mode wind-down (roadmap item) is the right approach.
+**Agent File Format (.af):** An emerging portable container format for agent state — encapsulates episodic memory snapshots, tool call history, and active task context in a single serializable file. Analogous to what `.ipynb` did for notebook state. Still in early standardization discussion but gaining traction as a handover primitive between agent sessions and frameworks.
+
+**ATC implication:** The current `buildSystemPrompt` in the Claude adapter seeds the agent with craft state, but there is no structured context handover for multi-session work. When a craft enters a TFR holding pattern and resumes, the agent's context is likely lost. A structured context snapshot as part of the graceful-mode wind-down (roadmap item) is the right approach. The `.af` format, if it stabilizes, could be the serialization target for ATC's context handover — worth monitoring for adoption signal before committing to a custom format.
 
 ---
 
@@ -135,6 +147,9 @@ These items are not yet strong trends but have appeared enough to warrant monito
 - **PR review effort prediction** — MSR 2026 research on forecasting high-effort AI-generated PRs before they land; could inform Tower clearance criteria weighting
 - **Agent identity and signing** — emerging discussion about cryptographically-signed agent commits for accountability; relates to ATC's pilot certification model
 - **Standardized agent communication protocols** — no winner yet, but the space is active; ATC's intercom model could be positioned as an implementation
+- **"Over-editing" as a structural flaw** — practitioners are documenting a failure mode where agents pad output (code, prose, generated specs) beyond task scope, increasing review burden and introducing unintended changes. This suggests that acceptance criteria need explicit *scope ceilings*, not just completion gates. Watch for spec proposals addressing this at the framework level. *(Revisit: 2026-07-01)*
+- **Context/cache TTL optimization** — as context windows grow and provider caching improves (Anthropic prompt cache TTL, OpenAI Predicted Outputs), agent cost models are shifting. Long-lived agent sessions may become cheaper to maintain than spawn-per-task patterns; relevant to ATC's session lifecycle design. *(Revisit: 2026-07-01)*
+- **"Toxic Flow" critique** — a recurring argument that high-throughput multi-agent PR pipelines degrade codebase quality over time by optimizing for merge rate rather than correctness, accumulating subtle architectural debt. If this gains traction, it would argue for Tower-level quality gates beyond passing tests — e.g., required human review above a diff-size threshold. *(Revisit: 2026-07-01)*
 
 ---
 
