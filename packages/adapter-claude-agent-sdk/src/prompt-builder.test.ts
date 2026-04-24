@@ -155,18 +155,19 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("no vectors defined");
   });
 
-  it("includes API reference with correct URLs", () => {
+  it("includes craft base URL for read-only curl calls and MCP tool references for actions", () => {
     const prompt = buildSystemPrompt(baseCraft, "pilot-001", "demo-project");
     expect(prompt).toContain("http://localhost:7700/api/v1/projects/demo-project/crafts/ALPHA-1");
     expect(prompt).toContain("/intercom");
     expect(prompt).toContain("/vectors");
-    expect(prompt).toContain("/checklist");
+    // Checklist and other mutating actions use MCP tools, not curl.
+    expect(prompt).toContain("atc_craft_run_checklist");
+    expect(prompt).not.toContain("/checklist");
   });
 
-  it("instructs the agent to use intercom_send rather than curl for broadcasting", () => {
+  it("instructs the agent to use atc_intercom_send for broadcasting", () => {
     const prompt = buildSystemPrompt(baseCraft, "pilot-002", "demo-project");
-    expect(prompt).toContain("intercom_send");
-    expect(prompt).toContain("not curl");
+    expect(prompt).toContain("atc_intercom_send");
   });
 
   it("distinguishes private assistant output from the shared intercom channel", () => {

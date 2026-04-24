@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ClaudeAgentSdkAdapter, DEFAULT_MODEL, type QueryFn } from "./adapter.js";
 import { CraftStatus } from "@airtrafficcontrol/types";
 import type {
@@ -142,13 +142,32 @@ function baseLaunchOptions(overrides: Partial<AgentLaunchOptions> = {}): AgentLa
   };
 }
 
+const TEST_DAEMON_URL = "http://test-daemon";
+const FAKE_ATC_TOKEN = "test-atc-session-token";
+
 describe("ClaudeAgentSdkAdapter", () => {
   let sdk: ReturnType<typeof createFakeSdk>;
   let adapter: ClaudeAgentSdkAdapter;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let fetchSpy: ReturnType<typeof vi.spyOn<any, any>>;
 
   beforeEach(() => {
     sdk = createFakeSdk();
-    adapter = new ClaudeAgentSdkAdapter({ query: sdk.query });
+    adapter = new ClaudeAgentSdkAdapter({ query: sdk.query, daemonUrl: TEST_DAEMON_URL });
+    // Mock fetch for ATC MCP session creation (POST → 201 + token) and
+    // deletion (DELETE → 204). Both routes target the same URL.
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation((url, init) => {
+      if ((init as RequestInit | undefined)?.method === "DELETE") {
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ token: FAKE_ATC_TOKEN }), { status: 201 }),
+      );
+    });
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
   });
 
   const launchTestAgent = async (
@@ -218,7 +237,30 @@ describe("ClaudeAgentSdkAdapter", () => {
     });
   });
 
-  it("launch forwards mcpServers, mapping them to stdio shape", async () => {
+  it("launch creates an ATC MCP session and adds the HTTP server to mcpServers", async () => {
+    await launchTestAgent();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${TEST_DAEMON_URL}/api/v1/mcp/session`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          pilotId: "pilot-001",
+          callsign: "ALPHA-1",
+          projectName: "demo-project",
+        }),
+      }),
+    );
+    const mcp = sdk.lastSession().options?.mcpServers as
+      | Record<string, { type: string; url?: string; headers?: Record<string, string> }>
+      | undefined;
+    expect(mcp?.atc).toEqual({
+      type: "http",
+      url: `${TEST_DAEMON_URL}/api/v1/mcp`,
+      headers: { Authorization: `Bearer ${FAKE_ATC_TOKEN}` },
+    });
+  });
+
+  it("launch forwards mcpServers, mapping them to stdio shape alongside the atc server", async () => {
     await launchTestAgent({
       mcpServers: {
         files: { command: "node", args: ["server.js"], env: { FOO: "bar" } },
@@ -227,7 +269,7 @@ describe("ClaudeAgentSdkAdapter", () => {
     const mcp = sdk.lastSession().options?.mcpServers as
       | Record<
           string,
-          { type?: string; command: string; args?: string[]; env?: Record<string, string> }
+          { type?: string; command?: string; args?: string[]; env?: Record<string, string> }
         >
       | undefined;
     expect(mcp?.files).toEqual({
@@ -236,6 +278,8 @@ describe("ClaudeAgentSdkAdapter", () => {
       args: ["server.js"],
       env: { FOO: "bar" },
     });
+    // The standalone ATC server is always added alongside any project servers.
+    expect(mcp?.atc).toMatchObject({ type: "http", url: `${TEST_DAEMON_URL}/api/v1/mcp` });
   });
 
   it("onMessage receives assistant text blocks wrapped as intercom messages", async () => {
@@ -372,13 +416,21 @@ describe("ClaudeAgentSdkAdapter", () => {
     expect(statuses).toContain("running");
   });
 
-  it("terminate closes the SDK query and reports terminated via isAlive", async () => {
+  it("terminate closes the SDK query, deletes the ATC session, and reports terminated via isAlive", async () => {
     const handle = await launchTestAgent();
     expect(await adapter.isAlive(handle)).toBe(true);
 
     await adapter.terminate(handle);
     expect(sdk.lastSession().closed).toBe(true);
     expect(await adapter.isAlive(handle)).toBe(false);
+    // The ATC MCP session should be deleted to release server-side resources.
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${TEST_DAEMON_URL}/api/v1/mcp/session`,
+      expect.objectContaining({
+        method: "DELETE",
+        headers: expect.objectContaining({ Authorization: `Bearer ${FAKE_ATC_TOKEN}` }),
+      }),
+    );
   });
 
   it("callbacks registered against an unknown handle are dropped", async () => {

@@ -23,6 +23,7 @@ import type {
   McpServerConfig,
 } from "@airtrafficcontrol/daemon";
 import type {
+  McpHttpServerConfig,
   McpStdioServerConfig,
   Options,
   Query,
@@ -31,9 +32,6 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import { query as defaultQuery } from "@anthropic-ai/claude-agent-sdk";
 import { buildSystemPrompt, deriveSeat } from "./prompt-builder.js";
-import { createIntercomMcpServer } from "./intercom-tool.js";
-import { createControlsMcpServer } from "./controls-tool.js";
-import { createTowerMcpServer } from "./tower-tool.js";
 import { createControlsCanUseTool } from "./controls-enforcer.js";
 
 /**
@@ -43,6 +41,9 @@ import { createControlsCanUseTool } from "./controls-enforcer.js";
  * override via `adapterConfig.model` on {@link AgentLaunchOptions}.
  */
 export const DEFAULT_MODEL = "claude-opus-4-6";
+
+/** Default ATC daemon URL. */
+const DEFAULT_DAEMON_URL = "http://localhost:7700";
 
 /**
  * Shape of the `query` function from `@anthropic-ai/claude-agent-sdk`.
@@ -61,6 +62,8 @@ export type QueryFn = (params: {
 export interface ClaudeAgentSdkAdapterDeps {
   /** Override the SDK `query` implementation (used by tests). */
   query?: QueryFn;
+  /** Override the ATC daemon base URL (used by tests). Defaults to `http://localhost:7700`. */
+  daemonUrl?: string;
 }
 
 /**
@@ -80,6 +83,8 @@ interface AgentSession {
   /** Pilot identifier used as `from` in outgoing intercom messages. */
   pilotId: string;
   consumer: Promise<void>;
+  /** ATC MCP session token for cleanup on terminate. */
+  atcSessionToken: string;
 }
 
 /**
@@ -162,6 +167,47 @@ function toSdkMcpServers(
 }
 
 /**
+ * Create an ATC MCP session on the daemon and return the bearer token.
+ *
+ * The session is scoped to a single pilot+craft combination. The token is
+ * passed as the Authorization header on all subsequent MCP requests so the
+ * server can route tool calls to the correct craft context.
+ *
+ * @see `/api/v1/mcp/session` in `@airtrafficcontrol/mcp-server`.
+ */
+async function createAtcSession(
+  pilotId: string,
+  callsign: string,
+  projectName: string,
+  daemonUrl: string,
+): Promise<string> {
+  const res = await fetch(`${daemonUrl}/api/v1/mcp/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pilotId, callsign, projectName }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`ATC MCP session creation failed (${res.status}): ${body}`);
+  }
+  const json = (await res.json()) as { token: string };
+  return json.token;
+}
+
+/**
+ * Delete an ATC MCP session on the daemon. Called on agent termination to
+ * release server-side session resources.
+ */
+async function deleteAtcSession(token: string, daemonUrl: string): Promise<void> {
+  await fetch(`${daemonUrl}/api/v1/mcp/session`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => {
+    // Best-effort cleanup — ignore errors since the agent is shutting down.
+  });
+}
+
+/**
  * Build an {@link SDKUserMessage} that delivers an inbound intercom message
  * as a clearly-labeled system-style notification in the agent's context.
  *
@@ -178,7 +224,7 @@ function toSdkUserMessage(msg: IntercomMessage): SDKUserMessage {
     `  Content: ${msg.content}`,
     ``,
     `Decide whether a reply is warranted. If so, broadcast it via the`,
-    `\`intercom_send\` tool — do not reply inline, as your regular output is`,
+    `\`atc_intercom_send\` tool — do not reply inline, as your regular output is`,
     `not sent to the intercom. Follow the 3W principle and end with "Over".`,
   ].join("\n");
   return {
@@ -220,6 +266,7 @@ function buildKickoff(cargo: string): SDKUserMessage {
  */
 export class ClaudeAgentSdkAdapter implements AgentAdapter {
   private readonly _query: QueryFn;
+  private readonly _daemonUrl: string;
   private readonly _sessions: Map<string, AgentSession> = new Map();
 
   /**
@@ -227,6 +274,7 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
    */
   constructor(deps: ClaudeAgentSdkAdapterDeps = {}) {
     this._query = deps.query ?? (defaultQuery as unknown as QueryFn);
+    this._daemonUrl = deps.daemonUrl ?? DEFAULT_DAEMON_URL;
   }
 
   /**
@@ -254,45 +302,35 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
         ? `${autoPrompt}\n\n---\n\n## Project-specific notes\n\n${options.systemPrompt}`
         : autoPrompt;
 
-    // Expose the intercom as an explicit tool. The pilot must deliberately
-    // call `intercom_send` to broadcast to the crew — their internal
-    // reasoning and file-edit commentary are never auto-forwarded.
-    const intercomServer = createIntercomMcpServer({
-      daemonUrl: "http://localhost:7700",
-      projectName: options.projectName,
-      callsign: options.craft.callsign,
-      pilotId: pilotIdForPrompt,
-      seat,
-    });
-
-    // Controls management: pilots can check state + cede/reclaim controls
-    // themselves via MCP, without the operator having to click a UI button.
-    const controlsServer = createControlsMcpServer({
-      daemonUrl: "http://localhost:7700",
-      projectName: options.projectName,
-      callsign: options.craft.callsign,
-      pilotId: pilotIdForPrompt,
-    });
-
-    // Tower tools: the captain uses these to request clearance and execute
-    // the merge once all vectors pass and the landing checklist is green.
-    const towerServer = createTowerMcpServer({
-      daemonUrl: "http://localhost:7700",
-      projectName: options.projectName,
-      callsign: options.craft.callsign,
-    });
+    // Create an ATC MCP session on the daemon. The token is passed as the
+    // Authorization header so the standalone server routes all tool calls to
+    // this pilot's craft context. The session is cleaned up on terminate().
+    const atcSessionToken = await createAtcSession(
+      pilotIdForPrompt,
+      options.craft.callsign,
+      options.projectName,
+      this._daemonUrl,
+    );
 
     // Runtime enforcer for RULE-CTRL-3. Inspects every tool call and denies
     // file modifications (Edit, Write, MultiEdit, NotebookEdit, Bash) when
     // the pilot does not currently hold controls for the target path.
     const canUseTool = createControlsCanUseTool({
-      daemonUrl: "http://localhost:7700",
+      daemonUrl: this._daemonUrl,
       projectName: options.projectName,
       callsign: options.craft.callsign,
       pilotId: pilotIdForPrompt,
       seat,
       worktreePath: options.worktreePath,
     });
+
+    // ATC MCP server config: connects the agent to the standalone server
+    // over HTTP using the per-session bearer token for routing.
+    const atcMcpServer: McpHttpServerConfig = {
+      type: "http",
+      url: `${this._daemonUrl}/api/v1/mcp`,
+      headers: { Authorization: `Bearer ${atcSessionToken}` },
+    };
 
     const sdkOptions: Options = {
       cwd: options.worktreePath,
@@ -303,9 +341,7 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
       systemPrompt: finalSystemPrompt,
       mcpServers: {
         ...toSdkMcpServers(options.mcpServers),
-        "atc-intercom": intercomServer,
-        "atc-controls": controlsServer,
-        "atc-tower": towerServer,
+        atc: atcMcpServer,
       },
       // acceptEdits auto-accepts file edit operations without interactive
       // prompts (no human is at the keyboard). RULE-CTRL-3 is still enforced
@@ -337,6 +373,7 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
       callsign: options.craft.callsign,
       pilotId: options.pilotId ?? options.craft.callsign,
       consumer: Promise.resolve(),
+      atcSessionToken,
     };
     session.consumer = this._consume(session);
 
@@ -375,8 +412,8 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
   }
 
   /**
-   * Terminate an agent by closing the SDK query and shutting down the
-   * input channel.
+   * Terminate an agent by closing the SDK query, shutting down the
+   * input channel, and deleting the ATC MCP session on the daemon.
    *
    * @see RULE-PILOT-1
    */
@@ -390,6 +427,7 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
     } catch {
       // Swallow close-time errors — the session is already being torn down.
     }
+    await deleteAtcSession(session.atcSessionToken, this._daemonUrl);
     this._sessions.delete(handle.agentId);
   }
 
