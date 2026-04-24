@@ -13,6 +13,7 @@
   "dependencies": {
     "@airtrafficcontrol/adapter-claude-agent-sdk": "workspace:*",
     "@airtrafficcontrol/checklist": "workspace:*",
+    "@airtrafficcontrol/mcp-server": "workspace:*",
     "@airtrafficcontrol/core": "workspace:*",
     "@airtrafficcontrol/errors": "workspace:*",
     "@airtrafficcontrol/tower": "workspace:*",

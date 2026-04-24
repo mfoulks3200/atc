@@ -13,5 +13,5 @@
     "composite": true
   },
   "include": [],
-  "references": [{ "path": "packages/types" }, { "path": "packages/errors" }, { "path": "packages/core" }, { "path": "packages/validation" }, { "path": "packages/checklist" }, { "path": "packages/tower" }, { "path": "packages/daemon" }, { "path": "packages/adapter-claude-agent-sdk" }]
+  "references": [{ "path": "packages/types" }, { "path": "packages/errors" }, { "path": "packages/core" }, { "path": "packages/validation" }, { "path": "packages/checklist" }, { "path": "packages/tower" }, { "path": "packages/mcp-server" }, { "path": "packages/daemon" }, { "path": "packages/adapter-claude-agent-sdk" }]
 }
