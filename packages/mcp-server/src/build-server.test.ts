@@ -51,11 +51,13 @@ function makeApp(
     inject: async (opts) => {
       // GET craft path returns the craft; all mutations return mutationResponse.
       if (opts.method === "GET") {
-        return { statusCode: 200, json: () => craftData ?? {} };
+        const data = craftData ?? {};
+        return { statusCode: 200, json: <T = unknown>() => data as T };
       }
+      const body = mutationResponse.body;
       return {
         statusCode: mutationResponse.statusCode,
-        json: () => mutationResponse.body,
+        json: <T = unknown>() => body as T,
       };
     },
   };
