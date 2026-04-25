@@ -143,4 +143,10 @@ export enum BlackBoxEntryType {
   MergeConflict = "MergeConflict",
   /** The craft was created from a spec document via SDD. @see RULE-SDD-16 */
   SpecCreated = "SpecCreated",
+  /** An MCP session was established by a pilot via the standalone MCP server. @see RULE-BBOX-5 */
+  McpSessionOpened = "McpSessionOpened",
+  /** An MCP session was terminated. @see RULE-BBOX-6 */
+  McpSessionClosed = "McpSessionClosed",
+  /** An MCP tool call resulted in an authorization or domain rule failure. @see RULE-BBOX-7 */
+  McpToolError = "McpToolError",
 }

@@ -118,6 +118,9 @@ The **black box** is an append-only log maintained on every craft throughout its
 | `MergeStale`            | Tower attempted a merge but the craft's branch was not up to date with main. The craft is sent on a go-around. |
 | `MergeConflict`         | Tower attempted a merge but encountered conflicts. The craft is sent on a go-around to resolve them. |
 | `SpecCreated`           | The craft was created from a spec document via SDD. Records the submitter identity, submission source, spec title, and whether autoLaunch was requested and executed or suppressed (with reason). The raw spec document is attached. |
+| `McpSessionOpened`      | An MCP session was established by a pilot via the standalone MCP server. Records the pilotId, seat, and runtime hint (if available). See §4.8. |
+| `McpSessionClosed`      | An MCP session was terminated. Records the pilotId, seat, and close reason (`disconnect` or `craft_terminated`). See §4.8. |
+| `McpToolError`          | An MCP tool call failed. Records the tool name, seat, error summary, and the `ruleId` of the violated rule (if applicable). See §4.8. |
 
 ##### Rules
 
@@ -125,6 +128,9 @@ The **black box** is an append-only log maintained on every craft throughout its
 - **RULE-BBOX-2:** Black box entries are append-only. No entry may be modified or deleted once recorded.
 - **RULE-BBOX-3:** All pilots (captain, first officers, and jumpseaters) MAY write to the black box.
 - **RULE-BBOX-4:** In the event of an emergency declaration, the complete black box MUST be provided to the origin airport as the primary artifact for investigation.
+- **RULE-BBOX-5:** When a pilot opens an MCP session, the daemon MUST append an `McpSessionOpened` entry to the craft's black box with the pilotId, resolved seat type, and runtime hint (if provided).
+- **RULE-BBOX-6:** When an MCP session is closed for any reason, the daemon MUST append an `McpSessionClosed` entry to the craft's black box with the pilotId, seat, and the reason code (`disconnect` or `craft_terminated`).
+- **RULE-BBOX-7:** When an MCP tool call results in an authorization failure or domain rule violation, the daemon MUST append an `McpToolError` entry to the craft's black box with the tool name, seat, error summary, and the violated `ruleId`.
 
 ### 2.2 Pilot
 
@@ -717,6 +723,62 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 - **RULE-UXR-4:** Changes to the web package MUST maintain or improve accessibility: sufficient color contrast (WCAG AA), keyboard navigability, and screen-reader-compatible markup.
 - **RULE-UXR-5:** Destructive or irreversible actions MUST require explicit user confirmation before execution. Users MUST be able to recover from errors without losing in-progress work.
 
+### 4.8 MCP Session Protocol
+
+The standalone MCP server allows piloting agents to connect to a craft via the Model Context Protocol. Each connection establishes an **MCP session** scoped to a single pilot and craft. The daemon tracks active sessions and broadcasts lifecycle events over the standard WebSocket channel registry.
+
+#### 4.8.1 Session Lifecycle
+
+A session begins when a pilot calls `POST /api/v1/mcp/session` with `{ pilotId, callsign, projectName }` and receives a session token. The session ends when the pilot calls `DELETE /api/v1/mcp/session`, the underlying transport disconnects, or the craft reaches a terminal state.
+
+#### 4.8.2 WebSocket Events
+
+All MCP session events are published on both the per-craft channel (`craft:<callsign>`) and the per-project channel (`project:<name>`). They follow the same `WsEvent` envelope as all other craft events.
+
+| Event type                    | Trigger                                                           |
+| ----------------------------- | ----------------------------------------------------------------- |
+| `craft.mcp.session_opened`    | An MCP session is successfully established.                       |
+| `craft.mcp.session_closed`    | An MCP session is terminated (disconnect or craft termination).   |
+| `craft.mcp.tool_called`       | An MCP tool call completes (success or error).                    |
+
+##### `craft.mcp.session_opened` payload
+
+| Field         | Type     | Description                                                        |
+| ------------- | -------- | ------------------------------------------------------------------ |
+| `pilotId`     | `string` | Identifier of the connecting pilot.                                |
+| `callsign`    | `string` | Callsign of the craft the session is scoped to.                    |
+| `seat`        | `string` | Resolved seat type: `Captain`, `FirstOfficer`, or `Jumpseat`.     |
+| `runtimeHint` | `string \| null` | Optional runtime descriptor provided at session creation. |
+
+##### `craft.mcp.session_closed` payload
+
+| Field      | Type     | Description                                                                |
+| ---------- | -------- | -------------------------------------------------------------------------- |
+| `pilotId`  | `string` | Identifier of the disconnecting pilot.                                     |
+| `callsign` | `string` | Callsign of the craft.                                                     |
+| `seat`     | `string` | Seat the pilot held during the session.                                    |
+| `reason`   | `string` | Close reason: `disconnect` (client-initiated or transport drop) or `craft_terminated` (craft reached terminal state). |
+
+##### `craft.mcp.tool_called` payload
+
+| Field      | Type     | Description                                                                        |
+| ---------- | -------- | ---------------------------------------------------------------------------------- |
+| `pilotId`  | `string` | Pilot who invoked the tool.                                                        |
+| `callsign` | `string` | Callsign of the craft.                                                             |
+| `seat`     | `string` | Seat the pilot held at invocation time.                                            |
+| `tool`     | `string` | Name of the MCP tool that was called.                                              |
+| `outcome`  | `string` | `success` or `error`.                                                              |
+| `ruleId`   | `string \| null` | If `outcome` is `error` and a domain rule was violated, the violated `RULE-*` identifier; otherwise `null`. |
+
+#### 4.8.3 Rules
+
+- **RULE-MCP-1:** Each MCP session MUST be scoped to exactly one pilot and one craft. A pilot may hold at most one active MCP session per craft at a time.
+- **RULE-MCP-2:** The daemon MUST publish a `craft.mcp.session_opened` event and record an `McpSessionOpened` black box entry (RULE-BBOX-5) immediately after a session is successfully established.
+- **RULE-MCP-3:** The daemon MUST publish a `craft.mcp.session_closed` event and record an `McpSessionClosed` black box entry (RULE-BBOX-6) when a session ends for any reason.
+- **RULE-MCP-4:** The daemon MUST publish a `craft.mcp.tool_called` event after every MCP tool invocation. For error outcomes that violate a domain rule, the event MUST include the violated `ruleId`.
+- **RULE-MCP-5:** MCP tool calls that require controls (any tool that modifies craft state) MUST enforce the seat-based authorization rules defined in RULE-CTRL-2. Jumpseaters MUST NOT be permitted to invoke write tools.
+- **RULE-MCP-6:** When a craft reaches a terminal state (`Landed` or `ReturnToOrigin`), the daemon MUST close all active MCP sessions for that craft with reason `craft_terminated`.
+
 ## 5. Appendices
 
 ### Appendix A: Rule Index
@@ -733,6 +795,9 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-BBOX-2    | Black box entries are append-only, immutable.                        | 2.1.1   |
 | RULE-BBOX-3    | All pilots (including jumpseaters) may write to black box.           | 2.1.1   |
 | RULE-BBOX-4    | Complete black box provided to origin on emergency.                  | 2.1.1   |
+| RULE-BBOX-5    | McpSessionOpened entry recorded when MCP session is established.     | 2.1.1   |
+| RULE-BBOX-6    | McpSessionClosed entry recorded when MCP session ends.               | 2.1.1   |
+| RULE-BBOX-7    | McpToolError entry recorded on MCP tool authorization/rule failure.  | 2.1.1   |
 | RULE-PILOT-1   | Pilot identifier must be unique.                                     | 2.2.1   |
 | RULE-PILOT-2   | Certifications determine captain/FO eligibility.                     | 2.2.1   |
 | RULE-SEAT-1    | Craft must have exactly one captain.                                 | 2.2.3   |
@@ -827,3 +892,9 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-UXR-3     | All user-visible states covered: success, error, loading, empty.     | 4.7.3   |
 | RULE-UXR-4     | Web changes must maintain/improve accessibility (WCAG AA).           | 4.7.3   |
 | RULE-UXR-5     | Destructive actions require confirmation; errors must be recoverable.| 4.7.3   |
+| RULE-MCP-1     | MCP session scoped to one pilot and one craft; one active session per pilot-craft pair. | 4.8.3 |
+| RULE-MCP-2     | Daemon publishes session_opened event and McpSessionOpened bbox entry on session open. | 4.8.3 |
+| RULE-MCP-3     | Daemon publishes session_closed event and McpSessionClosed bbox entry on session end.  | 4.8.3 |
+| RULE-MCP-4     | Daemon publishes tool_called event after every MCP tool invocation.  | 4.8.3   |
+| RULE-MCP-5     | Write tools enforce RULE-CTRL-2; jumpseaters may not invoke write tools. | 4.8.3 |
+| RULE-MCP-6     | Terminal craft state closes all active MCP sessions with craft_terminated reason. | 4.8.3 |
