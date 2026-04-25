@@ -156,8 +156,9 @@ describe("buildSystemPrompt", () => {
   });
 
   it("includes craft base URL for read-only curl calls and MCP tool references for actions", () => {
-    const prompt = buildSystemPrompt(baseCraft, "pilot-001", "demo-project");
-    expect(prompt).toContain("http://localhost:7700/api/v1/projects/demo-project/crafts/ALPHA-1");
+    const prompt = buildSystemPrompt(baseCraft, "pilot-001", "demo-project", "http://atc.example:9100");
+    expect(prompt).toContain("http://atc.example:9100/api/v1/projects/demo-project/crafts/ALPHA-1");
+    expect(prompt).not.toContain("http://localhost:7700");
     expect(prompt).toContain("/intercom");
     expect(prompt).toContain("/vectors");
     // Checklist and other mutating actions use MCP tools, not curl.

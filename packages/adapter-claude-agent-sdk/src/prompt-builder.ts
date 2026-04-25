@@ -21,9 +21,6 @@
 
 import type { CraftState } from "@airtrafficcontrol/daemon";
 
-/** URL of the ATC daemon. Agents call this from their worktree shell. */
-const DAEMON_URL = "http://localhost:7700";
-
 /**
  * Derive a pilot's seat type from the craft's crew manifest.
  *
@@ -51,7 +48,12 @@ export function deriveSeat(
  * @see RULE-PILOT-1
  * @see RULE-SEAT-1 through RULE-SEAT-3
  */
-export function buildSystemPrompt(craft: CraftState, pilotId: string, projectName: string): string {
+export function buildSystemPrompt(
+  craft: CraftState,
+  pilotId: string,
+  projectName: string,
+  daemonUrl = "http://localhost:7700",
+): string {
   const seat = deriveSeat(craft, pilotId);
   const seatLabel =
     seat === "firstOfficer" ? "First Officer" : seat === "captain" ? "Captain" : "Jumpseat";
@@ -93,7 +95,7 @@ export function buildSystemPrompt(craft: CraftState, pilotId: string, projectNam
         : `You are an **observer and advisor**. You **cannot modify code** on this branch. You **cannot hold controls**. You can advise the crew and record observations in the black box, but must not take direct action on the craft. (RULE-SEAT-3, RULE-CTRL-2)`;
 
   // --- Base URL for this craft ---
-  const craftBase = `${DAEMON_URL}/api/v1/projects/${projectName}/crafts/${craft.callsign}`;
+  const craftBase = `${daemonUrl}/api/v1/projects/${projectName}/crafts/${craft.callsign}`;
 
   return [
     "# ATC Pilot Briefing",
