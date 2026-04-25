@@ -208,6 +208,31 @@ describe("DELETE /api/v1/mcp/session", () => {
 // POST/GET /api/v1/mcp (MCP endpoint auth gate)
 // ---------------------------------------------------------------------------
 
+const FULL_CRAFT = {
+  callsign: "ALPHA01",
+  status: "InFlight",
+  cargo: "test",
+  branch: "feature/test",
+  category: "feature",
+  captain: "cap-id",
+  firstOfficers: [],
+  jumpseaters: [],
+  flightPlan: [],
+  blackBox: [],
+  intercom: [],
+  controls: { mode: "exclusive", holder: "cap-id" },
+  holdingPattern: false,
+};
+
+async function createSession(app: FastifyInstance): Promise<string> {
+  const res = await app.inject({
+    method: "POST",
+    url: "/api/v1/mcp/session",
+    payload: { pilotId: "cap-id", callsign: "ALPHA01", projectName: "proj" },
+  });
+  return res.json<{ token: string }>().token;
+}
+
 describe("MCP endpoint authentication", () => {
   let app: FastifyInstance;
 
@@ -236,5 +261,81 @@ describe("MCP endpoint authentication", () => {
       headers: { authorization: "Bearer invalid-token" },
     });
     expect(res.statusCode).toBe(401);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/v1/mcp — session-bound transport forwarding
+// ---------------------------------------------------------------------------
+
+describe("GET /api/v1/mcp with valid session", () => {
+  let app: FastifyInstance;
+
+  afterEach(async () => {
+    await app?.close();
+  });
+
+  it("forwards to transport when session is valid", async () => {
+    app = makeMockApp(FULL_CRAFT);
+    const token = await createSession(app);
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/mcp",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).not.toBe(401);
+    expect(res.statusCode).not.toBe(404);
+  });
+
+  it("returns 401 with expired/invalid token", async () => {
+    app = makeMockApp(FULL_CRAFT);
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/mcp",
+      headers: { authorization: "Bearer expired-token" },
+    });
+    expect(res.statusCode).toBe(401);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /api/v1/mcp — close MCP SSE session
+// ---------------------------------------------------------------------------
+
+describe("DELETE /api/v1/mcp", () => {
+  let app: FastifyInstance;
+
+  afterEach(async () => {
+    await app?.close();
+  });
+
+  it("returns 401 without a token", async () => {
+    app = makeMockApp();
+    const res = await app.inject({ method: "DELETE", url: "/api/v1/mcp" });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("returns 404 with an invalid token", async () => {
+    app = makeMockApp();
+    const res = await app.inject({
+      method: "DELETE",
+      url: "/api/v1/mcp",
+      headers: { authorization: "Bearer invalid-token" },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("forwards to transport with a valid session token", async () => {
+    app = makeMockApp(FULL_CRAFT);
+    const token = await createSession(app);
+
+    const res = await app.inject({
+      method: "DELETE",
+      url: "/api/v1/mcp",
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).not.toBe(401);
+    expect(res.statusCode).not.toBe(404);
   });
 });
