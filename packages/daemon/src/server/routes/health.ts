@@ -30,15 +30,14 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
   /**
    * Runtime status summary.
    *
-   * Returns the active profile name and placeholder counts for tracked
-   * entities. Counts will be wired to live stores in a later task.
+   * Returns the active profile name and live counts of tracked entities.
    */
   app.get("/api/v1/status", async (_request, _reply) => {
     return {
       profile: "default",
-      projects: 0,
-      crafts: 0,
-      agents: 0,
+      projects: app.projectConfigStores.size,
+      crafts: app.craftStore.listAll().length,
+      agents: app.agentStore.list().length,
     };
   });
 

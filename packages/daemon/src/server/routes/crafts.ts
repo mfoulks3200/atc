@@ -425,11 +425,20 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
   // -------------------------------------------------------------------------
 
   /**
-   * Declare an emergency on a craft.
+   * Declare an emergency on a craft and immediately return it to origin.
    *
-   * Only valid from `GoAround` status (lifecycle transition 7).
+   * Performs two atomic lifecycle transitions:
+   *   1. `GoAround` → `Emergency`       (transition 7)
+   *   2. `Emergency` → `ReturnToOrigin` (transition 9, RULE-LIFE-7)
+   *
+   * Returns an emergency report (callsign, cargo, flightPlan, blackBox) per
+   * RULE-EMER-4 so the origin airport receives everything it needs.
    *
    * @see RULE-EMER-1 — only the captain may declare an emergency.
+   * @see RULE-EMER-2 — EmergencyDeclaration entry written to black box.
+   * @see RULE-EMER-3 — craft returned to origin airport.
+   * @see RULE-EMER-4 — origin receives callsign, cargo, flight plan, black box.
+   * @see RULE-LIFE-7 — Emergency → ReturnToOrigin requires EmergencyDeclaration in bbox.
    */
   app.post<{ Params: CraftParams; Body: EmergencyBody }>(
     "/api/v1/projects/:name/crafts/:callsign/emergency",
@@ -454,6 +463,8 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
+      // RULE-EMER-2: record EmergencyDeclaration in black box before any transition.
+      // RULE-LIFE-7: this satisfies the bbox precondition for Emergency → ReturnToOrigin.
       const entry = appendBlackBoxEntry(
         app,
         name,
@@ -462,6 +473,8 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         BlackBoxEntryType.EmergencyDeclaration,
         reason,
       );
+
+      // Transition 7: GoAround → Emergency
       craft.status = CraftStatus.Emergency;
       appendBlackBoxEntry(
         app,
@@ -471,14 +484,34 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         BlackBoxEntryType.StateTransition,
         `State transition: ${CraftStatus.GoAround} -> ${CraftStatus.Emergency}`,
       );
+
+      // RULE-EMER-3 / Transition 9: Emergency → ReturnToOrigin.
+      craft.status = CraftStatus.ReturnToOrigin;
+      appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        "system",
+        BlackBoxEntryType.StateTransition,
+        `State transition: ${CraftStatus.Emergency} -> ${CraftStatus.ReturnToOrigin}`,
+      );
+
       app.craftStore.set(name, craft);
+
       publishCraftEvent(app, name, craft, "craft.emergency.declared", {
         from: CraftStatus.GoAround,
-        to: CraftStatus.Emergency,
+        to: CraftStatus.ReturnToOrigin,
         entry,
       });
 
-      return reply.send(craft);
+      // RULE-EMER-4: return emergency report for the origin airport.
+      return reply.send({
+        callsign: craft.callsign,
+        cargo: craft.cargo,
+        flightPlan: craft.flightPlan,
+        blackBox: craft.blackBox,
+        status: craft.status,
+      });
     },
   );
 

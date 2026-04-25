@@ -28,6 +28,7 @@ import { pilotConfigRoutes } from "./routes/pilot-config.js";
 import { tfrRoutes } from "./routes/tfr.js";
 import { controlsRoutes } from "./routes/controls.js";
 import { craftsGlobalRoutes } from "./routes/crafts-global.js";
+import { craftsFromSpecRoutes } from "./routes/crafts-from-spec.js";
 import type { LayeredConfigStore } from "../config/layered-store.js";
 import type { GlobalConfig, ProjectMetadataConfig } from "../config/schema.js";
 import { PilotConfigStore } from "../config/pilot-config-store.js";
@@ -117,6 +118,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   void app.register(tfrRoutes);
   void app.register(controlsRoutes);
   void app.register(craftsGlobalRoutes);
+  void app.register(craftsFromSpecRoutes);
 
   const heartbeat = new HeartbeatTracker(3);
 

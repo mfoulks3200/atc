@@ -538,7 +538,7 @@ describe("craft routes", () => {
       craftStore.set(PROJECT, craft);
     }
 
-    it("declares emergency when captain requests from GoAround", async () => {
+    it("declares emergency and returns to origin when captain requests from GoAround", async () => {
       await seedCraftInGoAround();
 
       const res = await app.inject({
@@ -547,14 +547,38 @@ describe("craft routes", () => {
         payload: { pilotId: "pilot-1", reason: "Engine failure" },
       });
       expect(res.statusCode).toBe(200);
-      const body = res.json<CraftState>();
-      expect(body.status).toBe("Emergency");
-      // Seeding-via-route creates a CraftCreated entry, so the emergency
-      // branch also appends an EmergencyDeclaration plus a StateTransition.
+      const body = res.json<{
+        callsign: string;
+        cargo: string;
+        flightPlan: unknown[];
+        blackBox: Array<{ type: string }>;
+        status: string;
+      }>();
+      // RULE-EMER-3: craft returned to origin
+      expect(body.status).toBe("ReturnToOrigin");
+      // RULE-EMER-4: report includes callsign, cargo, flightPlan, blackBox
+      expect(body.callsign).toBe("alpha-1");
+      expect(body.cargo).toBe("Implement feature alpha");
+      expect(Array.isArray(body.flightPlan)).toBe(true);
+      expect(Array.isArray(body.blackBox)).toBe(true);
+      // RULE-EMER-2: EmergencyDeclaration written to black box
       const types = body.blackBox.map((e) => e.type);
       expect(types).toContain("CraftCreated");
       expect(types).toContain("EmergencyDeclaration");
       expect(types).toContain("StateTransition");
+    });
+
+    it("persists ReturnToOrigin status in the craft store", async () => {
+      await seedCraftInGoAround();
+
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/emergency`,
+        payload: { pilotId: "pilot-1", reason: "Engine failure" },
+      });
+
+      const stored = craftStore.get(PROJECT, "alpha-1")!;
+      expect(stored.status).toBe("ReturnToOrigin");
     });
 
     it("returns 400 when craft is not in GoAround", async () => {

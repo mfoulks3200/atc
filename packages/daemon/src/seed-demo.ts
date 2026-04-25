@@ -187,6 +187,9 @@ export async function seedDemo(options: SeedDemoOptions): Promise<SeedDemoResult
       { name: "Lint", command: "echo 'demo lint passed'" },
     ],
     mcpServers: {},
+    allowAutoLaunch: false,
+    specInbox: null,
+    callsignCounter: 1,
   };
   await projectStore.replace(metadata);
 

@@ -51,6 +51,8 @@ export const MCP_SERVER_CONFIG_SCHEMA = z.object({
  * `<profileDir>/projects/<name>/metadata.json`.
  *
  * @see RULE-CRAFT-1
+ * @see RULE-SDD-11 — allowAutoLaunch controls whether spec submissions may auto-launch crafts.
+ * @see RULE-SDD-17 — specInbox directory watched for .spec.yaml/.spec.json files.
  */
 export const PROJECT_METADATA_SCHEMA = z
   .object({
@@ -59,6 +61,12 @@ export const PROJECT_METADATA_SCHEMA = z
     categories: z.array(z.string()),
     checklist: z.array(CHECKLIST_ITEM_CONFIG_SCHEMA),
     mcpServers: z.record(MCP_SERVER_CONFIG_SCHEMA),
+    /** Whether spec submissions may trigger immediate craft launch. @see RULE-SDD-11 */
+    allowAutoLaunch: z.boolean(),
+    /** Absolute path to the specInbox directory, or null if not configured. @see RULE-SDD-17 */
+    specInbox: z.string().nullable(),
+    /** Monotonic counter for callsign generation. Persisted per-project. @see §4.6.2 */
+    callsignCounter: z.number().int().min(1),
   })
   .passthrough();
 
@@ -75,6 +83,9 @@ export const PROJECT_METADATA_DEFAULTS: ProjectMetadataConfig = {
   categories: [],
   checklist: [],
   mcpServers: {},
+  allowAutoLaunch: false,
+  specInbox: null,
+  callsignCounter: 1,
 };
 
 /**

@@ -106,6 +106,9 @@ describe("PROJECT_METADATA_SCHEMA", () => {
           env: { DEBUG: "1" },
         },
       },
+      allowAutoLaunch: false,
+      specInbox: null,
+      callsignCounter: 1,
     };
     expect(() => PROJECT_METADATA_SCHEMA.parse(valid)).not.toThrow();
   });
