@@ -41,7 +41,7 @@ jobs:
         run: pnpm --filter @airtrafficcontrol/e2e test
 
       - name: Upload test artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-results
