@@ -4,8 +4,9 @@
  * Provides endpoints for reading a craft's flight plan and reporting
  * vector completion with evidence.
  *
- * @see RULE-VEC-1 through RULE-VEC-5 for vector rules.
+ * @see RULE-VEC-1 through RULE-VEC-9 for vector rules.
  * @see RULE-VEC-2 for sequential ordering constraint.
+ * @see RULE-CTRL-3a for adversarial review controls handoff enforcement.
  */
 
 import type { FastifyInstance } from "fastify";
@@ -41,6 +42,7 @@ interface ReportBody {
  * @param app - The Fastify instance to register routes on.
  *
  * @see RULE-VEC-2
+ * @see RULE-CTRL-3a
  */
 export async function vectorRoutes(app: FastifyInstance): Promise<void> {
   // -------------------------------------------------------------------------
@@ -68,7 +70,12 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
   /**
    * Report a vector as passed with evidence.
    *
+   * For `adversarial_review` vectors, the designated reviewer must hold
+   * exclusive controls before the report can be accepted (RULE-CTRL-3a).
+   * This implicitly enforces that the builder has released controls.
+   *
    * @see RULE-VEC-2 — vectors must be passed in order; only the next Pending vector can be reported.
+   * @see RULE-CTRL-3a — reviewer must hold exclusive controls for adversarial_review vectors.
    */
   app.post<{ Params: VectorParams; Body: ReportBody }>(
     "/api/v1/projects/:name/crafts/:callsign/vectors/:vectorName/report",
@@ -94,6 +101,32 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
+      // RULE-CTRL-3a: adversarial_review vectors require the designated reviewer
+      // to hold exclusive controls. This enforces that the builder has released
+      // controls before the vector can be entered.
+      if (vector.type === "adversarial_review") {
+        const { reviewerPilotId } = vector;
+        const { controls } = craft;
+        const reviewerHoldsExclusive =
+          controls.mode === "exclusive" && controls.holder === reviewerPilotId;
+        if (!reviewerHoldsExclusive) {
+          return reply.code(403).send({
+            error:
+              `Adversarial review vector "${vectorName}" requires reviewer ` +
+              `${reviewerPilotId} to hold exclusive controls before filing a report. ` +
+              `Current controls: ${controls.mode}` +
+              (controls.mode === "exclusive" ? ` holder=${controls.holder}` : ""),
+            ruleId: "RULE-CTRL-3a",
+          });
+        }
+      }
+
+      // Determine author: reviewer for adversarial vectors, captain otherwise.
+      const author =
+        vector.type === "adversarial_review" && vector.reviewerPilotId
+          ? vector.reviewerPilotId
+          : craft.captain;
+
       vector.status = "Passed";
       vector.evidence = evidence;
       vector.reportedAt = new Date().toISOString();
@@ -102,7 +135,7 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
         app,
         name,
         craft,
-        craft.captain,
+        author,
         BlackBoxEntryType.VectorPassed,
         `Vector "${vectorName}" passed with evidence: ${evidence}`,
       );

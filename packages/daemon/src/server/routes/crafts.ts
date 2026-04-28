@@ -40,7 +40,14 @@ interface CreateCraftBody {
   captain: string;
   firstOfficers?: string[];
   jumpseaters?: string[];
-  flightPlan: Array<{ name: string; acceptanceCriteria: string }>;
+  flightPlan: Array<{
+    name: string;
+    acceptanceCriteria: string;
+    /** @see RULE-VEC-6 */
+    type?: "standard" | "adversarial_review";
+    /** @see RULE-VEC-7, RULE-CTRL-3a */
+    reviewerPilotId?: string;
+  }>;
 }
 
 interface EmergencyBody {
@@ -88,6 +95,8 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         name: v.name,
         acceptanceCriteria: v.acceptanceCriteria,
         status: "Pending" as const,
+        ...(v.type !== undefined ? { type: v.type } : {}),
+        ...(v.reviewerPilotId !== undefined ? { reviewerPilotId: v.reviewerPilotId } : {}),
       }));
 
       const craft: CraftState = {
