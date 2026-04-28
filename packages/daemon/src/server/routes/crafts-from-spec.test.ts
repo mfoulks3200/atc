@@ -644,6 +644,64 @@ describe("POST /api/v1/projects/:name/crafts/from-spec", () => {
   });
 
   // -------------------------------------------------------------------------
+  // RULE-VCMD-9: spec:command scope check
+  // -------------------------------------------------------------------------
+
+  it("rejects spec with command vectors when only spec:submit scope is present (RULE-VCMD-9)", async () => {
+    const boot = await bootApp({ categories: ["backend"] });
+    app = boot.app;
+    profileDir = boot.profileDir;
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${PROJECT}/crafts/from-spec`,
+      headers: { "x-atc-scope": "spec:submit" },
+      payload: {
+        ...VALID_SPEC_JSON,
+        vectors: [{ name: "Run tests", command: { run: "pnpm test" } }],
+      },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.json().code).toBe("INSUFFICIENT_SCOPE");
+  });
+
+  it("allows spec with command vectors when spec:command scope is present (RULE-VCMD-9)", async () => {
+    const boot = await bootApp({ categories: ["backend"] });
+    app = boot.app;
+    profileDir = boot.profileDir;
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${PROJECT}/crafts/from-spec`,
+      headers: { "x-atc-scope": "spec:submit spec:command" },
+      payload: {
+        ...VALID_SPEC_JSON,
+        vectors: [{ name: "Run tests", command: { run: "pnpm test" } }],
+      },
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.json().callsign).toBeTruthy();
+  });
+
+  it("allows spec without command vectors regardless of scope (RULE-VCMD-9)", async () => {
+    const boot = await bootApp({ categories: ["backend"] });
+    app = boot.app;
+    profileDir = boot.profileDir;
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${PROJECT}/crafts/from-spec`,
+      headers: { "x-atc-scope": "spec:submit" },
+      payload: VALID_SPEC_JSON,
+    });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.json().callsign).toBeTruthy();
+  });
+
+  // -------------------------------------------------------------------------
   // Compensating rollback (§4.6.1 step 9)
   // -------------------------------------------------------------------------
 

@@ -2,13 +2,15 @@
  * REST route for spec-driven craft creation.
  *
  * Implements the 12-step SDD creation procedure (§4.6.1), autoLaunch safety
- * guards (§4.6.3), and dry-run mode (RULE-SDD-15).
+ * guards (§4.6.3), dry-run mode (RULE-SDD-15), and command scope enforcement
+ * (RULE-VCMD-9).
  *
  * Route: POST /api/v1/projects/:name/crafts/from-spec
  *   Query: ?dryRun=true — validate and compute without side effects.
  *   Body:  application/json | application/yaml | application/x-yaml
  *
  * @see RULE-SDD-1 through RULE-SDD-17
+ * @see RULE-VCMD-9
  * @see §4.6.1 — Creation Procedure
  * @see §4.6.3 — AutoLaunch Safety
  * @see §4.6.6 — Audit Trail
@@ -30,10 +32,11 @@ import type { SpecDocument } from "@airtrafficcontrol/types";
 // ---------------------------------------------------------------------------
 
 /**
- * Validates a parsed spec object against RULE-SDD-1 through RULE-SDD-4.
+ * Validates a parsed spec object against RULE-SDD-1 through RULE-SDD-4 and
+ * RULE-VCMD-1 through RULE-VCMD-2.
  *
  * @returns A human-readable error message, or null if valid.
- * @see RULE-SDD-1, RULE-SDD-2, RULE-SDD-4
+ * @see RULE-SDD-1, RULE-SDD-2, RULE-SDD-4, RULE-VCMD-1, RULE-VCMD-2
  */
 function validateSpecFields(spec: unknown): string | null {
   if (typeof spec !== "object" || spec === null) {
@@ -63,16 +66,60 @@ function validateSpecFields(spec: unknown): string | null {
     if (!v.name || typeof v.name !== "string" || (v.name as string).trim() === "") {
       return `Vector at index ${i} is missing a name`;
     }
-    if (
-      !Array.isArray(v.criteria) ||
-      (v.criteria as unknown[]).length === 0 ||
-      (v.criteria as unknown[]).some((c) => typeof c !== "string" || (c as string).trim() === "")
-    ) {
-      return `Vector "${v.name}" must have at least one non-empty criterion`;
+
+    const hasCriteria =
+      Array.isArray(v.criteria) &&
+      (v.criteria as unknown[]).length > 0 &&
+      (v.criteria as unknown[]).every((c) => typeof c === "string" && (c as string).trim() !== "");
+
+    const cmd = v.command as Record<string, unknown> | null | undefined;
+    const hasCommand =
+      cmd != null &&
+      typeof cmd === "object" &&
+      typeof cmd.run === "string" &&
+      (cmd.run as string).trim() !== "";
+
+    // RULE-VCMD-2: at least one of criteria or command must be present
+    if (!hasCriteria && !hasCommand) {
+      if (v.command !== undefined && v.command !== null) {
+        return `Vector "${v.name}" has an invalid command: run must be a non-empty string`;
+      }
+      return `Vector "${v.name}" must have at least one non-empty criterion or a command`;
     }
   }
 
   return null;
+}
+
+/**
+ * Returns true if any vector in the spec carries a non-null command field.
+ *
+ * @see RULE-VCMD-9
+ */
+function specHasCommandVectors(spec: unknown): boolean {
+  if (typeof spec !== "object" || spec === null) return false;
+  const s = spec as Record<string, unknown>;
+  if (!Array.isArray(s.vectors)) return false;
+  return (s.vectors as unknown[]).some((v) => {
+    if (typeof v !== "object" || v === null) return false;
+    const cmd = (v as Record<string, unknown>).command;
+    return cmd != null;
+  });
+}
+
+/**
+ * Returns true if the given scope string carries the `spec:command` permission.
+ *
+ * When no `x-atc-scope` header is present (undefined), the request is treated as
+ * an interactive session with full scope — command submission is permitted.
+ * An explicit scope header that does not include `spec:command` rejects command specs.
+ *
+ * @see RULE-VCMD-9
+ */
+function hasCommandScope(scope: string | string[] | undefined): boolean {
+  if (scope === undefined) return true;
+  const scopeStr = Array.isArray(scope) ? scope.join(" ") : scope;
+  return scopeStr.split(/\s+/).includes("spec:command");
 }
 
 /**
@@ -144,10 +191,21 @@ export async function craftsFromSpecRoutes(app: FastifyInstance): Promise<void> 
 
     const projectConfig = configStore.get();
 
-    // Step 2: Validate spec fields (RULE-SDD-1 through RULE-SDD-4)
+    // Step 2: Validate spec fields (RULE-SDD-1 through RULE-SDD-4, RULE-VCMD-2)
     const validationError = validateSpecFields(request.body);
     if (validationError) {
       return reply.code(422).send({ code: "SPEC_VALIDATION_ERROR", message: validationError });
+    }
+
+    // RULE-VCMD-9: specs with command vectors require spec:command scope
+    if (specHasCommandVectors(request.body)) {
+      if (!hasCommandScope(request.headers["x-atc-scope"])) {
+        return reply.code(403).send({
+          code: "INSUFFICIENT_SCOPE",
+          message:
+            "Submitting a spec with command fields requires the spec:command permission scope.",
+        });
+      }
     }
 
     const spec = request.body as SpecDocument;
@@ -182,13 +240,11 @@ export async function craftsFromSpecRoutes(app: FastifyInstance): Promise<void> 
     }
 
     // Step 4: Generate flight plan
-    const flightPlan: VectorState[] = spec.vectors.map(
-      (v: { name: string; criteria: string[] }) => ({
-        name: v.name,
-        acceptanceCriteria: v.criteria.join("\n"),
-        status: "Pending" as const,
-      }),
-    );
+    const flightPlan: VectorState[] = spec.vectors.map((v) => ({
+      name: v.name,
+      acceptanceCriteria: v.criteria ? v.criteria.join("\n") : "",
+      status: "Pending" as const,
+    }));
 
     // Step 5: Resolve pilot crew
     const allPilots = app.pilotStore.listForProject(name);
@@ -455,9 +511,9 @@ export async function processSpec(
     nextCounter = result.nextCounter;
   }
 
-  const flightPlan: VectorState[] = spec.vectors.map((v: { name: string; criteria: string[] }) => ({
+  const flightPlan: VectorState[] = spec.vectors.map((v) => ({
     name: v.name,
-    acceptanceCriteria: v.criteria.join("\n"),
+    acceptanceCriteria: v.criteria ? v.criteria.join("\n") : "",
     status: "Pending" as const,
   }));
 

@@ -1,11 +1,12 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Status:** Draft
-**Date:** 2026-04-21
+**Date:** 2026-04-28
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
+- 0.4.0 (2026-04-28): Add RULE-VCMD-9 scope enforcement for spec vector command fields (§4.6.9); add `INSUFFICIENT_SCOPE` error code (§4.6.8); add `SpecVectorCommand` type and optional `command` field on `SpecVector`.
 - 0.3.0 (2026-04-21): Add UX Review protocol (§4.7, RULE-UXR-1 through RULE-UXR-5).
 - 0.2.0 (2026-04-21): Add Spec-Driven Development protocol (§2.7, §4.6, RULE-SDD-1 through RULE-SDD-17).
 
@@ -684,6 +685,17 @@ Criteria express *what success looks like*. Structural gates (tests pass, lint c
 | `PILOT_NOT_CERTIFIED` | 422 | Explicitly named pilot lacks required certification. |
 | `PILOT_ROLE_CONFLICT` | 422 | Same pilot assigned as both captain and first officer (RULE-SDD-10). |
 | `BRANCH_CREATION_FAILED` | 500 | Git branch could not be created. No craft record is written. |
+| `INSUFFICIENT_SCOPE` | 403 | The API key or session lacks a required permission scope (e.g., `spec:command` for specs containing `command` fields). |
+
+#### 4.6.9 Vector Command Scope Enforcement
+
+When a spec document contains a `command` field on any vector, the submission requires an elevated permission scope.
+
+- **RULE-VCMD-9:** Submitting a spec that contains `command` on any vector MUST require the `spec:command` permission scope. Submissions with `command` fields that carry only `spec:submit` scope MUST be rejected with `INSUFFICIENT_SCOPE` (403).
+
+The `command` field on `SpecVector` is an optional machine-executable verification gate with a `run` shell string, optional `timeout` (ms), and optional `severity` (`required` | `advisory`). At least one of `criteria` or `command` must be present on each vector.
+
+When no `x-atc-scope` header is present, the request is treated as an interactive session with full scope and command vectors are permitted.
 
 ### 4.7 UX Review Protocol
 
@@ -822,6 +834,7 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-SDD-15    | Dry-run: full validation + computation, no persistence or side effects. | 4.6.6   |
 | RULE-SDD-16    | SpecCreated bbox entry must record identity, source, title, notes, metadata, autoLaunch outcome. | 4.6.6 |
 | RULE-SDD-17    | File-watch inbox must not process the same file twice.               | 4.6.5   |
+| RULE-VCMD-9    | Specs with command vectors require spec:command scope; reject with INSUFFICIENT_SCOPE. | 4.6.9 |
 | RULE-UXR-1     | User-facing changes must use domain model terminology from §1.1.     | 4.7.3   |
 | RULE-UXR-2     | Error messages/labels must be understandable without reading source.  | 4.7.3   |
 | RULE-UXR-3     | All user-visible states covered: success, error, loading, empty.     | 4.7.3   |

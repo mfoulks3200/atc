@@ -131,3 +131,19 @@ export class BranchCreationFailedError extends SpecError {
     super(message, "RULE-SDD-1", "BRANCH_CREATION_FAILED");
   }
 }
+
+/**
+ * The API key or session lacks a required permission scope.
+ *
+ * Thrown when a spec contains `command` fields on vectors but the caller
+ * only presents `spec:submit` scope without `spec:command`.
+ *
+ * @see RULE-VCMD-9
+ */
+export class ScopeInsufficientError extends SpecError {
+  override readonly name: string = "ScopeInsufficientError";
+
+  constructor(message: string) {
+    super(message, "RULE-VCMD-9", "INSUFFICIENT_SCOPE");
+  }
+}

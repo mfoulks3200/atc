@@ -9,6 +9,7 @@ import {
   PilotNotCertifiedError,
   PilotRoleConflictError,
   BranchCreationFailedError,
+  ScopeInsufficientError,
 } from "./sdd.js";
 import { AtcError } from "./base.js";
 
@@ -176,6 +177,22 @@ describe("BranchCreationFailedError", () => {
   });
 });
 
+describe("ScopeInsufficientError", () => {
+  it("extends SpecError", () => {
+    expect(new ScopeInsufficientError("insufficient scope")).toBeInstanceOf(SpecError);
+  });
+
+  it("has INSUFFICIENT_SCOPE code and RULE-VCMD-9", () => {
+    const err = new ScopeInsufficientError("spec:command scope required");
+    expect(err.code).toBe("INSUFFICIENT_SCOPE");
+    expect(err.ruleId).toBe("RULE-VCMD-9");
+  });
+
+  it("has name set to ScopeInsufficientError", () => {
+    expect(new ScopeInsufficientError("msg").name).toBe("ScopeInsufficientError");
+  });
+});
+
 describe("instanceof hierarchy", () => {
   it("all SDD errors are AtcError instances", () => {
     const errors = [
@@ -187,6 +204,7 @@ describe("instanceof hierarchy", () => {
       new PilotNotCertifiedError("msg"),
       new PilotRoleConflictError("msg"),
       new BranchCreationFailedError("msg"),
+      new ScopeInsufficientError("msg"),
     ];
     for (const err of errors) {
       expect(err).toBeInstanceOf(AtcError);

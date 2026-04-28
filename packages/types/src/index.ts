@@ -48,6 +48,7 @@ export type { TfrIssuer, TemporaryFlightRestriction } from "./tfr.js";
 export type {
   SpecPriority,
   SddErrorCode,
+  SpecVectorCommand,
   SpecVector,
   SpecPilotHints,
   SpecDocument,

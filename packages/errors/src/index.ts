@@ -22,4 +22,5 @@ export {
   PilotNotCertifiedError,
   PilotRoleConflictError,
   BranchCreationFailedError,
+  ScopeInsufficientError,
 } from "./sdd.js";

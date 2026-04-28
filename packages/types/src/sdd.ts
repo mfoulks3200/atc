@@ -18,17 +18,52 @@ export type SddErrorCode =
   | "NO_CERTIFIED_PILOT"
   | "PILOT_NOT_CERTIFIED"
   | "PILOT_ROLE_CONFLICT"
-  | "BRANCH_CREATION_FAILED";
+  | "BRANCH_CREATION_FAILED"
+  | "INSUFFICIENT_SCOPE";
+
+/**
+ * Machine-executable verification gate attached to a spec vector.
+ * @see RULE-VCMD-1, RULE-VCMD-3, RULE-VCMD-5, RULE-VCMD-6
+ */
+export interface SpecVectorCommand {
+  /**
+   * Shell command executed verbatim via `sh -c` in the craft's worktree.
+   * @see RULE-VCMD-3
+   */
+  run: string;
+  /**
+   * Timeout in milliseconds. Default: 30 000. Max: 300 000.
+   * @see RULE-VCMD-6
+   */
+  timeout?: number;
+  /**
+   * `required` (default) blocks the vector report on non-zero exit.
+   * `advisory` records the failure but does not block.
+   * @see RULE-VCMD-5
+   */
+  severity?: "required" | "advisory";
+}
 
 /**
  * A milestone in a spec document's flight plan.
- * @see RULE-SDD-2, RULE-SDD-4
+ * At least one of `criteria` or `command` must be present.
+ * @see RULE-SDD-2, RULE-SDD-4, RULE-VCMD-1, RULE-VCMD-2
  */
 export interface SpecVector {
   /** Short, descriptive milestone name. @see RULE-SDD-2 */
   name: string;
-  /** One or more acceptance criteria. At least one non-empty string required. @see RULE-SDD-2 */
-  criteria: string[];
+  /**
+   * One or more acceptance criteria in natural language.
+   * Required unless `command` is present.
+   * @see RULE-SDD-2, RULE-VCMD-2
+   */
+  criteria?: string[];
+  /**
+   * Optional machine-executable verification gate.
+   * Submitting specs with a `command` field requires the `spec:command` permission scope.
+   * @see RULE-VCMD-1, RULE-VCMD-9
+   */
+  command?: SpecVectorCommand | null;
 }
 
 /**
