@@ -181,7 +181,7 @@ function affectedCrafts(
   projectName?: string,
 ): Array<{ projectName: string; craft: import("../../types.js").CraftState }> {
   if (tfr.scope === "global") {
-    return app.craftStore.listAll();
+    return app.craftStore.listAllWithProject();
   }
   if (!projectName) return [];
   return app.craftStore.listForProject(projectName).map((craft) => ({ projectName, craft }));

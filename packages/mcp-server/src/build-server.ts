@@ -31,7 +31,11 @@ interface StoredCraft {
   flightPlan: Array<{ name: string; acceptanceCriteria: string; status: string }>;
   blackBox: Array<{ type: string; timestamp: string; author: string; content: string }>;
   intercom: Array<{ from: string; seat: string; content: string; timestamp: string }>;
-  controls: { mode: string; holder?: string; sharedAreas?: Array<{ pilotId: string; area: string }> };
+  controls: {
+    mode: string;
+    holder?: string;
+    sharedAreas?: Array<{ pilotId: string; area: string }>;
+  };
   holdingPattern: boolean;
 }
 
@@ -90,10 +94,7 @@ function resolveSeat(craft: StoredCraft, pilotId: string): SeatType {
   return "Unknown";
 }
 
-function requireMinSeat(
-  seat: SeatType,
-  minimum: "Captain" | "CaptainOrFO",
-): string | null {
+function requireMinSeat(seat: SeatType, minimum: "Captain" | "CaptainOrFO"): string | null {
   if (minimum === "Captain" && seat !== "Captain") {
     return "This action requires Captain authority.";
   }
@@ -325,7 +326,8 @@ export async function buildAtcMcpServer(
   mcpServer.registerTool(
     "atc_controls_share",
     {
-      description: "Switch to shared controls mode with non-overlapping area assignments. Requires Captain or First Officer.",
+      description:
+        "Switch to shared controls mode with non-overlapping area assignments. Requires Captain or First Officer.",
       inputSchema: z.object({
         areas: z
           .array(
@@ -359,7 +361,10 @@ export async function buildAtcMcpServer(
       }
       return {
         content: [
-          { type: "text" as const, text: `Controls switched to shared mode with ${areas.length} area(s).` },
+          {
+            type: "text" as const,
+            text: `Controls switched to shared mode with ${areas.length} area(s).`,
+          },
         ],
       };
     },
@@ -372,12 +377,11 @@ export async function buildAtcMcpServer(
   mcpServer.registerTool(
     "atc_craft_report_vector",
     {
-      description: "Report a vector (milestone) as passed with evidence. Requires Captain or First Officer.",
+      description:
+        "Report a vector (milestone) as passed with evidence. Requires Captain or First Officer.",
       inputSchema: z.object({
         vectorName: z.string().describe("Name of the vector to report."),
-        evidence: z
-          .string()
-          .describe("Evidence that the acceptance criteria have been met."),
+        evidence: z.string().describe("Evidence that the acceptance criteria have been met."),
       }),
     },
     async ({ vectorName, evidence }) => {
@@ -470,15 +474,24 @@ export async function buildAtcMcpServer(
         };
       }
 
-      const res = await inject("POST", `/api/v1/projects/${encodeURIComponent(projectName)}/tower/clearance`, {
-        callsign,
-      });
+      const res = await inject(
+        "POST",
+        `/api/v1/projects/${encodeURIComponent(projectName)}/tower/clearance`,
+        {
+          callsign,
+        },
+      );
       if (res.statusCode !== 200 && res.statusCode !== 201) {
         const err = formatAtcError(res.json);
         return { isError: true, content: [{ type: "text" as const, text: errorText(err) }] };
       }
       return {
-        content: [{ type: "text" as const, text: `Landing clearance granted. Craft ${callsign} is queued for merge.` }],
+        content: [
+          {
+            type: "text" as const,
+            text: `Landing clearance granted. Craft ${callsign} is queued for merge.`,
+          },
+        ],
       };
     },
   );
@@ -490,7 +503,8 @@ export async function buildAtcMcpServer(
   mcpServer.registerTool(
     "atc_tower_execute_merge",
     {
-      description: "Execute the merge for this craft when it is at the head of the tower queue. Requires Captain authority.",
+      description:
+        "Execute the merge for this craft when it is at the head of the tower queue. Requires Captain authority.",
       inputSchema: z.object({}),
     },
     async () => {
@@ -508,9 +522,13 @@ export async function buildAtcMcpServer(
         };
       }
 
-      const res = await inject("POST", `/api/v1/projects/${encodeURIComponent(projectName)}/tower/merge`, {
-        callsign,
-      });
+      const res = await inject(
+        "POST",
+        `/api/v1/projects/${encodeURIComponent(projectName)}/tower/merge`,
+        {
+          callsign,
+        },
+      );
       if (res.statusCode !== 200 && res.statusCode !== 201) {
         const err = formatAtcError(res.json);
         return { isError: true, content: [{ type: "text" as const, text: errorText(err) }] };
@@ -528,7 +546,8 @@ export async function buildAtcMcpServer(
   mcpServer.registerTool(
     "atc_declare_emergency",
     {
-      description: "Declare an emergency on this craft. Captain authority required. Use only for genuine blockers.",
+      description:
+        "Declare an emergency on this craft. Captain authority required. Use only for genuine blockers.",
       inputSchema: z.object({
         reason: z.string().describe("Clear explanation of the emergency condition."),
       }),
@@ -564,33 +583,29 @@ export async function buildAtcMcpServer(
   // -------------------------------------------------------------------------
 
   // atc://crafts/{callsign} — craft state
-  mcpServer.resource(
-    "craft-state",
-    `atc://crafts/${encodeURIComponent(callsign)}`,
-    async () => {
-      const craft = app.craftStore.get(projectName, callsign);
-      if (!craft) {
-        return {
-          contents: [
-            {
-              uri: `atc://crafts/${encodeURIComponent(callsign)}`,
-              text: `Craft not found: ${callsign}`,
-            },
-          ],
-        };
-      }
-      const { blackBox: _bb, intercom: _ic, flightPlan: _fp, ...summary } = craft;
+  mcpServer.resource("craft-state", `atc://crafts/${encodeURIComponent(callsign)}`, async () => {
+    const craft = app.craftStore.get(projectName, callsign);
+    if (!craft) {
       return {
         contents: [
           {
             uri: `atc://crafts/${encodeURIComponent(callsign)}`,
-            mimeType: "application/json",
-            text: JSON.stringify(summary, null, 2),
+            text: `Craft not found: ${callsign}`,
           },
         ],
       };
-    },
-  );
+    }
+    const { blackBox: _bb, intercom: _ic, flightPlan: _fp, ...summary } = craft;
+    return {
+      contents: [
+        {
+          uri: `atc://crafts/${encodeURIComponent(callsign)}`,
+          mimeType: "application/json",
+          text: JSON.stringify(summary, null, 2),
+        },
+      ],
+    };
+  });
 
   // atc://crafts/{callsign}/vectors — flight plan
   mcpServer.resource(
@@ -598,12 +613,22 @@ export async function buildAtcMcpServer(
     `atc://crafts/${encodeURIComponent(callsign)}/vectors`,
     async () => {
       const craft = app.craftStore.get(projectName, callsign);
+      if (!craft) {
+        return {
+          contents: [
+            {
+              uri: `atc://crafts/${encodeURIComponent(callsign)}/vectors`,
+              text: `Craft not found: ${callsign}`,
+            },
+          ],
+        };
+      }
       return {
         contents: [
           {
             uri: `atc://crafts/${encodeURIComponent(callsign)}/vectors`,
             mimeType: "application/json",
-            text: JSON.stringify(craft?.flightPlan ?? [], null, 2),
+            text: JSON.stringify(craft.flightPlan, null, 2),
           },
         ],
       };

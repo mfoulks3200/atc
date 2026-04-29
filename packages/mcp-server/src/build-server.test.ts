@@ -51,11 +51,11 @@ function makeApp(
     inject: async (opts) => {
       // GET craft path returns the craft; all mutations return mutationResponse.
       if (opts.method === "GET") {
-        return { statusCode: 200, json: () => craftData ?? {} };
+        return { statusCode: 200, json: <T>() => (craftData ?? {}) as unknown as T };
       }
       return {
         statusCode: mutationResponse.statusCode,
-        json: () => mutationResponse.body,
+        json: <T>() => mutationResponse.body as unknown as T,
       };
     },
   };
@@ -295,7 +295,10 @@ describe("seat gating: Captain-or-FO tools", () => {
 
 describe("REST API error forwarding", () => {
   it("atc_intercom_send surfaces non-200 as isError with message", async () => {
-    const app = makeApp({ statusCode: 403, body: { error: "not authorized", ruleId: "RULE-SEAT-1" } }, CRAFT);
+    const app = makeApp(
+      { statusCode: 403, body: { error: "not authorized", ruleId: "RULE-SEAT-1" } },
+      CRAFT,
+    );
     const { fastifyApp, transport } = await buildAndConnect("cap-id", app);
 
     try {

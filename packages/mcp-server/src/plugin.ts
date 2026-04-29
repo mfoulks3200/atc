@@ -64,7 +64,9 @@ export async function mcpPlugin(app: FastifyInstance): Promise<void> {
 
     const craft = atcApp.craftStore.get(projectName, callsign);
     if (!craft) {
-      return reply.code(404).send({ error: `Craft not found: ${callsign} in project ${projectName}` });
+      return reply
+        .code(404)
+        .send({ error: `Craft not found: ${callsign} in project ${projectName}` });
     }
 
     const isOnCraft =
@@ -91,7 +93,7 @@ export async function mcpPlugin(app: FastifyInstance): Promise<void> {
   // -------------------------------------------------------------------------
 
   app.delete("/api/v1/mcp/session", async (request, reply) => {
-    const token = extractToken(request.headers["authorization"]);
+    const token = extractToken(request.headers.authorization);
     if (!token) {
       return reply.code(401).send({ error: "Authorization: Bearer <token> required." });
     }
@@ -104,7 +106,7 @@ export async function mcpPlugin(app: FastifyInstance): Promise<void> {
   // -------------------------------------------------------------------------
 
   app.post("/api/v1/mcp", async (request, reply) => {
-    const token = extractToken(request.headers["authorization"]);
+    const token = extractToken(request.headers.authorization);
     if (!token) {
       return reply.code(401).send({ error: "Authorization: Bearer <token> required." });
     }
@@ -122,7 +124,7 @@ export async function mcpPlugin(app: FastifyInstance): Promise<void> {
   // -------------------------------------------------------------------------
 
   app.get("/api/v1/mcp", async (request, reply) => {
-    const token = extractToken(request.headers["authorization"]);
+    const token = extractToken(request.headers.authorization);
     if (!token) {
       return reply.code(401).send({ error: "Authorization: Bearer <token> required." });
     }
@@ -140,7 +142,7 @@ export async function mcpPlugin(app: FastifyInstance): Promise<void> {
   // -------------------------------------------------------------------------
 
   app.delete("/api/v1/mcp", async (request, reply) => {
-    const token = extractToken(request.headers["authorization"]);
+    const token = extractToken(request.headers.authorization);
     if (!token) {
       return reply.code(401).send({ error: "Authorization: Bearer <token> required." });
     }

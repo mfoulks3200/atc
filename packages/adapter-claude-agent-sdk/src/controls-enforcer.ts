@@ -132,9 +132,9 @@ export function decideForFileModification(
         `RULE-CTRL-3 violation: exclusive controls are held by`,
         `${controls.holder ?? "(nobody)"}, not ${pilotId}.`,
         `You cannot modify files on this craft until controls are transferred`,
-        `to you. Request the handoff over the intercom (intercom_send), then`,
-        `call POST /api/v1/projects/.../controls/claim to take exclusive`,
-        `controls or /controls/share to establish a shared area for you.`,
+        `to you. Request the handoff over the intercom (atc_intercom_send), then`,
+        `call atc_controls_transfer to take exclusive controls or`,
+        `atc_controls_read + atc_controls_transfer to establish a shared area.`,
       ].join(" "),
     };
   }
@@ -150,7 +150,7 @@ export function decideForFileModification(
     message: [
       `RULE-CTRL-3 violation: ${normalized} is outside your shared control`,
       `area. Your areas: ${mineDesc}. Either restrict your edit to an assigned`,
-      `area, or update the shared areas via POST /controls/share (requires`,
+      `area, or update the shared areas via atc_controls_transfer (requires`,
       `captain coordination).`,
     ].join(" "),
   };

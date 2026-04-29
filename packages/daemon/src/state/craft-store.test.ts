@@ -267,9 +267,7 @@ describe("CraftStore", () => {
       // Both locks started before either ended — they ran concurrently.
       expect(order.indexOf("alpha-start")).toBeLessThan(order.indexOf("alpha-end"));
       expect(order.indexOf("bravo-start")).toBeLessThan(order.indexOf("bravo-end"));
-      expect(order.slice(0, 2)).toEqual(
-        expect.arrayContaining(["alpha-start", "bravo-start"]),
-      );
+      expect(order.slice(0, 2)).toEqual(expect.arrayContaining(["alpha-start", "bravo-start"]));
     });
 
     it("prevents double-launch race: second caller sees updated status", async () => {

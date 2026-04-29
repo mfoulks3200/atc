@@ -376,14 +376,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
           return reply.code(404).send({ error: `Project not found: ${name}` });
         }
 
-        const worktreePath = join(
-          app.profileDir,
-          "projects",
-          name,
-          "crafts",
-          callsign,
-          "worktree",
-        );
+        const worktreePath = join(app.profileDir, "projects", name, "crafts", callsign, "worktree");
         const result = await runChecklist(metadata.checklist, worktreePath);
 
         // RULE-CHKL-5: per-item granularity in the black box.
@@ -544,7 +537,6 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
           status: craft.status,
         });
       });
-
     },
   );
 

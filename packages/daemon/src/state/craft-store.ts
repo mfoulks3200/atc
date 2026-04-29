@@ -134,6 +134,19 @@ export class CraftStore {
   }
 
   /**
+   * Returns every craft state across all projects, paired with its project name.
+   */
+  listAllWithProject(): Array<{ projectName: string; craft: CraftState }> {
+    const result: Array<{ projectName: string; craft: CraftState }> = [];
+    for (const [projectName, projectMap] of this._projects.entries()) {
+      for (const craft of projectMap.values()) {
+        result.push({ projectName, craft });
+      }
+    }
+    return result;
+  }
+
+  /**
    * Removes a craft from the store.
    * No-ops if the project or callsign is not present.
    *
