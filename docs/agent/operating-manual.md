@@ -41,6 +41,24 @@ If you cannot satisfy a vector's acceptance criteria:
 - Discuss with other pilots on the intercom.
 - If the criteria truly cannot be met, the captain may declare an emergency. `RULE-VEC-5`
 
+### Adversarial review vectors
+
+Some vectors are designated `adversarial_review`. These are deliberate checkpoints where a pilot other than the one who did the preceding work must evaluate and pass the vector.
+
+**If you are the builder (not the reviewer):**
+1. Complete the preceding standard vectors as normal.
+2. When you reach an `adversarial_review` vector, you MUST release controls. Announce on the intercom: **"[Reviewer callsign], [your callsign] — handing over controls for adversarial review. Your controls."** `RULE-CTRL-3a`
+3. You MUST NOT file the vector report for this vector. `RULE-VEC-8`
+4. Wait for the reviewer to complete their evaluation and file the report before proceeding.
+
+**If you are the designated reviewer:**
+1. Acknowledge the controls handoff: **"[Builder callsign], [your callsign] — my controls."** `RULE-CTRL-3a`
+2. Evaluate the vector's acceptance criteria independently.
+3. File the vector report when satisfied, or record your findings in the black box and escalate if criteria are not met.
+4. You must hold a Captain or First Officer seat to serve as the designated reviewer. `RULE-VEC-9`
+
+The designated reviewer is set at flight plan creation and cannot be the pilot who filed the immediately preceding standard vector report. `RULE-VEC-7`
+
 ## 3. Controls Protocol
 
 Only one pilot (or one coordinated group) should be modifying code at a time. The controls system prevents conflicts.
