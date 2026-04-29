@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { VectorStatus, VectorType } from "@airtrafficcontrol/types";
-import type { FlightPlan, Vector, VectorReport } from "@airtrafficcontrol/types";
+import type { FlightPlan, VectorReport } from "@airtrafficcontrol/types";
 import {
   getNextVector,
   reportVector,
