@@ -2,7 +2,7 @@
 
 > **Status:** Draft — awaiting steering committee review
 > **Author:** Steering Lead (AIR-349)
-> **Version:** 0.1.0
+> **Version:** 0.2.0
 > **Date:** 2026-04-28
 
 ## 1. Overview
@@ -82,11 +82,11 @@ These draw the boundary of the work.
 
 | ID | Question | Purpose |
 |---|---|---|
-| SCP-1 | What are the explicit deliverables? | Enumerates concrete outputs |
+| SCP-1 | Beyond the success criteria in INT-3, what are the explicit deliverables — specific artifacts, endpoints, pages, or modules this craft must produce? | Enumerates concrete outputs. Framed additively relative to INT-3 to avoid redundant answers. |
 | SCP-2 | What is explicitly NOT included in this work? | Prevents scope creep — captured in spec `notes` |
-| SCP-3 | Are there related changes that should be separate crafts? | Identifies follow-up work without bloating this spec |
+| SCP-3 | Are there related changes that should be separate crafts, or should this work be decomposed into multiple crafts? | Identifies follow-up work and decomposition candidates. If the user indicates decomposition, the Route Planner produces multiple specs (see §5). |
 | SCP-4 | What is the craft category? (or describe the nature of the work) | Maps to `category` field — must match project-configured categories |
-| SCP-5 | Should this work be decomposed into multiple crafts? | If yes, the Route Planner produces multiple specs |
+| SCP-5 | Are there specific pilots or certifications needed for this work? | Maps to `pilots` field in spec. Moved from Phase 6 — pilot requirements are a crew/scope concern, not a risk. |
 
 #### 2.2.3 Domain Decomposition Questions (Phase 3)
 
@@ -110,8 +110,8 @@ These produce the specific, binary, testable criteria for each vector.
 | ACC-1 | For [vector N]: what must be true when this milestone is complete? | Direct input to vector `criteria` |
 | ACC-2 | For [vector N]: how would you verify this works? | Ensures criteria are testable |
 | ACC-3 | For [vector N]: are there edge cases or error conditions to handle? | Captures non-happy-path criteria |
-| ACC-4 | For [vector N]: are there performance or quality requirements? | Surfaces non-functional requirements |
-| ACC-5 | Should the craft include specific test expectations (unit, integration, e2e)? | Enriches implementation guidance |
+| ACC-4 | For [vector N]: are there performance or quality requirements? (skip = "no specific requirements") | Surfaces non-functional requirements. Optional — the user may skip, defaulting to "no specific requirements." |
+| ACC-5 | Should the craft include specific test expectations (unit, integration, e2e)? (skip = "no specific requirements") | Enriches implementation guidance. Optional — the user may skip, defaulting to "no specific requirements." |
 
 #### 2.2.5 Visual Alignment Questions (Phase 5 — Conditional)
 
@@ -137,27 +137,40 @@ These surface implementation constraints and potential blockers.
 | RSK-3 | Are there performance constraints (latency, throughput, memory)? | Surfaces non-functional requirements |
 | RSK-4 | Are there existing tests that this change might break? | Identifies regression risk |
 | RSK-5 | Is there specific documentation that must be updated? | Captures doc-update vectors |
-| RSK-6 | Are there specific pilots or certifications needed for this work? | Maps to `pilots` field in spec |
+
+#### 2.2.7 Review & Confirmation (Phase 7)
+
+Phase 7 presents the completed skill document for final approval. The user does not answer open-ended questions — instead they review the assembled output and take one of three actions.
+
+| ID | Element | Purpose |
+|---|---|---|
+| REV-1 | Rendered skill document summary | Displays the complete spec, context, decisions, risks, and approved mockups in a human-readable format — NOT a raw YAML dump. Vectors are shown as a numbered list with criteria bullets. Decisions and risks are shown in prose. |
+| REV-2 | Phase navigation | The user may jump back to any phase to amend answers. Returning to an earlier phase re-enters the interview at that point; RULE-RPLAN-4 governs downstream invalidation. |
+| REV-3 | Approval action | Three options: **Approve & File** (finalizes the skill document), **Go Back** (returns to a specific phase), **Discard** (abandons the session after confirmation prompt). |
+| REV-4 | Filing confirmation | Before filing, the Route Planner presents a final confirmation: "This will file the skill document for [title]. Proceed?" The user must explicitly confirm. |
 
 ### 2.3 Adaptive Question Selection
 
 Not every question is asked in every interview. The Route Planner uses an adaptive selection model:
 
 1. **Phase 1 (Intent)** — Always fully asked. These are the minimum viable questions.
-2. **Phase 2 (Scope)** — Always asked. SCP-4 determines the craft category.
+2. **Phase 2 (Scope)** — Always asked. SCP-4 determines the craft category. SCP-5 (pilot requirements) is asked after SCP-4.
 3. **Phase 3 (Domain)** — DOM-6 conditionally gates Phase 5. DOM-4 and DOM-5 are skipped if the user indicates the work is purely documentation or configuration.
-4. **Phase 4 (Acceptance)** — Asked per vector generated from Phase 3 answers.
-5. **Phase 5 (Visual)** — Only asked if DOM-6 confirms UI changes. Loops on VIS-5/VIS-6 until approval.
-6. **Phase 6 (Risk)** — RSK-6 is only asked if the user wants to specify pilots explicitly.
+4. **Phase 4 (Acceptance)** — Asked per vector generated from Phase 3 answers. ACC-4 and ACC-5 are optional — the user may skip them, defaulting to "no specific requirements."
+5. **Phase 5 (Visual)** — Only asked if DOM-6 confirms UI changes (see RULE-RPLAN-22). Loops on VIS-5/VIS-6 until approval.
+6. **Phase 6 (Risk)** — Skippable (see RULE-RPLAN-22). If the user declines, the `context.risks` section is present but marked "Not reviewed."
+7. **Phase 7 (Review)** — Always entered. The user reviews the assembled skill document and approves, goes back, or discards (see §2.2.7).
 
 ### 2.4 Interview Behavior Rules
 
 - **RULE-RPLAN-1:** The Route Planner MUST ask exactly one question at a time. It MUST NOT bundle multiple questions into a single prompt.
 - **RULE-RPLAN-2:** The Route Planner MUST offer multiple-choice options when the answer space is bounded (e.g., priority, category, yes/no). Open-ended questions are used only when the answer space is unbounded.
-- **RULE-RPLAN-3:** The Route Planner MUST surface a progress indicator showing the current phase, completed phases, and remaining phases. The user must always know where they are in the process.
+- **RULE-RPLAN-3:** The Route Planner MUST surface a progress indicator that satisfies all of: (a) all seven phases are visible at all times, (b) the current phase is highlighted or otherwise visually distinguished, (c) Phase 5 renders conditionally — ghosted or visually muted until DOM-6 triggers it, at which point it activates, (d) within the active phase, the current question position is shown (e.g., "Question 2 of 5"). The user must always know where they are in the process at both the phase and question level.
 - **RULE-RPLAN-4:** The Route Planner MUST allow the user to revisit and amend answers from any previous phase at any point during the interview. Changing an earlier answer may invalidate later answers — the Route Planner MUST flag affected downstream answers and re-ask only the invalidated questions.
 - **RULE-RPLAN-5:** The Route Planner MUST support session persistence. If the user exits mid-interview, the session state MUST be recoverable on the next invocation.
 - **RULE-RPLAN-6:** The Route Planner MUST NOT generate any code, create any branches, modify any files outside its own session state, or interact with the SDD submission endpoint. Its sole output is a skill document.
+- **RULE-RPLAN-21:** When a user's answer contradicts a prior phase gate decision (e.g., changing scope after acceptance criteria are set), the Route Planner MUST flag the conflict, explain which earlier decision is affected, and ask the user to resolve the contradiction before continuing. The Route Planner MUST NOT silently overwrite prior answers.
+- **RULE-RPLAN-22:** Phases 1–4 and 7 are mandatory and MUST NOT be skipped. Phase 5 is conditional — it is entered only when DOM-6 indicates user-facing UI changes (see §2.3). Phase 6 is skippable — the user may decline to identify risks, in which case the `context.risks` section is present but marked "Not reviewed."
 
 ## 3. UI Prototyping Subsystem
 
@@ -187,7 +200,11 @@ Mockups are rendered as either:
 
 The Route Planner selects the format based on the execution context (CLI vs. browser).
 
-#### 3.2.3 Mockup Iteration
+#### 3.2.3 Mockup Feedback
+
+Mockup annotation (drawing on or marking up mockups directly) is **out of scope for v1**. The approved feedback mechanism for mockup iteration is the VIS-6 text description — the user describes the desired changes in words, and the Route Planner regenerates the mockup accordingly.
+
+#### 3.2.4 Mockup Iteration
 
 - **RULE-RPLAN-7:** Each mockup MUST be presented to the user with an explicit approval prompt: "Does this layout match your expectation? (approve / request changes)"
 - **RULE-RPLAN-8:** If the user requests changes, the Route Planner MUST generate a revised mockup incorporating the feedback and re-present for approval. This loop continues until the user approves.
@@ -208,6 +225,16 @@ It does NOT generate mockups for:
 - Configuration changes
 - Minor text or style tweaks
 - Internal refactoring
+
+### 3.4 Accessibility Requirements
+
+The Route Planner's web UI MUST meet the following accessibility requirements:
+
+- **Progress indicator:** Each phase element MUST carry `aria-current="step"` when it is the active phase and `aria-label` describing the phase name and status (e.g., `aria-label="Phase 3: Domain Decomposition — complete"`).
+- **Mockup container:** The container holding the rendered mockup MUST use `aria-live="polite"` so screen readers announce mockup updates without interrupting the user.
+- **HTML mockups:** Each HTML mockup MUST have `role="img"` and an `aria-label` summarizing the layout (sourced from the `alt_description` field — see §4.2).
+- **Chat inputs:** All chat input fields MUST have an explicit `<label>` element associated via `for`/`id` pairing. Placeholder text alone is not sufficient.
+- **Session resume summary:** When a session is resumed (RULE-RPLAN-19), the state summary MUST be rendered in a container with `aria-live="assertive"` so it is announced immediately to screen reader users.
 
 ## 4. Skill Document Output
 
@@ -289,6 +316,7 @@ context:
 mockups:
   - id: "profile-settings-page"
     description: "Profile settings form layout"
+    alt_description: "Profile settings form with display name, email, and notification preference fields."
     approved: true
     format: "ascii"
     content: |
@@ -315,6 +343,7 @@ mockups:
 
   - id: "profile-settings-error"
     description: "Validation error state"
+    alt_description: "Profile settings form showing a validation error on the empty display name field."
     approved: true
     format: "ascii"
     content: |
@@ -351,10 +380,10 @@ The `context`, `decisions`, `risks`, and `mockups` sections are extensions that 
 
 ### 4.4 Skill Document Rules
 
-- **RULE-RPLAN-10:** The skill document MUST include a valid `spec` section that passes SDD validation (RULE-SDD-1 through RULE-SDD-7) without modification.
+- **RULE-RPLAN-10:** The skill document MUST include a valid `spec` section that passes SDD validation (RULE-SDD-1 through RULE-SDD-7) without modification. If the spec fails SDD validation at filing time, the Route Planner MUST display each failing field alongside its rule ID (e.g., "`spec.vectors` — RULE-SDD-3: at least one vector required"), and re-enter the affected phase(s) to collect the missing information. The Route Planner MUST NOT display bare error messages without actionable context.
 - **RULE-RPLAN-11:** The `context.decisions` section MUST include every significant design decision made during the interview, with the question asked, the answer chosen, and the rationale. Pilots MUST NOT need to re-derive these decisions.
 - **RULE-RPLAN-12:** The `context.risks` section MUST include every risk surfaced during Phase 6, with a mitigation strategy or explicit acknowledgment.
-- **RULE-RPLAN-13:** The `mockups` section MUST include all approved mockups from Phase 5. Each mockup MUST be marked with `approved: true`. Unapproved mockups MUST NOT appear in the final document.
+- **RULE-RPLAN-13:** The `mockups` section MUST include all approved mockups from Phase 5. Each mockup MUST be marked with `approved: true`. Unapproved mockups MUST NOT appear in the final document. Every mockup MUST include an `alt_description` field containing a plain-language description of the layout for screen readers (see §3.4).
 - **RULE-RPLAN-14:** The skill document MUST be self-contained. A pilot reading only this document — with no access to the interview transcript — must have all information needed to implement the work.
 
 ## 5. Craft Decomposition
@@ -366,7 +395,9 @@ Some interviews reveal work that should be decomposed into multiple crafts. The 
 - The user identifies clearly independent functional areas in Phase 3
 - Vector count exceeds a configurable threshold (default: 8)
 - The work spans multiple craft categories
-- The user explicitly requests decomposition in Phase 2 (SCP-5)
+- The user explicitly requests decomposition in Phase 2 (SCP-3)
+
+Decomposition detection fires at the **Phase 3→4 transition boundary** — after all domain decomposition questions are answered but before acceptance criteria are collected. This avoids jarring mid-phase interruptions; the user completes the full domain decomposition before the Route Planner proposes splitting the work.
 
 ### 5.2 Decomposition Behavior
 
@@ -422,7 +453,7 @@ The Route Planner offers this as a convenience but does not perform it automatic
 The Route Planner reads project configuration to:
 
 - Populate craft category options (for SCP-4)
-- List available pilots and certifications (for RSK-6)
+- List available pilots and certifications (for SCP-5)
 - Identify existing UI patterns for mockup consistency (for VIS-4)
 - Validate the `spec` section against SDD rules before filing
 
@@ -434,7 +465,7 @@ The Route Planner is accessible from the ATC web dashboard as an alternative to 
 /projects/{project}/crafts/plan    — New route for Route Planner
 ```
 
-The web UI renders the interview as a conversational interface within the existing dashboard shell. Mockups render inline. The final skill document is presented in a review panel before filing.
+The web UI renders the interview as a **hybrid phase-strip + chat model** within the existing dashboard shell. A horizontal strip of phase chips or tabs provides macro orientation — the user can see all phases, which are complete, and which is current (per RULE-RPLAN-3). Within each phase, questions are presented in a chat-style conversational flow. Mockups render inline in the chat. The final skill document is presented in a review panel before filing.
 
 ### 7.4 CLI Integration
 
@@ -482,17 +513,17 @@ The Route Planner skill depends on:
 |---|---|---|
 | RULE-RPLAN-1 | One question at a time | 2.4 |
 | RULE-RPLAN-2 | Multiple-choice when answer space is bounded | 2.4 |
-| RULE-RPLAN-3 | Progress indicator required | 2.4 |
+| RULE-RPLAN-3 | Progress indicator: all phases visible, current highlighted, Phase 5 conditional, in-phase position shown | 2.4 |
 | RULE-RPLAN-4 | Allow revisiting previous answers | 2.4 |
 | RULE-RPLAN-5 | Session persistence required | 2.4 |
 | RULE-RPLAN-6 | No code generation, no branch creation, no file mutation | 2.4 |
-| RULE-RPLAN-7 | Mockup approval prompt required | 3.2.3 |
-| RULE-RPLAN-8 | Mockup revision loop until approved | 3.2.3 |
-| RULE-RPLAN-9 | Approved mockups included in skill document | 3.2.3 |
-| RULE-RPLAN-10 | Spec section must pass SDD validation | 4.4 |
+| RULE-RPLAN-7 | Mockup approval prompt required | 3.2.4 |
+| RULE-RPLAN-8 | Mockup revision loop until approved | 3.2.4 |
+| RULE-RPLAN-9 | Approved mockups included in skill document | 3.2.4 |
+| RULE-RPLAN-10 | Spec section must pass SDD validation; recovery path on failure | 4.4 |
 | RULE-RPLAN-11 | All design decisions recorded with rationale | 4.4 |
 | RULE-RPLAN-12 | All risks recorded with mitigation | 4.4 |
-| RULE-RPLAN-13 | Only approved mockups in final document | 4.4 |
+| RULE-RPLAN-13 | Only approved mockups in final document; alt_description required | 4.4 |
 | RULE-RPLAN-14 | Skill document must be self-contained | 4.4 |
 | RULE-RPLAN-15 | Multi-craft decomposition requires user approval | 5.2 |
 | RULE-RPLAN-16 | Decomposed specs must be independently valid | 5.2 |
@@ -500,6 +531,8 @@ The Route Planner skill depends on:
 | RULE-RPLAN-18 | Session state persisted after each exchange | 6.2 |
 | RULE-RPLAN-19 | Resume summarizes state before continuing | 6.2 |
 | RULE-RPLAN-20 | Dry-run preview before SDD submission | 7.1 |
+| RULE-RPLAN-21 | Contradiction detection: flag conflicts with prior phase gate decisions | 2.4 |
+| RULE-RPLAN-22 | Mandatory vs skippable phases: 1–4, 7 mandatory; 5 conditional; 6 skippable | 2.4 |
 
 ## 10. Open Questions for Team Review
 
@@ -515,8 +548,12 @@ The following questions require input from the steering committee before this sp
 
 5. **Platform Engineer:** Does the skill document output format need to be formally added to the ATC specification as a new entity type, or should it remain an extension of the existing SpecDocument?
 
-6. **UX Designer:** What is the optimal interview UX for the web dashboard — a chat-style interface, a wizard/stepper, or a structured form that reveals progressively? Each has trade-offs for user cognitive load.
+### 10.1 Resolved Questions
 
-7. **UX Designer:** How should mockup presentation work in the web UI — inline in the chat, in a side panel, or as a full-screen overlay? Should users be able to annotate mockups?
+The following questions were resolved during UX review (AIR-352):
 
-8. **UX Designer:** How should the progress indicator (RULE-RPLAN-3) be designed — a progress bar, phase dots, a collapsible outline of all phases, or something else?
+6. ~~**UX Designer:** What is the optimal interview UX for the web dashboard?~~ **Resolved:** Hybrid phase-strip + chat model — phase chips/tabs for macro orientation, chat-style questions within each phase. See §7.3.
+
+7. ~~**UX Designer:** How should mockup presentation work in the web UI? Should users be able to annotate mockups?~~ **Resolved:** Mockups render inline in the chat flow. Annotation is **deferred to a future enhancement** — VIS-6 text description is the v1 feedback mechanism. See §3.2.3.
+
+8. ~~**UX Designer:** How should the progress indicator (RULE-RPLAN-3) be designed?~~ **Resolved:** All phases visible, current highlighted, Phase 5 ghosted until triggered, in-phase question position shown. See amended RULE-RPLAN-3 in §2.4.
