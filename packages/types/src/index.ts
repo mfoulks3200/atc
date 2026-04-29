@@ -2,6 +2,7 @@ export {
   CraftStatus,
   SeatType,
   ControlMode,
+  VectorType,
   VectorStatus,
   BlackBoxEntryType,
   CraftCategoryEnum,

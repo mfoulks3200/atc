@@ -1,5 +1,5 @@
 import type { CraftCategory } from "./enums.js";
-import { CraftStatus, SeatType, ControlMode, VectorStatus, BlackBoxEntryType } from "./enums.js";
+import { CraftStatus, SeatType, ControlMode, VectorStatus, VectorType, BlackBoxEntryType } from "./enums.js";
 
 /**
  * A single entry in a craft's black box log.
@@ -18,7 +18,7 @@ export interface BlackBoxEntry {
 
 /**
  * A milestone in a craft's flight plan.
- * @see RULE-VEC-1 through RULE-VEC-5
+ * @see RULE-VEC-1 through RULE-VEC-9
  */
 export interface Vector {
   /** Short, descriptive identifier for the milestone. */
@@ -27,6 +27,10 @@ export interface Vector {
   readonly acceptanceCriteria: string;
   /** Current status of this vector. */
   status: VectorStatus;
+  /** Vector type. Defaults to `standard` when unset. @see RULE-VEC-6 */
+  readonly type?: VectorType;
+  /** Designated reviewer pilot. Required for `adversarial_review` vectors. @see RULE-VEC-7 */
+  readonly reviewerPilotId?: string | null;
 }
 
 /**
@@ -42,6 +46,8 @@ export interface VectorReport {
   readonly acceptanceEvidence: string;
   /** When the vector was passed. @see RULE-VRPT-2 */
   readonly timestamp: Date;
+  /** Pilot who filed the report. Used for adversarial review constraint enforcement. @see RULE-VEC-8 */
+  readonly author?: string;
 }
 
 /**
