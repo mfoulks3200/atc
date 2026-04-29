@@ -51,10 +51,17 @@ export interface SystemNotification {
 // Entity types
 // ---------------------------------------------------------------------------
 
+/** Vector type — standard milestone or adversarial review gate. @see RULE-VEC-6 */
+export type VectorType = "standard" | "adversarial_review";
+
 export interface VectorState {
   name: string;
   acceptanceCriteria: string;
   status: VectorStatus;
+  /** Defaults to "standard" when absent. @see RULE-VEC-6 */
+  type?: VectorType;
+  /** Pilot ID of the designated adversarial reviewer. @see RULE-VEC-7 */
+  reviewerPilotId?: string;
   evidence?: string;
   reportedAt?: string;
 }
