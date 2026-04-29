@@ -1,11 +1,12 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 **Status:** Draft
-**Date:** 2026-04-30
+**Date:** 2026-05-03
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
+- 0.5.0 (2026-05-03): Improve checklists — add `title`/`failureMessage` fields, optional executor for agent-assessed items (RULE-CHKL-9), vector-scoped bindings (RULE-CHKL-10–12), tower clearance checklists (RULE-CHKL-13–14, RULE-TMRG-5), SpecVector checklists (RULE-SDD-18). New error codes: `UNKNOWN_CHECKLIST_TEMPLATE`, `VECTOR_CHECKLIST_FAILED`, `CLEARANCE_CHECKLIST_FAILED`, `INSUFFICIENT_CONTROLS`.
 - 0.4.0 (2026-04-30): Add Inspector seat type (RULE-SEAT-5/6), UnderReview lifecycle state (RULE-LIFE-9/10), adversarial review protocol §4.8 (RULE-ARVW-1 through RULE-ARVW-5), challenge finding and builder flag schemas §2.8, and five new black box entry types (AIR-265).
 - 0.3.2 (2026-04-30): Add constraint dry-run API and structured constraint failure response shape — `?dryRun=true` on `reportVector`, `ConstraintCheckResult`, `ConstraintFailure`, `ConstraintCheckFailed` black box entry, captain override with justification (RULE-VRPT-5 through RULE-VRPT-10, §4.1.1, AIR-324).
 - 0.3.1 (2026-04-28): Define integrity bar live-update strategy — triggered poll via `craft.blackbox.appended` (RULE-BBOX-5a, AIR-342).
@@ -370,10 +371,11 @@ A **spec document** is a structured YAML or JSON document submitted to ATC to au
 
 **SpecVector:**
 
-| Field    | Type       | Required | Description |
-| -------- | ---------- | -------- | ----------- |
-| Name     | `string`   | Yes      | Short, descriptive milestone name. |
-| Criteria | `string[]` | Yes      | One or more acceptance criteria in natural language. Each criterion must be specific, binary, and testable. |
+| Field      | Type       | Required | Description |
+| ---------- | ---------- | -------- | ----------- |
+| Name       | `string`   | Yes      | Short, descriptive milestone name. |
+| Criteria   | `string[]` | Yes      | One or more acceptance criteria in natural language. Each criterion must be specific, binary, and testable. |
+| Checklists | `string[]` | No       | Template IDs or names of checklists to bind to this vector's `before:vector-complete` event. Each entry is shorthand for `{ templateId: string }` (see RULE-SDD-18 and the v2 extension path note in §4.2.3). |
 
 **SpecPilotHints:**
 
@@ -393,6 +395,7 @@ A **spec document** is a structured YAML or JSON document submitted to ATC to au
 - **RULE-SDD-5:** If an explicit callsign override is provided, it MUST be unique across all crafts in the project. A collision MUST be rejected with `CALLSIGN_CONFLICT`.
 - **RULE-SDD-6:** If an explicit `pilots.captain` is provided, that pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
 - **RULE-SDD-7:** If explicit `pilots.firstOfficers` are provided, each listed pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
+- **RULE-SDD-18:** If a spec vector includes a `checklists` array, the SDD creation procedure MUST create corresponding `ChecklistBinding` entries with `event: "before:vector-complete"` and `vectorName` set to the vector's name. Referenced templates MUST exist in the project configuration; an unknown template MUST be rejected with `UNKNOWN_CHECKLIST_TEMPLATE`.
 
 ## 3. Craft Lifecycle
 
@@ -582,27 +585,48 @@ A **lifecycle event** is a hookable moment in the craft lifecycle. Events come i
 | `after:go-around`        | After go-around re-attempt begins       | After  |
 | `before:emergency`       | `GoAround → Emergency`                  | Before |
 | `after:emergency`        | After emergency is declared             | After  |
+| `before:tower-clearance` | Craft requests landing clearance        | Before |
+| `after:tower-clearance`  | After tower grants clearance            | After  |
 | `before:landing`         | `ClearedToLand → Landed`               | Before |
 | `after:landing`          | After branch is merged                  | After  |
+
+**Note:** `before:tower-clearance` and `after:tower-clearance` are **not** transition-mapped events. Unlike other lifecycle events that fire as part of a craft state transition (dispatched by `mapTransitionToEvents()`), these are dispatched explicitly during the tower clearance flow (see §4.4). The craft does not change status when it requests clearance.
 
 #### 4.2.2 Checklist Items
 
 Each item in a checklist has:
 
-| Field       | Type                                | Required | Description                                              |
-| ----------- | ----------------------------------- | -------- | -------------------------------------------------------- |
-| Name        | `string`                            | Yes      | Unique within template.                                  |
-| Description | `string`                            | No       | Returned to agents on failure for remediation context.   |
-| Severity    | `"required"` or `"advisory"`        | Yes      | Required items block before-event transitions.           |
-| Executor    | `ShellExecutor` or `McpToolExecutor` | Yes     | How to run the check.                                    |
+| Field           | Type                                    | Required | Description |
+| --------------- | --------------------------------------- | -------- | ----------- |
+| Name            | `string`                                | Yes      | Unique within template. Machine-readable key used for overrides and programmatic binding references. |
+| Title           | `string`                                | Yes      | Human-readable display name. Appears in black box entries, intercom notifications, and agent-facing displays. |
+| Description     | `string`                                | No       | Context provided to the agent when the item is encountered, regardless of outcome. Explains what the check validates and why. Agent-assessed items (no `executor`) SHOULD always include a `description`, since it is the agent's sole judgment input. |
+| Severity        | `"required"` or `"advisory"`            | Yes      | Required items block before-event transitions. |
+| Executor        | `ShellExecutor` or `McpToolExecutor`    | No       | How to run the check. When absent, the item is **agent-assessed** — the agent evaluates the item using its own judgment and reports pass/fail (see RULE-CHKL-9). |
+| Failure Message | `string`                                | No       | Remediation guidance provided to the agent **only on failure**. Distinct from `description`. When both are present, display order is: `description` first, then `failureMessage`. |
 
 **ShellExecutor:** A shell command. Pass/fail determined by exit code (0 = pass).
 
 **McpToolExecutor:** An MCP tool invocation by name with parameters.
 
+**Agent-Assessed Items:** When an item has no `executor`, the pilot currently holding controls evaluates it based on `title` and `description`, then reports a pass/fail result with mandatory justification (see RULE-CHKL-9). Agent-assessed items follow the same severity rules as executed items.
+
 #### 4.2.3 Templates and Bindings
 
 A **checklist template** is a named, ordered list of items. Templates are bound to lifecycle events and craft categories via **checklist bindings**. A craft inherits all bindings matching its category. The wildcard category `"*"` matches all crafts.
+
+##### Binding Properties
+
+| Field           | Type                       | Required | Description |
+|-----------------|----------------------------|----------|-------------|
+| `templateId`    | `string`                   | Yes      | References a ChecklistTemplate.id. |
+| `event`         | `LifecycleEvent`           | Yes      | The lifecycle event that triggers this checklist. |
+| `craftCategory` | `CraftCategory` or `"*"`   | Yes      | Craft category filter. |
+| `vectorName`    | `string`                   | No       | When set, this binding only activates for the named vector. Only meaningful for `before:vector-complete` and `after:vector-complete` events; MUST be ignored for other events (RULE-CHKL-10). |
+
+A binding with `event: "before:vector-complete"` and `vectorName: "Code Review"` only runs when the pilot reports the "Code Review" vector — not for other vectors. Multiple checklists can be bound to the same vector via multiple bindings with different `templateId` but the same `vectorName` (RULE-CHKL-11). A binding with `event: "before:vector-complete"` and no `vectorName` continues to run for all vectors (backwards compatible).
+
+**v2 extension path:** The `SpecVector.checklists` string array (§2.7) is shorthand for `{ templateId: string }`. A future `ChecklistBindingRef` object form is the planned extension path, enabling per-binding severity overrides, cross-craft scoping, and conditional bindings. Documenting this now keeps v1 → v2 migration backwards-compatible.
 
 #### 4.2.4 Per-Craft Overrides
 
@@ -629,28 +653,69 @@ Projects configure checklists by creating templates and bindings. The defaults a
 
 Every checklist execution produces a `ChecklistRunResult` containing:
 
-| Field         | Description                                                           |
-| ------------- | --------------------------------------------------------------------- |
-| Checklist name | The template that was executed.                                      |
-| Event         | The lifecycle event that triggered the run.                           |
-| Craft callsign | The craft this ran against.                                          |
-| Attempt       | Attempt number (1-indexed, increments on re-runs for the same event). |
-| Timestamp     | When the run completed.                                               |
-| Passed        | True if no required items failed.                                     |
-| Item results  | Per-item: name, passed, severity, message, captured output, duration. |
+| Field            | Description                                                           |
+| ---------------- | --------------------------------------------------------------------- |
+| `templateId`     | The template that was executed.                                       |
+| `templateTitle`  | The human-readable template name.                                     |
+| `event`          | The lifecycle event that triggered the run.                           |
+| `craftCallsign`  | The craft this ran against.                                           |
+| `vectorName`     | The vector this ran against (only for vector-scoped bindings; null otherwise). |
+| `attempt`        | Attempt number (1-indexed, increments on re-runs for the same event). |
+| `timestamp`      | When the run completed.                                               |
+| `passed`         | True if no required items failed.                                     |
+| `itemResults`    | Per-item results (see below).                                         |
+
+##### Per-Item Result Schema
+
+| Field            | Type      | Description                                                 |
+| ---------------- | --------- | ----------------------------------------------------------- |
+| `name`           | `string`  | Item name (machine key).                                    |
+| `title`          | `string`  | Item title (display name).                                  |
+| `passed`         | `boolean` | Whether the item passed.                                    |
+| `severity`       | `string`  | `"required"` or `"advisory"`.                               |
+| `message`        | `string`  | For executor items: output message or error. For agent-assessed items: the agent's justification of reasoning (RULE-CHKL-9). |
+| `output`         | `string`  | Captured stdout/stderr from the executor. Null for agent-assessed items. |
+| `duration`       | `number`  | Execution time in milliseconds.                             |
+| `agentAssessed`  | `boolean` | `true` when the item had no executor and was evaluated by the agent. `false` or absent for executor items. Used to distinguish self-reported results from executor results in the black box. |
 
 Output is capped at 500 lines per item to keep black box entries manageable.
 
+##### Multi-Checklist Event Results
+
+When multiple templates are bound to the same event (e.g., multiple checklists on one vector per RULE-CHKL-11), results are grouped **per template**. Each bound template produces its own `ChecklistRunResult`. A wrapping structure groups them:
+
+| Field              | Description |
+| ------------------ | ----------- |
+| `event`            | The lifecycle event. |
+| `vectorName`       | The vector (for vector-scoped events; null otherwise). |
+| `templateResults`  | Array of `ChecklistRunResult`, one per bound template, in binding registration order. |
+| `allPassed`        | True if every template's `passed` is true. |
+
+The RULE-CHKL-6 intercom notification for a multi-checklist event MUST summarize at the template level — e.g., "3 checklists ran for vector 'Code Review': Security Scan ✗, Lint ✓, Build ✓" — not a flat item count. All bound templates run to completion regardless of individual template failures (RULE-CHKL-11).
+
 #### Rules
 
-- **RULE-CHKL-1:** A checklist template is a named, ordered list of items. Each item has a name, executor (shell command or MCP tool reference), severity (`required` or `advisory`), and optional failure description.
+- **RULE-CHKL-1:** A checklist template is a named, ordered list of items. Each item has a `name` (machine key), `title` (display name), optional `executor` (shell command or MCP tool reference; absent for agent-assessed items), `severity` (`required` or `advisory`), optional `description` (always surfaced to the agent), and optional `failureMessage` (surfaced only on failure).
 - **RULE-CHKL-2:** Templates are bound to lifecycle events and craft categories. A craft inherits all bindings matching its category. The wildcard category `"*"` matches all crafts.
 - **RULE-CHKL-3:** Individual crafts MAY override inherited bindings: add items, remove items by name, or disable a template entirely for a specific event.
 - **RULE-CHKL-4:** For before-events, required item failure MUST block the transition. Advisory failures MUST be logged but MUST NOT block. For after-events, no failures block; all results are informational.
-- **RULE-CHKL-5:** Every checklist execution MUST be recorded as a `ChecklistRun` entry in the craft's black box with full metadata: event, attempt number, per-item results (name, passed, severity, message, output, duration), and overall outcome.
+- **RULE-CHKL-5:** Every checklist execution MUST be recorded as a `ChecklistRun` entry in the craft's black box with full metadata: event, attempt number, per-item results (name, title, passed, severity, message, output, duration, agentAssessed), and overall outcome. For agent-assessed items, `output` is null and `message` contains the agent's justification; `agentAssessed` is `true`. See §4.2.6 for the complete result schema.
 - **RULE-CHKL-6:** On checklist completion, a system-generated notification MUST be posted to the craft's intercom with the outcome and a reference to the black box entry. Agents retrieve full details via tool call.
 - **RULE-CHKL-7:** Checklist items MUST execute sequentially in template order. Override-added items are appended after template items.
 - **RULE-CHKL-8:** The lifecycle event enum is extensible. Adding a new event requires only a new enum value and wiring it to the relevant transition or action.
+- **RULE-CHKL-9:** When a checklist item has no executor, it is **agent-assessed**. The pilot currently holding controls (exclusive or shared) MUST evaluate the item based on its `title` and `description`, and report a pass/fail result. The item result's `message` field MUST contain a concise justification of the agent's reasoning (what was examined and what was observed). The result MUST include `agentAssessed: true` to distinguish it from executor-generated results in the black box. A result with an empty or missing justification for an agent-assessed item is malformed and MUST be treated as a required failure. A Jumpseat pilot MUST NOT provide pass/fail assessment on agent-assessed items; any such attempt MUST be rejected with `INSUFFICIENT_CONTROLS`. Agent-assessed items follow the same severity rules as executed items (RULE-CHKL-4).
+
+  | Seat           | May self-assess? | Rationale                              |
+  |----------------|------------------|----------------------------------------|
+  | Captain        | Yes              | Holds controls, final authority        |
+  | First Officer  | Yes              | Can hold controls, code authority      |
+  | Jumpseat       | **No**           | Observer only, no controls authority   |
+
+- **RULE-CHKL-10:** A checklist binding MAY include a `vectorName` field to scope the binding to a specific vector. This field is only meaningful for `before:vector-complete` and `after:vector-complete` events; it MUST be ignored for other events.
+- **RULE-CHKL-11:** Multiple checklist templates MAY be bound to the same vector. They execute in binding registration order. A required failure in one template does NOT halt execution of subsequent templates — all bound templates run to completion. Results are grouped per template (see §4.2.6).
+- **RULE-CHKL-12:** For `before:vector-complete` bindings with a `vectorName`, all required items across all bound templates MUST pass before the vector can be reported as passed. A required failure prevents the vector report from being filed with the same go-around semantics as a failed `before:landing-check` required item — the pilot receives the full results and must address failures before re-submitting the vector report. The error code `VECTOR_CHECKLIST_FAILED` is returned with the per-template results.
+- **RULE-CHKL-13:** Checklists bound to `before:tower-clearance` MUST be executed by the tower as part of the clearance verification, after vector verification and before queue insertion. The `before:tower-clearance` and `after:tower-clearance` events are **not** transition-mapped — they are dispatched explicitly during the clearance flow, not by the craft state machine.
+- **RULE-CHKL-14:** If any required item in a tower clearance checklist fails, the tower MUST deny clearance. The `requestClearance()` response MUST include a structured denial payload with `denialReason: "checklist-failed"` and the full per-template `ChecklistRunResult` array (see §4.2.6). The craft is sent on a go-around. The full results are also recorded in the black box.
 
 #### Legacy Compatibility
 
@@ -674,11 +739,24 @@ When a craft passes its landing checklist, the pilot requests landing clearance 
 #### Merge Sequence
 
 1. Tower verifies all vectors in the craft's flight plan have been reported as passed.
-2. Tower adds the craft to the merge queue.
-3. Tower sequences merges to avoid conflicts (first-come, first-served by default).
-4. Tower verifies the branch is up to date with main before merging.
-5. Tower executes the merge.
-6. Tower marks the craft as landed.
+2. Tower resolves and runs all checklists bound to `before:tower-clearance` for the craft's category (RULE-CHKL-13, RULE-TMRG-5). If any required item fails, clearance is denied and the craft is sent on a go-around (RULE-CHKL-14).
+3. Tower adds the craft to the merge queue.
+4. Tower sequences merges to avoid conflicts (first-come, first-served by default).
+5. Tower verifies the branch is up to date with main before merging.
+6. Tower executes the merge.
+7. Tower marks the craft as landed.
+
+#### Clearance Result
+
+The `requestClearance()` response carries a structured result:
+
+| Field               | Type                                             | Description |
+|---------------------|--------------------------------------------------|-------------|
+| `granted`           | `boolean`                                        | Whether clearance was granted. |
+| `denialReason`      | `"vectors-incomplete"` or `"checklist-failed"`   | Present when `granted` is false. Allows callers to programmatically distinguish denial causes. |
+| `checklistResults`  | `ChecklistRunResult[]`                           | Present when `denialReason` is `"checklist-failed"`. Contains per-template results. |
+
+Clearance denial is a blocking event — the requesting agent receives the denial payload **synchronously** in the response, not only via the black box or intercom.
 
 #### Rules
 
@@ -686,6 +764,7 @@ When a craft passes its landing checklist, the pilot requests landing clearance 
 - **RULE-TMRG-2:** The tower MUST verify the branch is up to date with main before executing a merge.
 - **RULE-TMRG-3:** If a merge conflict arises, the tower MAY send the craft on a go-around to rebase/resolve before re-entering the queue.
 - **RULE-TMRG-4:** Merges MUST be sequenced to avoid conflicts. Default ordering is first-come, first-served.
+- **RULE-TMRG-5:** The tower MUST execute all `before:tower-clearance` checklists after verifying vector reports and before adding the craft to the merge queue. Clearance requests are processed sequentially — one craft at a time. If a checklist includes long-running executors, the daemon route SHOULD return `202 Accepted` with a status poll endpoint rather than blocking the HTTP request indefinitely.
 
 ### 4.5 TFR Protocol
 
@@ -846,6 +925,10 @@ Criteria express *what success looks like*. Structural gates (tests pass, lint c
 | `PILOT_NOT_CERTIFIED` | 422 | Explicitly named pilot lacks required certification. |
 | `PILOT_ROLE_CONFLICT` | 422 | Same pilot assigned as both captain and first officer (RULE-SDD-10). |
 | `BRANCH_CREATION_FAILED` | 500 | Git branch could not be created. No craft record is written. |
+| `UNKNOWN_CHECKLIST_TEMPLATE` | 422 | Spec vector references a checklist template that does not exist. Payload: `{ code: "UNKNOWN_CHECKLIST_TEMPLATE", message: "Spec vector '{vectorName}' references unknown checklist template(s): {ids}", unknownTemplateIds: string[], fixHint: "Create the referenced checklist templates before submitting a spec with vector checklist bindings." }` |
+| `VECTOR_CHECKLIST_FAILED` | 422 | A required checklist item failed for a vector-scoped `before:vector-complete` binding. The vector report cannot be filed. Payload includes per-template `ChecklistRunResult[]`. |
+| `CLEARANCE_CHECKLIST_FAILED` | 422 | A required item in a `before:tower-clearance` checklist failed. Clearance is denied. Payload includes `denialReason: "checklist-failed"` and per-template `ChecklistRunResult[]`. |
+| `INSUFFICIENT_CONTROLS` | 403 | A Jumpseat pilot attempted to evaluate an agent-assessed checklist item. Only pilots holding controls may self-assess. |
 
 ### 4.7 UX Review Protocol
 
@@ -949,14 +1032,20 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-VRPT-8    | Warning-severity constraints never block; results included in ConstraintCheckResult for pilot visibility. | 4.1 |
 | RULE-VRPT-9    | Only the captain may supply constraintOverrides; non-captain overrides return 403; justification must be non-empty. | 4.1 |
 | RULE-VRPT-10   | remediationHint must carry ADR rationale (why), not just mechanical fix (how); omitting it fails constraint creation. | 4.1.1 |
-| RULE-CHKL-1    | Template is named, ordered list with name, executor, severity, description. | 4.2  |
+| RULE-CHKL-1    | Template is named, ordered list with name, title, optional executor, severity, description, failureMessage. | 4.2  |
 | RULE-CHKL-2    | Templates bound to lifecycle events and craft categories.            | 4.2     |
 | RULE-CHKL-3    | Crafts may override bindings: add, remove, or disable.               | 4.2     |
 | RULE-CHKL-4    | Before-events: required failures block; after-events: never block.   | 4.2     |
-| RULE-CHKL-5    | Every execution recorded as ChecklistRun in black box with full metadata. | 4.2  |
+| RULE-CHKL-5    | Every execution recorded as ChecklistRun in black box with full metadata including agentAssessed flag. | 4.2  |
 | RULE-CHKL-6    | System notification posted to intercom on completion.                | 4.2     |
 | RULE-CHKL-7    | Items execute sequentially; override items appended after template.  | 4.2     |
 | RULE-CHKL-8    | Lifecycle event enum is extensible.                                  | 4.2     |
+| RULE-CHKL-9    | Agent-assessed items: no executor, agent evaluates with justification; Jumpseat rejected. | 4.2  |
+| RULE-CHKL-10   | Binding `vectorName` scopes to a specific vector; only for vector events. | 4.2  |
+| RULE-CHKL-11   | Multiple templates may bind to the same vector; all run to completion. | 4.2    |
+| RULE-CHKL-12   | Vector-bound required failures prevent vector report; go-around semantics. | 4.2  |
+| RULE-CHKL-13   | Tower executes `before:tower-clearance` checklists during clearance (not transition-mapped). | 4.2 |
+| RULE-CHKL-14   | Tower denies clearance on required failure; synchronous denial payload returned. | 4.2 |
 | RULE-EMER-1    | Only the captain may declare an emergency.                           | 4.3     |
 | RULE-EMER-2    | Captain must record EmergencyDeclaration in black box.               | 4.3     |
 | RULE-EMER-3    | Craft must return to origin on emergency.                            | 4.3     |
@@ -965,6 +1054,7 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-TMRG-2    | Tower must verify branch is up to date before merge.                 | 4.4     |
 | RULE-TMRG-3    | Tower may send craft on go-around for merge conflicts.               | 4.4     |
 | RULE-TMRG-4    | Merges sequenced FCFS by default.                                    | 4.4     |
+| RULE-TMRG-5    | Tower runs clearance checklists after vector check, before queue insert. | 4.4  |
 | RULE-TFR-1     | TFR must have identifier, scope, mode, reason, and issuer.           | 2.6     |
 | RULE-TFR-2     | Project/craft TFRs require target; global TFRs have null target.     | 2.6     |
 | RULE-TFR-3     | User may issue TFR at any scope.                                     | 2.6     |
@@ -996,6 +1086,7 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-SDD-15    | Dry-run: full validation + computation, no persistence or side effects. | 4.6.6   |
 | RULE-SDD-16    | SpecCreated bbox entry must record identity, source, title, notes, metadata, autoLaunch outcome. | 4.6.6 |
 | RULE-SDD-17    | File-watch inbox must not process the same file twice.               | 4.6.5   |
+| RULE-SDD-18    | Spec vector checklists array creates vector-scoped bindings; unknown template rejected. | 2.7 |
 | RULE-UXR-1     | User-facing changes must use domain model terminology from §1.1.     | 4.7.3   |
 | RULE-UXR-2     | Error messages/labels must be understandable without reading source.  | 4.7.3   |
 | RULE-UXR-3     | All user-visible states covered: success, error, loading, empty.     | 4.7.3   |
