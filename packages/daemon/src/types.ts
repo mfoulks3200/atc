@@ -105,7 +105,8 @@ export interface AgentRecord {
 /**
  * Persisted state of a single vector within a craft's flight plan.
  *
- * @see RULE-VEC-1 through RULE-VEC-5 for vector rules.
+ * @see RULE-VEC-1 through RULE-VEC-9 for vector rules.
+ * @see RULE-CTRL-3a for adversarial review controls handoff.
  */
 export interface VectorState {
   /** Vector name / title. */
@@ -114,6 +115,16 @@ export interface VectorState {
   acceptanceCriteria: string;
   /** Current pass/fail/pending status. */
   status: "Pending" | "Passed" | "Failed";
+  /**
+   * Vector type. Defaults to `standard` when absent.
+   * @see RULE-VEC-6
+   */
+  type?: "standard" | "adversarial_review";
+  /**
+   * Pilot ID of the designated adversarial reviewer. Required for `adversarial_review` vectors.
+   * @see RULE-VEC-7, RULE-CTRL-3a
+   */
+  reviewerPilotId?: string;
   /** Optional evidence string submitted when the vector was evaluated. */
   evidence?: string;
   /** ISO-8601 timestamp when the vector was reported on. */

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { VectorStatus } from "@airtrafficcontrol/types";
-import type { FlightPlan } from "@airtrafficcontrol/types";
+import { VectorStatus, VectorType } from "@airtrafficcontrol/types";
+import type { FlightPlan, VectorReport } from "@airtrafficcontrol/types";
 import {
   getNextVector,
   reportVector,
@@ -113,6 +113,101 @@ describe("allVectorsPassed", () => {
 
   it("returns true for an empty flight plan", () => {
     expect(allVectorsPassed([])).toBe(true);
+  });
+});
+
+describe("reportVector adversarial review constraints", () => {
+  function makeAdversarialPlan(): FlightPlan {
+    return [
+      {
+        name: "Implement",
+        acceptanceCriteria: "Code complete",
+        status: VectorStatus.Pending,
+        type: VectorType.Standard,
+      },
+      {
+        name: "Review",
+        acceptanceCriteria: "Code reviewed",
+        status: VectorStatus.Pending,
+        type: VectorType.AdversarialReview,
+        reviewerPilotId: "reviewer-1",
+      },
+    ];
+  }
+
+  it("allows filing when pilotId differs from preceding report author (RULE-VEC-8)", () => {
+    const plan = makeAdversarialPlan();
+    plan[0].status = VectorStatus.Passed;
+    const preceding: VectorReport = {
+      craftCallsign: "C1",
+      vectorName: "Implement",
+      acceptanceEvidence: "",
+      timestamp: new Date(),
+      author: "builder-1",
+    };
+
+    const result = reportVector(plan, "Review", {
+      pilotId: "reviewer-1",
+      precedingReport: preceding,
+    });
+    expect(result.flightPlan[1].status).toBe(VectorStatus.Passed);
+  });
+
+  it("blocks filing when pilotId matches preceding report author (RULE-VEC-8)", () => {
+    const plan = makeAdversarialPlan();
+    plan[0].status = VectorStatus.Passed;
+    const preceding: VectorReport = {
+      craftCallsign: "C1",
+      vectorName: "Implement",
+      acceptanceEvidence: "",
+      timestamp: new Date(),
+      author: "builder-1",
+    };
+
+    expect(() =>
+      reportVector(plan, "Review", {
+        pilotId: "builder-1",
+        precedingReport: preceding,
+      }),
+    ).toThrow("RULE-VEC-8");
+  });
+
+  it("blocks filing standard vector when pilotId is the next adversarial reviewer (RULE-VEC-7)", () => {
+    const plan = makeAdversarialPlan();
+
+    expect(() =>
+      reportVector(plan, "Implement", {
+        pilotId: "reviewer-1",
+      }),
+    ).toThrow("RULE-VEC-7");
+  });
+
+  it("allows filing standard vector when pilotId is not the next adversarial reviewer", () => {
+    const plan = makeAdversarialPlan();
+
+    const result = reportVector(plan, "Implement", {
+      pilotId: "builder-1",
+    });
+    expect(result.flightPlan[0].status).toBe(VectorStatus.Passed);
+  });
+
+  it("does not enforce constraints when pilotId is absent", () => {
+    const plan = makeAdversarialPlan();
+
+    const result = reportVector(plan, "Implement");
+    expect(result.flightPlan[0].status).toBe(VectorStatus.Passed);
+  });
+
+  it("includes author in the report when pilotId is provided", () => {
+    const plan = makePlan(VectorStatus.Pending);
+    const result = reportVector(plan, "Vector-1", { pilotId: "pilot-1" });
+    expect(result.report.author).toBe("pilot-1");
+  });
+
+  it("omits author in the report when pilotId is absent", () => {
+    const plan = makePlan(VectorStatus.Pending);
+    const result = reportVector(plan, "Vector-1");
+    expect(result.report.author).toBeUndefined();
   });
 });
 

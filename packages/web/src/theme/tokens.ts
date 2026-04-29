@@ -34,3 +34,6 @@ export const VECTOR_STATUS_COLORS: Record<string, string> = {
   Passed: "var(--accent-green)",
   Failed: "var(--accent-red)",
 };
+
+/** Progress bar color for an adversarial_review vector while it is Pending (under active review). */
+export const ADVERSARIAL_REVIEW_ACTIVE_COLOR = "var(--accent-yellow)";

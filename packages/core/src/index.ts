@@ -16,6 +16,7 @@ export {
   allVectorsPassed,
   createVectorReport,
 } from "./flight-plan.js";
+export type { ReportVectorOptions } from "./flight-plan.js";
 
 export {
   transitionCraft,

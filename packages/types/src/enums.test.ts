@@ -3,6 +3,7 @@ import {
   CraftStatus,
   SeatType,
   ControlMode,
+  VectorType,
   VectorStatus,
   BlackBoxEntryType,
   CraftCategoryEnum,
@@ -46,6 +47,17 @@ describe("ControlMode", () => {
   it("contains all modes", () => {
     expect(ControlMode.Exclusive).toBe("Exclusive");
     expect(ControlMode.Shared).toBe("Shared");
+  });
+});
+
+describe("VectorType", () => {
+  it("has exactly 2 types (RULE-VEC-6)", () => {
+    expect(Object.values(VectorType)).toHaveLength(2);
+  });
+
+  it("contains all vector types", () => {
+    expect(VectorType.Standard).toBe("standard");
+    expect(VectorType.AdversarialReview).toBe("adversarial_review");
   });
 });
 

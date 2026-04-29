@@ -46,6 +46,17 @@ export enum ControlMode {
 }
 
 /**
+ * The type of a vector in a flight plan.
+ * @see RULE-VEC-6
+ */
+export enum VectorType {
+  /** A standard implementation milestone. */
+  Standard = "standard",
+  /** A review milestone requiring a designated reviewer different from the builder. */
+  AdversarialReview = "adversarial_review",
+}
+
+/**
  * Status of a vector in a craft's flight plan.
  * @see RULE-VEC-1 through RULE-VEC-5
  */

@@ -147,12 +147,55 @@ export function Component() {
           <VectorProgress vectors={craft.flightPlan} />
           <div className="mb-3 mt-1 text-[10px]" style={{ color: "var(--text-muted)" }}>{passedCount} of {craft.flightPlan.length} vectors passed</div>
           <div className="space-y-1.5">
-            {(vectors ?? craft.flightPlan).map((v) => (
-              <div key={v.name} className="flex items-center justify-between rounded-md p-2" style={{ backgroundColor: "var(--bg-elevated)" }}>
-                <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{v.name}</span>
-                <StatusBadge status={v.status} variant="vector" />
-              </div>
-            ))}
+            {(vectors ?? craft.flightPlan).map((v) => {
+              const isAdversarial = v.type === "adversarial_review";
+              const isUnderReview = isAdversarial && v.status === "Pending";
+              return (
+                <div
+                  key={v.name}
+                  className="rounded-md p-2"
+                  style={{
+                    backgroundColor: isUnderReview
+                      ? "color-mix(in srgb, var(--accent-yellow) 12%, var(--bg-elevated))"
+                      : "var(--bg-elevated)",
+                    border: isUnderReview ? "1px solid color-mix(in srgb, var(--accent-yellow) 30%, transparent)" : "1px solid transparent",
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      {isAdversarial && (
+                        <svg
+                          width="11"
+                          height="12"
+                          viewBox="0 0 11 12"
+                          fill="none"
+                          aria-label="Adversarial review"
+                          style={{ color: isUnderReview ? "var(--accent-yellow)" : "var(--text-muted)", flexShrink: 0 }}
+                        >
+                          <path
+                            d="M5.5 1L10 3V6.5C10 8.985 8.02 11.19 5.5 11.5C2.98 11.19 1 8.985 1 6.5V3L5.5 1Z"
+                            stroke="currentColor"
+                            strokeWidth="1.2"
+                            strokeLinejoin="round"
+                            fill="none"
+                          />
+                        </svg>
+                      )}
+                      <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{v.name}</span>
+                    </div>
+                    <StatusBadge status={v.status} variant="vector" />
+                  </div>
+                  {isAdversarial && v.reviewerPilotId && (
+                    <div className="mt-0.5 flex items-center gap-1 pl-[18px]">
+                      <span className="text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>reviewer</span>
+                      <span className="text-[9px] font-mono" style={{ color: isUnderReview ? "var(--accent-yellow)" : "var(--text-muted)" }}>
+                        {v.reviewerPilotId}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

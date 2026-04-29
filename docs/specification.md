@@ -1,11 +1,12 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 **Status:** Draft
-**Date:** 2026-04-21
+**Date:** 2026-04-28
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
+- 0.4.0 (2026-04-28): Add VSDD adversarial review rules (RULE-VEC-6 through RULE-VEC-9, RULE-CTRL-3a). Introduces `adversarial_review` vector type with reviewer identity constraint and mandatory controls handoff.
 - 0.3.0 (2026-04-21): Add UX Review protocol (§4.7, RULE-UXR-1 through RULE-UXR-5).
 - 0.2.0 (2026-04-21): Add Spec-Driven Development protocol (§2.7, §4.6, RULE-SDD-1 through RULE-SDD-17).
 
@@ -46,6 +47,7 @@ This document is the authoritative reference for ATC's domain model, lifecycle, 
 | Spec Document    | A structured YAML/JSON document that fully describes a proposed craft — cargo, category, vectors, and pilot hints — submitted to ATC to create a craft automatically. |
 | Spec-Driven Development (SDD) | The protocol by which ATC automatically creates and optionally launches a craft from a submitted spec document. |
 | Selection Count  | A per-pilot monotonic counter tracking how many times a pilot has been auto-selected as captain or first officer, used for equitable workload distribution in SDD. |
+| Adversarial Review Vector | A vector of type `adversarial_review` in a flight plan. Requires a designated reviewer pilot who is different from the pilot who completed the preceding vector, and mandates an exclusive controls handoff before the review begins. |
 
 ## 2. Domain Model
 
@@ -194,6 +196,7 @@ A craft has a single set of **controls** that govern which pilot(s) are actively
 - **RULE-CTRL-1:** At craft creation, the captain holds exclusive controls by default.
 - **RULE-CTRL-2:** Only the captain or a first officer MAY claim controls. Jumpseaters MUST NOT hold controls.
 - **RULE-CTRL-3:** A pilot MUST NOT modify code on the craft's branch unless they currently hold controls (exclusively or within their shared area).
+- **RULE-CTRL-3a:** During adversarial review (while an `adversarial_review` vector is the active vector), the designated reviewer MUST hold exclusive controls. The builder MUST release controls and the reviewer MUST acknowledge the handoff before the vector can be entered. All control transfers for adversarial review MUST be recorded in the black box per RULE-CTRL-7.
 - **RULE-CTRL-4:** Pilots SHOULD claim exclusive controls for changes that risk conflicts if done concurrently.
 - **RULE-CTRL-5:** Pilots MAY use shared controls when working on clearly separable concerns.
 - **RULE-CTRL-6:** If a dispute arises over controls, the captain has final authority.
@@ -241,11 +244,13 @@ A **vector** is a defined milestone that a craft must pass through during its fl
 
 #### Properties
 
-| Property            | Type             | Constraints                                      |
-| ------------------- | ---------------- | ------------------------------------------------ |
-| Name                | `string`         | Required. Short, descriptive identifier.         |
-| Acceptance Criteria | `string`         | Required. Specific, verifiable conditions.       |
-| Status              | `VectorStatus`   | One of: `Pending`, `Passed`, `Failed`.           |
+| Property            | Type             | Constraints                                                                      |
+| ------------------- | ---------------- | -------------------------------------------------------------------------------- |
+| Name                | `string`         | Required. Short, descriptive identifier.                                         |
+| Acceptance Criteria | `string`         | Required. Specific, verifiable conditions.                                       |
+| Status              | `VectorStatus`   | One of: `Pending`, `Passed`, `Failed`.                                           |
+| Type                | `VectorType`     | `standard` (default) or `adversarial_review`. If unset, defaults to `standard`. |
+| Reviewer Pilot ID   | `string \| null` | Required when `type` is `adversarial_review`. `null` for standard vectors.      |
 
 #### Rules
 
@@ -254,6 +259,10 @@ A **vector** is a defined milestone that a craft must pass through during its fl
 - **RULE-VEC-3:** When a craft passes through a vector, the pilot MUST report it to ATC (see Section 4.1).
 - **RULE-VEC-4:** A craft MUST NOT enter the Landing Checklist phase until all vectors in its flight plan have been passed and reported.
 - **RULE-VEC-5:** If a vector's acceptance criteria cannot be met, the pilot MAY declare an emergency (see Section 4.3).
+- **RULE-VEC-6:** A Vector MAY carry a `type` of `standard` (default) or `adversarial_review`. If `type` is unset, it MUST be treated as `standard`.
+- **RULE-VEC-7:** An `adversarial_review` vector MUST specify a `reviewerPilotId` at flight plan creation. The designated reviewer MUST NOT be the pilot who filed the most recent preceding vector report on this craft.
+- **RULE-VEC-8:** A pilot MAY NOT file a passing vector report for an `adversarial_review` vector if they filed the immediately preceding standard vector report on this craft.
+- **RULE-VEC-9:** The designated reviewer for an `adversarial_review` vector MUST hold a Captain or First Officer seat on the craft at the time the vector is entered.
 
 ### 2.5 Origin Airport
 
@@ -742,6 +751,7 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-CTRL-1    | Captain holds exclusive controls at craft creation.                  | 2.2.4   |
 | RULE-CTRL-2    | Only captain/FO may hold controls; jumpseaters never.               | 2.2.4   |
 | RULE-CTRL-3    | Must hold controls to modify code.                                   | 2.2.4   |
+| RULE-CTRL-3a   | Adversarial reviewer holds exclusive controls; builder must release before vector entry. | 2.2.4 |
 | RULE-CTRL-4    | Should use exclusive controls for conflict-prone changes.            | 2.2.4   |
 | RULE-CTRL-5    | May use shared controls for separable concerns.                      | 2.2.4   |
 | RULE-CTRL-6    | Captain has final authority on control disputes.                     | 2.2.4   |
@@ -760,6 +770,10 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-VEC-3     | Pilot must report vector passage to ATC.                             | 2.4     |
 | RULE-VEC-4     | All vectors must be passed before Landing Checklist.                 | 2.4     |
 | RULE-VEC-5     | May declare emergency if vector criteria cannot be met.              | 2.4     |
+| RULE-VEC-6     | Vector type is `standard` (default) or `adversarial_review`.        | 2.4     |
+| RULE-VEC-7     | adversarial_review vector must specify reviewerPilotId; reviewer must not have filed the preceding vector report. | 2.4 |
+| RULE-VEC-8     | Pilot may not file passing report for adversarial_review vector if they filed the immediately preceding standard report. | 2.4 |
+| RULE-VEC-9     | Designated reviewer must hold Captain or First Officer seat at vector entry. | 2.4 |
 | RULE-ORIG-1    | Unlandable crafts must be sent to origin airport.                    | 2.5     |
 | RULE-ORIG-2    | Origin receives callsign, cargo, flight plan, and black box.        | 2.5     |
 | RULE-ORIG-3    | Origin diagnoses root cause and decides re-plan/re-scope/abandon.   | 2.5     |
