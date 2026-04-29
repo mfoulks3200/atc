@@ -119,9 +119,7 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
                 `Adversarial review vector "${vectorName}" requires reviewer ` +
                 `${reviewerPilotId} to hold exclusive controls before filing a report. ` +
                 `Current controls: ${controls.mode}` +
-                (controls.mode === "exclusive"
-                  ? ` holder=${controls.holder}`
-                  : ""),
+                (controls.mode === "exclusive" ? ` holder=${controls.holder}` : ""),
               ruleId: "RULE-CTRL-3a",
             });
           }
