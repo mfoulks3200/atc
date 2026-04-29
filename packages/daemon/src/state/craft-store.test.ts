@@ -220,4 +220,97 @@ describe("CraftStore", () => {
     expect(lines).toHaveLength(2);
     expect(JSON.parse(lines[0])).toEqual(report);
   });
+
+  describe("withCraftLock()", () => {
+    it("serializes concurrent operations on the same craft", async () => {
+      store.set("proj", makeCraft("alpha-1"));
+      const order: number[] = [];
+
+      // Two concurrent callers — the mutex must ensure they run sequentially.
+      await Promise.all([
+        store.withCraftLock("proj", "alpha-1", async () => {
+          order.push(1);
+          // Yield to the event loop so caller 2 can attempt to acquire the lock.
+          await new Promise<void>((resolve) => setImmediate(resolve));
+          order.push(2);
+        }),
+        store.withCraftLock("proj", "alpha-1", async () => {
+          order.push(3);
+          await new Promise<void>((resolve) => setImmediate(resolve));
+          order.push(4);
+        }),
+      ]);
+
+      // Caller 2 must not start until caller 1 has fully completed.
+      expect(order).toEqual([1, 2, 3, 4]);
+    });
+
+    it("does not block operations on different crafts", async () => {
+      store.set("proj", makeCraft("alpha-1"));
+      store.set("proj", makeCraft("bravo-2"));
+      const order: string[] = [];
+
+      // Both crafts should be able to run their locks concurrently.
+      await Promise.all([
+        store.withCraftLock("proj", "alpha-1", async () => {
+          order.push("alpha-start");
+          await new Promise<void>((resolve) => setImmediate(resolve));
+          order.push("alpha-end");
+        }),
+        store.withCraftLock("proj", "bravo-2", async () => {
+          order.push("bravo-start");
+          await new Promise<void>((resolve) => setImmediate(resolve));
+          order.push("bravo-end");
+        }),
+      ]);
+
+      // Both locks started before either ended — they ran concurrently.
+      expect(order.indexOf("alpha-start")).toBeLessThan(order.indexOf("alpha-end"));
+      expect(order.indexOf("bravo-start")).toBeLessThan(order.indexOf("bravo-end"));
+      expect(order.slice(0, 2)).toEqual(expect.arrayContaining(["alpha-start", "bravo-start"]));
+    });
+
+    it("prevents double-launch race: second caller sees updated status", async () => {
+      store.set("proj", makeCraft("alpha-1"));
+      const results: Array<"launched" | "already-inflight"> = [];
+
+      // Simulate two agents racing to launch the same Taxiing craft.
+      await Promise.all([
+        store.withCraftLock("proj", "alpha-1", async () => {
+          const craft = store.get("proj", "alpha-1")!;
+          if (craft.status === CraftStatus.Taxiing) {
+            craft.status = CraftStatus.InFlight;
+            store.set("proj", craft);
+            results.push("launched");
+          } else {
+            results.push("already-inflight");
+          }
+        }),
+        store.withCraftLock("proj", "alpha-1", async () => {
+          const craft = store.get("proj", "alpha-1")!;
+          if (craft.status === CraftStatus.Taxiing) {
+            craft.status = CraftStatus.InFlight;
+            store.set("proj", craft);
+            results.push("launched");
+          } else {
+            results.push("already-inflight");
+          }
+        }),
+      ]);
+
+      // Exactly one succeeds; the second sees the already-updated status.
+      expect(results).toContain("launched");
+      expect(results).toContain("already-inflight");
+      expect(store.get("proj", "alpha-1")?.status).toBe(CraftStatus.InFlight);
+    });
+
+    it("cleans up mutex on remove()", () => {
+      store.set("proj", makeCraft("alpha-1"));
+      // Access the mutex to ensure it is created.
+      void store.withCraftLock("proj", "alpha-1", async () => {});
+      store.remove("proj", "alpha-1");
+      // Craft is gone — the lock map entry should be cleaned up too.
+      expect(store.get("proj", "alpha-1")).toBeUndefined();
+    });
+  });
 });

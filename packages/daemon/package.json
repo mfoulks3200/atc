@@ -13,12 +13,14 @@
   "dependencies": {
     "@airtrafficcontrol/adapter-claude-agent-sdk": "workspace:*",
     "@airtrafficcontrol/checklist": "workspace:*",
+    "@airtrafficcontrol/mcp-server": "workspace:*",
     "@airtrafficcontrol/core": "workspace:*",
     "@airtrafficcontrol/errors": "workspace:*",
     "@airtrafficcontrol/tower": "workspace:*",
     "@airtrafficcontrol/types": "workspace:*",
     "@airtrafficcontrol/validation": "workspace:*",
     "@fastify/websocket": "^11.2.0",
+    "async-mutex": "^0.5.0",
     "fastify": "^5.3.3",
     "js-yaml": "^4.1.1",
     "zod": "^3.25.76"

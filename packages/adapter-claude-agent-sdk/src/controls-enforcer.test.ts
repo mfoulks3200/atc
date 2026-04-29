@@ -77,7 +77,7 @@ describe("decideForFileModification — exclusive mode", () => {
     if (decision.behavior === "deny") {
       expect(decision.message).toContain("RULE-CTRL-3");
       expect(decision.message).toContain("captain-1");
-      expect(decision.message).toContain("controls/claim");
+      expect(decision.message).toContain("atc_controls_transfer");
     }
   });
 });

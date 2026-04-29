@@ -150,43 +150,50 @@ export async function controlsRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const { name, callsign } = request.params;
       const { pilotId } = request.body;
-      const craft = app.craftStore.get(name, callsign);
-      if (!craft) {
+
+      if (!app.craftStore.get(name, callsign)) {
         return reply.code(404).send({ error: `Craft not found: ${callsign}` });
       }
 
-      const seat = seatOf(craft, pilotId);
-      if (seat === undefined) {
-        return reply.code(400).send({ error: `Pilot ${pilotId} is not on craft ${callsign}` });
-      }
-
-      // RULE-CTRL-2: jumpseaters must not hold controls.
-      try {
-        const nextControls = coreClaim(toCoreControlState(craft.controls), pilotId, seat);
-
-        const previousSummary = summarizeControls(craft.controls);
-        craft.controls = fromCoreControlState(nextControls);
-
-        // RULE-CTRL-7: record the transfer in the black box.
-        appendBlackBoxEntry(
-          app,
-          name,
-          craft,
-          pilotId,
-          BlackBoxEntryType.Observation,
-          `Controls transferred to exclusive holder ${pilotId} (was ${previousSummary})`,
-        );
-        app.craftStore.set(name, craft);
-        publishCraftEvent(app, name, craft, "craft.controls.changed", {
-          controls: craft.controls,
-        });
-        return reply.send(craft.controls);
-      } catch (err) {
-        if (err instanceof ControlsError) {
-          return reply.code(403).send({ error: err.message, ruleId: err.ruleId });
+      return app.craftStore.withCraftLock(name, callsign, async () => {
+        const craft = app.craftStore.get(name, callsign);
+        if (!craft) {
+          return reply.code(404).send({ error: `Craft not found: ${callsign}` });
         }
-        throw err;
-      }
+
+        const seat = seatOf(craft, pilotId);
+        if (seat === undefined) {
+          return reply.code(400).send({ error: `Pilot ${pilotId} is not on craft ${callsign}` });
+        }
+
+        // RULE-CTRL-2: jumpseaters must not hold controls.
+        try {
+          const nextControls = coreClaim(toCoreControlState(craft.controls), pilotId, seat);
+
+          const previousSummary = summarizeControls(craft.controls);
+          craft.controls = fromCoreControlState(nextControls);
+
+          // RULE-CTRL-7: record the transfer in the black box.
+          appendBlackBoxEntry(
+            app,
+            name,
+            craft,
+            pilotId,
+            BlackBoxEntryType.Observation,
+            `Controls transferred to exclusive holder ${pilotId} (was ${previousSummary})`,
+          );
+          app.craftStore.set(name, craft);
+          publishCraftEvent(app, name, craft, "craft.controls.changed", {
+            controls: craft.controls,
+          });
+          return reply.send(craft.controls);
+        } catch (err) {
+          if (err instanceof ControlsError) {
+            return reply.code(403).send({ error: err.message, ruleId: err.ruleId });
+          }
+          throw err;
+        }
+      });
     },
   );
 
@@ -199,49 +206,56 @@ export async function controlsRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const { name, callsign } = request.params;
       const { areas } = request.body;
-      const craft = app.craftStore.get(name, callsign);
-      if (!craft) {
+
+      if (!app.craftStore.get(name, callsign)) {
         return reply.code(404).send({ error: `Craft not found: ${callsign}` });
       }
 
-      // Every pilot referenced in the shared areas must be on this craft.
-      const seatMap = crewSeatMap(craft);
-      for (const { pilotId } of areas) {
-        if (!seatMap.has(pilotId)) {
-          return reply.code(400).send({
-            error: `Pilot ${pilotId} is not on craft ${callsign}`,
+      return app.craftStore.withCraftLock(name, callsign, async () => {
+        const craft = app.craftStore.get(name, callsign);
+        if (!craft) {
+          return reply.code(404).send({ error: `Craft not found: ${callsign}` });
+        }
+
+        // Every pilot referenced in the shared areas must be on this craft.
+        const seatMap = crewSeatMap(craft);
+        for (const { pilotId } of areas) {
+          if (!seatMap.has(pilotId)) {
+            return reply.code(400).send({
+              error: `Pilot ${pilotId} is not on craft ${callsign}`,
+            });
+          }
+        }
+
+        try {
+          const core = coreShare(
+            areas.map((a) => ({ pilotIdentifier: a.pilotId, area: a.area })),
+            seatMap,
+          );
+          const previousSummary = summarizeControls(craft.controls);
+          craft.controls = fromCoreControlState(core);
+
+          const areaSummary = areas.map((a) => `${a.pilotId}:${a.area}`).join(", ");
+          appendBlackBoxEntry(
+            app,
+            name,
+            craft,
+            areas[0]?.pilotId ?? "system",
+            BlackBoxEntryType.Observation,
+            `Controls switched to shared mode [${areaSummary}] (was ${previousSummary})`,
+          );
+          app.craftStore.set(name, craft);
+          publishCraftEvent(app, name, craft, "craft.controls.changed", {
+            controls: craft.controls,
           });
+          return reply.send(craft.controls);
+        } catch (err) {
+          if (err instanceof ControlsError) {
+            return reply.code(403).send({ error: err.message, ruleId: err.ruleId });
+          }
+          throw err;
         }
-      }
-
-      try {
-        const core = coreShare(
-          areas.map((a) => ({ pilotIdentifier: a.pilotId, area: a.area })),
-          seatMap,
-        );
-        const previousSummary = summarizeControls(craft.controls);
-        craft.controls = fromCoreControlState(core);
-
-        const areaSummary = areas.map((a) => `${a.pilotId}:${a.area}`).join(", ");
-        appendBlackBoxEntry(
-          app,
-          name,
-          craft,
-          areas[0]?.pilotId ?? "system",
-          BlackBoxEntryType.Observation,
-          `Controls switched to shared mode [${areaSummary}] (was ${previousSummary})`,
-        );
-        app.craftStore.set(name, craft);
-        publishCraftEvent(app, name, craft, "craft.controls.changed", {
-          controls: craft.controls,
-        });
-        return reply.send(craft.controls);
-      } catch (err) {
-        if (err instanceof ControlsError) {
-          return reply.code(403).send({ error: err.message, ruleId: err.ruleId });
-        }
-        throw err;
-      }
+      });
     },
   );
 }

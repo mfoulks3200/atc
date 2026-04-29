@@ -218,3 +218,19 @@ pnpm run build
 | Coverage | `pnpm run test -- --coverage` | 90% minimum on changed files |
 | UX review | UX impact triage; subtask if user-facing | UX Designer sign-off on user-facing changes |
 | Spec compliance | Review against `docs/specification.md` | No discrepancies, or spec updated |
+
+## QA Review Handoff
+
+Once all checklist steps pass, set the issue to `in_review` and assign it to the QA Lead.
+
+**SLA commitment from QA Lead:** Any `in_review` issue assigned to the QA Lead will be picked up within one heartbeat cycle of assignment. The QA Lead scans for `in_review` items at the start of every heartbeat with the same urgency as `in_progress` work.
+
+**If pickup is delayed:** The QA Lead will post a comment on the issue explaining the blocker and the estimated pickup time. No escalation @-mentions should be needed.
+
+**What QA Lead checks:** In addition to re-running the automated checklist gates above, the QA review verifies:
+- Spec compliance against `docs/specification.md` RULE-* identifiers
+- Edge case coverage in tests (state machine transitions, permission boundaries, error paths)
+- Lint passes (`pnpm run lint`) — this is checked independently, not taken on faith
+- No regressions in existing tests
+
+If the review surfaces blockers, the QA Lead will set the issue back to `in_progress`, reassign to the implementer, and leave a comment with every blocker listed explicitly. Address each blocker and resubmit for a follow-up review pass.

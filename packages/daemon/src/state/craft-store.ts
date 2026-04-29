@@ -10,6 +10,7 @@
 
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { Mutex } from "async-mutex";
 import type { AgentUsageReport, CraftState, IntercomMessage } from "../types.js";
 import { atomicWriteJson, readJsonSafe } from "./persistence.js";
 
@@ -19,12 +20,17 @@ import { atomicWriteJson, readJsonSafe } from "./persistence.js";
  * Internal storage is a two-level `Map<projectName, Map<callsign, CraftState>>`.
  * Persistence is provided by `atomicWriteJson` / `readJsonSafe`.
  *
+ * Multi-step read-modify-write operations (lifecycle transitions, controls
+ * claim/share, black-box appends, vector reports) must use `withCraftLock` to
+ * prevent concurrent callers from interleaving mutations on the same craft.
+ *
  * @see RULE-CRAFT-1 for craft identity rules.
  * @see RULE-CRAFT-5 for intercom usage constraints.
  */
 export class CraftStore {
   private readonly _stateDir: string;
   private readonly _projects: Map<string, Map<string, CraftState>> = new Map();
+  private readonly _mutexes: Map<string, Map<string, Mutex>> = new Map();
 
   /**
    * @param stateDir - Root directory where project sub-trees are stored.
@@ -66,6 +72,20 @@ export class CraftStore {
     return projectMap;
   }
 
+  private _getMutex(projectName: string, callsign: string): Mutex {
+    let projectMutexes = this._mutexes.get(projectName);
+    if (projectMutexes === undefined) {
+      projectMutexes = new Map();
+      this._mutexes.set(projectName, projectMutexes);
+    }
+    let mutex = projectMutexes.get(callsign);
+    if (mutex === undefined) {
+      mutex = new Mutex();
+      projectMutexes.set(callsign, mutex);
+    }
+    return mutex;
+  }
+
   // ---------------------------------------------------------------------------
   // Public API - synchronous mutations
   // ---------------------------------------------------------------------------
@@ -91,6 +111,42 @@ export class CraftStore {
   }
 
   /**
+   * Returns all craft states for the given project, or an empty array if the
+   * project is not known.
+   *
+   * @param projectName - Name of the project.
+   */
+  listForProject(projectName: string): CraftState[] {
+    const projectMap = this._projects.get(projectName);
+    if (projectMap === undefined) return [];
+    return Array.from(projectMap.values());
+  }
+
+  /**
+   * Returns every craft state across all projects.
+   */
+  listAll(): CraftState[] {
+    const result: CraftState[] = [];
+    for (const projectMap of this._projects.values()) {
+      result.push(...projectMap.values());
+    }
+    return result;
+  }
+
+  /**
+   * Returns every craft state across all projects, paired with its project name.
+   */
+  listAllWithProject(): Array<{ projectName: string; craft: CraftState }> {
+    const result: Array<{ projectName: string; craft: CraftState }> = [];
+    for (const [projectName, projectMap] of this._projects.entries()) {
+      for (const craft of projectMap.values()) {
+        result.push({ projectName, craft });
+      }
+    }
+    return result;
+  }
+
+  /**
    * Removes a craft from the store.
    * No-ops if the project or callsign is not present.
    *
@@ -99,33 +155,29 @@ export class CraftStore {
    */
   remove(projectName: string, callsign: string): void {
     this._projects.get(projectName)?.delete(callsign);
+    this._mutexes.get(projectName)?.delete(callsign);
   }
 
   /**
-   * Returns all craft states for a given project.
+   * Acquires the per-craft mutex and runs `fn` exclusively.
+   *
+   * All multi-step read-modify-write operations on a single craft (lifecycle
+   * transitions, controls claim/share, black-box appends, vector reports) must
+   * be wrapped in this method to prevent concurrent callers from interleaving
+   * their mutations.
+   *
+   * Single-step reads (`get`, `listForProject`, `listAll`) do not need the lock.
    *
    * @param projectName - Name of the project.
+   * @param callsign - Aviation callsign of the craft.
+   * @param fn - Async callback to run while holding the lock.
+   * @returns The value returned by `fn`.
+   *
+   * @see RULE-CTRL-7 for controls transfer atomicity.
+   * @see RULE-BBOX-2 for black-box append-only invariant.
    */
-  listForProject(projectName: string): CraftState[] {
-    const projectMap = this._projects.get(projectName);
-    if (projectMap === undefined) {
-      return [];
-    }
-    return Array.from(projectMap.values());
-  }
-
-  /**
-   * Returns every craft across all projects as `{ projectName, craft }` pairs.
-   * Useful for global operations like TFRs that span projects.
-   */
-  listAll(): Array<{ projectName: string; craft: CraftState }> {
-    const result: Array<{ projectName: string; craft: CraftState }> = [];
-    for (const [projectName, projectMap] of this._projects) {
-      for (const craft of projectMap.values()) {
-        result.push({ projectName, craft });
-      }
-    }
-    return result;
+  async withCraftLock<T>(projectName: string, callsign: string, fn: () => Promise<T>): Promise<T> {
+    return this._getMutex(projectName, callsign).runExclusive(fn);
   }
 
   /**

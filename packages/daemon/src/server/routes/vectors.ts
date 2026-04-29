@@ -75,42 +75,48 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const { name, callsign, vectorName } = request.params;
       const { evidence } = request.body;
-      const craft = app.craftStore.get(name, callsign);
 
-      if (!craft) {
+      if (!app.craftStore.get(name, callsign)) {
         return reply.code(404).send({ error: `Craft not found: ${callsign}` });
       }
 
-      const vector = craft.flightPlan.find((v) => v.name === vectorName);
-      if (!vector) {
-        return reply.code(404).send({ error: `Vector not found: ${vectorName}` });
-      }
+      return app.craftStore.withCraftLock(name, callsign, async () => {
+        const craft = app.craftStore.get(name, callsign);
+        if (!craft) {
+          return reply.code(404).send({ error: `Craft not found: ${callsign}` });
+        }
 
-      // RULE-VEC-2: must be the next Pending vector in order
-      const nextPending = craft.flightPlan.find((v) => v.status === "Pending");
-      if (!nextPending || nextPending.name !== vectorName) {
-        return reply.code(409).send({
-          error: `Vector "${vectorName}" is not the next pending vector`,
-        });
-      }
+        const vector = craft.flightPlan.find((v) => v.name === vectorName);
+        if (!vector) {
+          return reply.code(404).send({ error: `Vector not found: ${vectorName}` });
+        }
 
-      vector.status = "Passed";
-      vector.evidence = evidence;
-      vector.reportedAt = new Date().toISOString();
+        // RULE-VEC-2: must be the next Pending vector in order
+        const nextPending = craft.flightPlan.find((v) => v.status === "Pending");
+        if (!nextPending || nextPending.name !== vectorName) {
+          return reply.code(409).send({
+            error: `Vector "${vectorName}" is not the next pending vector`,
+          });
+        }
 
-      appendBlackBoxEntry(
-        app,
-        name,
-        craft,
-        craft.captain,
-        BlackBoxEntryType.VectorPassed,
-        `Vector "${vectorName}" passed with evidence: ${evidence}`,
-      );
+        vector.status = "Passed";
+        vector.evidence = evidence;
+        vector.reportedAt = new Date().toISOString();
 
-      app.craftStore.set(name, craft);
-      publishCraftEvent(app, name, craft, "craft.vector.reported", { vector });
+        appendBlackBoxEntry(
+          app,
+          name,
+          craft,
+          craft.captain,
+          BlackBoxEntryType.VectorPassed,
+          `Vector "${vectorName}" passed with evidence: ${evidence}`,
+        );
 
-      return reply.send(craft.flightPlan);
+        app.craftStore.set(name, craft);
+        publishCraftEvent(app, name, craft, "craft.vector.reported", { vector });
+
+        return reply.send(craft.flightPlan);
+      });
     },
   );
 }
