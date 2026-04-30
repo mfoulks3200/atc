@@ -2,11 +2,12 @@
 
 **Version:** 0.4.1
 **Status:** Draft
-**Date:** 2026-04-29
+**Date:** 2026-04-30
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
 
+- 0.4.1 (2026-04-30): Fix two consistency issues in adversarial review rules: RULE-FIND-4 now explicitly authorizes inspector `open → closed` (false positive withdrawal); RULE-FIND-5 and RULE-VEC-7 standardized on `closed` as the gate for vector passage (AIR-476).
 - 0.4.0 (2026-04-29): Add Adversarial Review protocol (§2.8, §4.8), Inspector seat type (RULE-SEAT-5, RULE-SEAT-6), `UnderReview` vector status (RULE-VEC-6 through RULE-VEC-8), Finding entity (RULE-FIND-1 through RULE-FIND-7), adversarial BBOX entry types (RULE-BBOX-5 through RULE-BBOX-7), review protocol rules (RULE-ADVR-1 through RULE-ADVR-6), and notification rules (RULE-NOTIFY-1, RULE-NOTIFY-2). Supersedes earlier VSDD adversarial review rules (RULE-VEC-6–9, RULE-CTRL-3a from AIR-294).
 - 0.3.2 (2026-04-30): Add constraint dry-run API and structured constraint failure response shape — `?dryRun=true` on `reportVector`, `ConstraintCheckResult`, `ConstraintFailure`, `ConstraintCheckFailed` black box entry, captain override with justification (RULE-VRPT-5 through RULE-VRPT-10, §4.1.1, AIR-324).
 - 0.3.1 (2026-04-28): Define integrity bar live-update strategy — triggered poll via `craft.blackbox.appended` (RULE-BBOX-9a, AIR-342).
@@ -322,7 +323,7 @@ A **vector** is a defined milestone that a craft must pass through during its fl
 | ------------- | ------------- | --------------------------------------------------------------------- |
 | `Pending`     | `Passed`      | Pilot reports vector passed (no inspector assigned).                  |
 | `Pending`     | `UnderReview` | Inspector begins adversarial review of the vector.                    |
-| `UnderReview` | `Passed`      | Inspector approves; all findings resolved or closed.                  |
+| `UnderReview` | `Passed`      | Inspector approves; all critical/major findings closed.               |
 | `UnderReview` | `Failed`      | Inspector fails the review citing unresolved critical/major findings. |
 | `Failed`      | `Pending`     | Pilot addresses failures and resubmits the vector.                    |
 
@@ -334,7 +335,7 @@ A **vector** is a defined milestone that a craft must pass through during its fl
 - **RULE-VEC-4:** A craft MUST NOT enter the Landing Checklist phase until all vectors in its flight plan have been passed and reported.
 - **RULE-VEC-5:** If a vector's acceptance criteria cannot be met, the pilot MAY declare an emergency (see Section 4.3).
 - **RULE-VEC-6:** When an inspector is assigned to a craft, a vector MUST enter `UnderReview` status before it can transition to `Passed`. The inspector initiates review by recording an `AdversarialReviewStarted` entry in the black box.
-- **RULE-VEC-7:** A vector in `UnderReview` status MUST NOT transition to `Passed` while any finding with severity `critical` or `major` remains in `open` or `acknowledged` status. All such findings MUST be `resolved` or `closed` before the inspector can approve the vector.
+- **RULE-VEC-7:** A vector in `UnderReview` status MUST NOT transition to `Passed` while any finding with severity `critical` or `major` remains in `open`, `acknowledged`, or `resolved` status. All such findings MUST be `closed` before the inspector can approve the vector.
 - **RULE-VEC-8:** Only the assigned inspector MAY transition a vector from `UnderReview` to `Passed` or `Failed`. The implementing crew (captain, first officers) MUST NOT approve or fail their own vectors under review.
 
 ### 2.5 Origin Airport
@@ -440,11 +441,11 @@ A **finding** is a structured record of an issue discovered by an inspector duri
 
 #### Finding Severity
 
-| Severity   | Impact                                                                                  |
-| ---------- | --------------------------------------------------------------------------------------- |
-| `critical` | Blocks vector passage. MUST be resolved before the vector can transition to `Passed`.   |
-| `major`    | Blocks vector passage. MUST be resolved before the vector can transition to `Passed`.   |
-| `minor`    | Does NOT block vector passage. SHOULD be resolved but MAY be closed with justification. |
+| Severity   | Impact                                                                                         |
+| ---------- | ---------------------------------------------------------------------------------------------- |
+| `critical` | Blocks vector passage. MUST be `closed` before the vector can transition to `Passed`.          |
+| `major`    | Blocks vector passage. MUST be `closed` before the vector can transition to `Passed`.          |
+| `minor`    | Does NOT block vector passage. SHOULD be resolved but MAY be closed with justification.        |
 
 #### Finding Status Transitions
 
@@ -461,8 +462,8 @@ A **finding** is a structured record of an issue discovered by an inspector duri
 - **RULE-FIND-1:** A finding MUST have a unique identifier within the craft, a target vector, an inspector, a description, a severity, and an initial status of `open`.
 - **RULE-FIND-2:** Only an inspector MAY submit a finding. Findings MUST be filed against a specific vector in the craft's flight plan.
 - **RULE-FIND-3:** Only the implementing crew (captain or first officer) MAY transition a finding from `open` to `acknowledged` or from `acknowledged` to `resolved`. The inspector MUST NOT resolve their own findings.
-- **RULE-FIND-4:** Only the inspector who submitted the finding (or another inspector on the craft) MAY transition a finding from `resolved` to `closed` or from `resolved` back to `open`.
-- **RULE-FIND-5:** Findings with severity `critical` or `major` MUST be resolved and closed before the associated vector can transition from `UnderReview` to `Passed` (see RULE-VEC-7).
+- **RULE-FIND-4:** Only the inspector who submitted the finding (or another inspector on the craft) MAY transition a finding from `open` to `closed` (withdrawing a false positive), from `resolved` to `closed` (verifying the fix), or from `resolved` back to `open` (rejecting the resolution).
+- **RULE-FIND-5:** Findings with severity `critical` or `major` MUST be `closed` before the associated vector can transition from `UnderReview` to `Passed`. The inspector verifies the builder's resolution before closing (see RULE-VEC-7, RULE-FIND-4).
 - **RULE-FIND-6:** Findings with severity `minor` MAY be closed by the inspector without resolution, but the closure reason MUST be recorded in the black box.
 - **RULE-FIND-7:** Every finding status transition MUST be recorded in the black box using the appropriate adversarial entry type (see §2.1.1).
 
@@ -969,7 +970,7 @@ Adversarial review is triggered when an inspector is assigned to a craft. Once a
 4. During review, the inspector MAY submit zero or more findings (see §2.8).
 5. For each finding submitted, an `AdversarialFindingSubmitted` entry is recorded in the black box, and a notification is sent to the builder (captain) and any first officers.
 6. The implementing crew acknowledges and addresses findings. Each acknowledgment and resolution is recorded in the black box.
-7. Once all `critical` and `major` findings are `resolved` or `closed`, the inspector MAY approve the vector, transitioning it to `Passed` with an `AdversarialReviewPassed` entry.
+7. Once all `critical` and `major` findings are `closed`, the inspector MAY approve the vector, transitioning it to `Passed` with an `AdversarialReviewPassed` entry.
 8. If the inspector determines that unresolved findings make the vector unacceptable, they MAY fail the vector, transitioning it to `Failed` with an `AdversarialReviewFailed` entry. The implementing crew addresses the failures and resubmits.
 
 #### 4.8.3 Concurrency
@@ -1124,8 +1125,8 @@ Adversarial review is triggered when an inspector is assigned to a craft. Once a
 | RULE-FIND-1   | Finding must have unique ID, vector, inspector, description, severity, status open.                   | 2.8     |
 | RULE-FIND-2   | Only inspector may submit findings; must target a specific vector.                                    | 2.8     |
 | RULE-FIND-3   | Only implementing crew may acknowledge/resolve findings.                                              | 2.8     |
-| RULE-FIND-4   | Only inspector may close or reopen resolved findings.                                                 | 2.8     |
-| RULE-FIND-5   | Critical/major findings must be resolved/closed before vector passes.                                 | 2.8     |
+| RULE-FIND-4   | Inspector may withdraw open findings or close/reopen resolved ones.                                   | 2.8     |
+| RULE-FIND-5   | Critical/major findings must be closed before vector passes.                                          | 2.8     |
 | RULE-FIND-6   | Minor findings may be closed without resolution; reason recorded.                                     | 2.8     |
 | RULE-FIND-7   | Every finding status transition recorded in black box.                                                | 2.8     |
 | RULE-ADVR-1   | Only one active review per vector at a time.                                                          | 4.8.3   |
