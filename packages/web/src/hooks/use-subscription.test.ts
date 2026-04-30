@@ -69,4 +69,34 @@ describe("mapEventToQueryUpdate", () => {
       keys: [["tower", "acme"]],
     });
   });
+
+  it("maps tower:project channel event to project-scoped tower key invalidation", () => {
+    const result = mapEventToQueryUpdate({
+      type: "event",
+      channel: "tower:acme",
+      event: "tower.queue.updated",
+      timestamp: "2026-03-26T14:32:01.000Z",
+      data: { project: "acme" },
+    });
+
+    expect(result).toEqual({
+      strategy: "invalidate",
+      keys: [["tower", "acme"]],
+    });
+  });
+
+  it("maps tower:project channel event without project data to bare tower key invalidation", () => {
+    const result = mapEventToQueryUpdate({
+      type: "event",
+      channel: "tower:acme",
+      event: "tower.queue.updated",
+      timestamp: "2026-03-26T14:32:01.000Z",
+      data: {},
+    });
+
+    expect(result).toEqual({
+      strategy: "invalidate",
+      keys: [["tower"]],
+    });
+  });
 });
