@@ -128,6 +128,18 @@ export class TowerStore {
   }
 
   /**
+   * Returns all per-project queues as an array of `{ projectName, queue }` pairs.
+   * Useful for global operations such as metrics collection.
+   */
+  listAll(): Array<{ projectName: string; queue: QueueEntry[] }> {
+    const result: Array<{ projectName: string; queue: QueueEntry[] }> = [];
+    for (const [projectName, queue] of this._queues) {
+      result.push({ projectName, queue: [...queue] });
+    }
+    return result;
+  }
+
+  /**
    * Reads the queue for a project from
    * `stateDir/projects/<project>/tower.json`.
    *
