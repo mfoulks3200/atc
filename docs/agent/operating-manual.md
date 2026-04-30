@@ -167,6 +167,18 @@ Once the checklist passes, the captain (or a first officer) contacts the tower:
 
 The tower will verify your vector reports and branch status before granting clearance. `RULE-TMRG-1, RULE-TMRG-2`
 
+### If clearance is denied
+
+The tower may deny clearance after you are in the landing queue — for example, if a merge conflict is detected against main, or if a checklist regression is identified. When this happens the craft transitions from `ClearedToLand` back to `GoAround`. `RULE-LIFE-9`
+
+1. Read the denial reason from the black box `TowerDequeued` entry.
+2. Record a `GoAround` entry noting the denial reason and your plan to address it.
+3. Resolve the reported conflict or regression (rebase, fix the failing check, etc.).
+4. Re-run the landing checklist.
+5. If all checks pass, request clearance again.
+
+Treat a tower denial the same way you treat a checklist failure — it is another go-around, not an emergency.
+
 ## 6. Emergencies
 
 If the craft cannot be landed — after repeated go-around failures or an unresolvable vector — the captain declares an emergency.
