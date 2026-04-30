@@ -2,11 +2,11 @@
 
 **Version:** 0.4.0
 **Status:** Draft
-**Date:** 2026-04-28
+**Date:** 2026-04-29
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
-- 0.4.0 (2026-04-28): Add VSDD adversarial review rules (RULE-VEC-6 through RULE-VEC-9, RULE-CTRL-3a). Introduces `adversarial_review` vector type with reviewer identity constraint and mandatory controls handoff.
+- 0.4.0 (2026-04-29): Add Adversarial Review protocol (§2.8, §4.8), Inspector seat type (RULE-SEAT-5, RULE-SEAT-6), `UnderReview` vector status (RULE-VEC-6 through RULE-VEC-8), Finding entity (RULE-FIND-1 through RULE-FIND-7), adversarial BBOX entry types (RULE-BBOX-5 through RULE-BBOX-7), review protocol rules (RULE-ADVR-1 through RULE-ADVR-6), and notification rules (RULE-NOTIFY-1, RULE-NOTIFY-2). Supersedes earlier VSDD adversarial review rules (RULE-VEC-6–9, RULE-CTRL-3a from AIR-294).
 - 0.3.0 (2026-04-21): Add UX Review protocol (§4.7, RULE-UXR-1 through RULE-UXR-5).
 - 0.2.0 (2026-04-21): Add Spec-Driven Development protocol (§2.7, §4.6, RULE-SDD-1 through RULE-SDD-17).
 
@@ -45,6 +45,9 @@ This document is the authoritative reference for ATC's domain model, lifecycle, 
 | Emergency        | A declaration that a craft cannot be landed; triggers return to origin.          |
 | Temporary Flight Restriction (TFR) | An externally imposed pause on agent activity, scoped globally, per-project, or per-craft. |
 | Spec Document    | A structured YAML/JSON document that fully describes a proposed craft — cargo, category, vectors, and pilot hints — submitted to ATC to create a craft automatically. |
+| Inspector        | A certified reviewer occupying the inspector seat on a craft; can read all code, submit findings, and block vector passage, but cannot modify code or hold controls. |
+| Finding          | A structured record of an issue discovered during adversarial review, tied to a specific vector, with severity and lifecycle status. |
+| Adversarial Review | A verification protocol in which an inspector independently evaluates a vector's deliverables and submits findings before the vector can pass. |
 | Spec-Driven Development (SDD) | The protocol by which ATC automatically creates and optionally launches a craft from a submitted spec document. |
 | Selection Count  | A per-pilot monotonic counter tracking how many times a pilot has been auto-selected as captain or first officer, used for equitable workload distribution in SDD. |
 | Adversarial Review Vector | A vector of type `adversarial_review` in a flight plan. Requires a designated reviewer pilot who is different from the pilot who completed the preceding vector, and mandates an exclusive controls handoff before the review begins. |
@@ -67,6 +70,8 @@ A **craft** is the fundamental unit of work in ATC. Each craft represents a sing
 | Captain        | `Pilot`             | Required. Exactly one per craft.   |
 | First Officers | `Pilot[]`           | Zero or more. Must be certified for craft's category. |
 | Jumpseaters    | `Pilot[]`           | Zero or more. No certification required. |
+| Inspectors     | `Pilot[]`           | Zero or more. Must be certified for craft's category. See 2.2.3. |
+| Findings       | `Finding[]`         | Zero or more. Adversarial review findings. See 2.8. |
 | Flight Plan    | `Vector[]`          | Ordered. Assigned at creation, defines all required vectors. |
 | Black Box      | `BlackBoxEntry[]`   | Append-only. Created at Taxiing phase. See 2.1.1. |
 | Controls       | `ControlState`      | See 2.2.4. |
@@ -120,6 +125,12 @@ The **black box** is an append-only log maintained on every craft throughout its
 | `MergeStale`            | Tower attempted a merge but the craft's branch was not up to date with main. The craft is sent on a go-around. |
 | `MergeConflict`         | Tower attempted a merge but encountered conflicts. The craft is sent on a go-around to resolve them. |
 | `SpecCreated`           | The craft was created from a spec document via SDD. Records the submitter identity, submission source, spec title, and whether autoLaunch was requested and executed or suppressed (with reason). The raw spec document is attached. |
+| `AdversarialReviewStarted` | An inspector has been assigned to review a vector. Records: inspector identifier, vector name, and review start timestamp. |
+| `AdversarialFindingSubmitted` | An inspector has submitted a finding against a vector. Records: finding ID, vector name, severity, and description. |
+| `AdversarialFindingAcknowledged` | The builder (captain or first officer) has acknowledged a finding. Records: finding ID, acknowledging pilot, and optional initial response. |
+| `AdversarialFindingResolved` | The builder has marked a finding as addressed. Records: finding ID, resolving pilot, and resolution description. |
+| `AdversarialReviewPassed` | The inspector has closed the review with no open findings. Records: inspector identifier, vector name, and count of findings resolved. |
+| `AdversarialReviewFailed` | The inspector has closed the review citing unresolved findings. Records: inspector identifier, vector name, and list of unresolved finding IDs with severities. |
 
 ##### Rules
 
@@ -127,6 +138,9 @@ The **black box** is an append-only log maintained on every craft throughout its
 - **RULE-BBOX-2:** Black box entries are append-only. No entry may be modified or deleted once recorded.
 - **RULE-BBOX-3:** All pilots (captain, first officers, and jumpseaters) MAY write to the black box.
 - **RULE-BBOX-4:** In the event of an emergency declaration, the complete black box MUST be provided to the origin airport as the primary artifact for investigation.
+- **RULE-BBOX-5:** Every adversarial review lifecycle event MUST be recorded in the black box using the corresponding entry type (`AdversarialReviewStarted`, `AdversarialFindingSubmitted`, `AdversarialFindingAcknowledged`, `AdversarialFindingResolved`, `AdversarialReviewPassed`, `AdversarialReviewFailed`).
+- **RULE-BBOX-6:** An `AdversarialFindingSubmitted` entry MUST include the finding ID, target vector name, severity (`critical`, `major`, or `minor`), and a description of the issue.
+- **RULE-BBOX-7:** An `AdversarialReviewPassed` or `AdversarialReviewFailed` entry MUST include the inspector identifier, the vector name, and a summary of finding disposition (count resolved, count unresolved with IDs and severities).
 
 ### 2.2 Pilot
 
@@ -160,11 +174,12 @@ A **craft category** represents a type or scale of change. Categories are projec
 
 Every pilot on a craft occupies exactly one **seat**:
 
-| Seat          | Certification Required | Can Modify Code | Cardinality       |
-| ------------- | ---------------------- | --------------- | ----------------- |
-| Captain       | Yes                    | Yes             | Exactly 1         |
-| First Officer | Yes                    | Yes             | 0 or more         |
-| Jumpseat      | No                     | **No**          | 0 or more         |
+| Seat          | Certification Required | Can Modify Code | Can Submit Findings | Cardinality       |
+| ------------- | ---------------------- | --------------- | ------------------- | ----------------- |
+| Captain       | Yes                    | Yes             | No                  | Exactly 1         |
+| First Officer | Yes                    | Yes             | No                  | 0 or more         |
+| Inspector     | Yes                    | **No**          | **Yes**             | 0 or more         |
+| Jumpseat      | No                     | **No**          | No                  | 0 or more         |
 
 ##### Rules
 
@@ -172,6 +187,8 @@ Every pilot on a craft occupies exactly one **seat**:
 - **RULE-SEAT-2:** A pilot MAY only occupy the captain or first officer seat if they hold a certification for the craft's category.
 - **RULE-SEAT-3:** A pilot who is not certified for the craft's category MAY only board in the jumpseat.
 - **RULE-SEAT-4:** A pilot MAY occupy seats on multiple crafts concurrently.
+- **RULE-SEAT-5:** A pilot MAY only occupy the inspector seat if they hold a certification for the craft's category. An inspector has read access to all code on the craft's branch, MAY submit findings against any vector, and MAY block vector passage by leaving findings unresolved. An inspector MUST NOT modify code or hold controls.
+- **RULE-SEAT-6:** A pilot MUST NOT occupy both an implementation seat (captain or first officer) and the inspector seat on the same craft. The inspector MUST be independent of the implementing crew.
 
 #### 2.2.4 Controls
 
@@ -194,7 +211,7 @@ A craft has a single set of **controls** that govern which pilot(s) are actively
 ##### Rules
 
 - **RULE-CTRL-1:** At craft creation, the captain holds exclusive controls by default.
-- **RULE-CTRL-2:** Only the captain or a first officer MAY claim controls. Jumpseaters MUST NOT hold controls.
+- **RULE-CTRL-2:** Only the captain or a first officer MAY claim controls. Jumpseaters and inspectors MUST NOT hold controls.
 - **RULE-CTRL-3:** A pilot MUST NOT modify code on the craft's branch unless they currently hold controls (exclusively or within their shared area).
 - **RULE-CTRL-3a:** During adversarial review (while an `adversarial_review` vector is the active vector), the designated reviewer MUST hold exclusive controls. The builder MUST release controls and the reviewer MUST acknowledge the handoff before the vector can be entered. All control transfers for adversarial review MUST be recorded in the black box per RULE-CTRL-7.
 - **RULE-CTRL-4:** Pilots SHOULD claim exclusive controls for changes that risk conflicts if done concurrently.
@@ -244,13 +261,21 @@ A **vector** is a defined milestone that a craft must pass through during its fl
 
 #### Properties
 
-| Property            | Type             | Constraints                                                                      |
-| ------------------- | ---------------- | -------------------------------------------------------------------------------- |
-| Name                | `string`         | Required. Short, descriptive identifier.                                         |
-| Acceptance Criteria | `string`         | Required. Specific, verifiable conditions.                                       |
-| Status              | `VectorStatus`   | One of: `Pending`, `Passed`, `Failed`.                                           |
-| Type                | `VectorType`     | `standard` (default) or `adversarial_review`. If unset, defaults to `standard`. |
-| Reviewer Pilot ID   | `string \| null` | Required when `type` is `adversarial_review`. `null` for standard vectors.      |
+| Property            | Type             | Constraints                                      |
+| ------------------- | ---------------- | ------------------------------------------------ |
+| Name                | `string`         | Required. Short, descriptive identifier.         |
+| Acceptance Criteria | `string`         | Required. Specific, verifiable conditions.       |
+| Status              | `VectorStatus`   | One of: `Pending`, `UnderReview`, `Passed`, `Failed`. |
+
+##### Vector Status Transitions
+
+| From          | To            | Trigger                                                     |
+| ------------- | ------------- | ----------------------------------------------------------- |
+| `Pending`     | `Passed`      | Pilot reports vector passed (no inspector assigned).        |
+| `Pending`     | `UnderReview` | Inspector begins adversarial review of the vector.          |
+| `UnderReview` | `Passed`      | Inspector approves; all findings resolved or closed.        |
+| `UnderReview` | `Failed`      | Inspector fails the review citing unresolved critical/major findings. |
+| `Failed`      | `Pending`     | Pilot addresses failures and resubmits the vector.          |
 
 #### Rules
 
@@ -259,10 +284,9 @@ A **vector** is a defined milestone that a craft must pass through during its fl
 - **RULE-VEC-3:** When a craft passes through a vector, the pilot MUST report it to ATC (see Section 4.1).
 - **RULE-VEC-4:** A craft MUST NOT enter the Landing Checklist phase until all vectors in its flight plan have been passed and reported.
 - **RULE-VEC-5:** If a vector's acceptance criteria cannot be met, the pilot MAY declare an emergency (see Section 4.3).
-- **RULE-VEC-6:** A Vector MAY carry a `type` of `standard` (default) or `adversarial_review`. If `type` is unset, it MUST be treated as `standard`.
-- **RULE-VEC-7:** An `adversarial_review` vector MUST specify a `reviewerPilotId` at flight plan creation. The designated reviewer MUST NOT be the pilot who filed the most recent preceding vector report on this craft.
-- **RULE-VEC-8:** A pilot MAY NOT file a passing vector report for an `adversarial_review` vector if they filed the immediately preceding standard vector report on this craft.
-- **RULE-VEC-9:** The designated reviewer for an `adversarial_review` vector MUST hold a Captain or First Officer seat on the craft at the time the vector is entered.
+- **RULE-VEC-6:** When an inspector is assigned to a craft, a vector MUST enter `UnderReview` status before it can transition to `Passed`. The inspector initiates review by recording an `AdversarialReviewStarted` entry in the black box.
+- **RULE-VEC-7:** A vector in `UnderReview` status MUST NOT transition to `Passed` while any finding with severity `critical` or `major` remains in `open` or `acknowledged` status. All such findings MUST be `resolved` or `closed` before the inspector can approve the vector.
+- **RULE-VEC-8:** Only the assigned inspector MAY transition a vector from `UnderReview` to `Passed` or `Failed`. The implementing crew (captain, first officers) MUST NOT approve or fail their own vectors under review.
 
 ### 2.5 Origin Airport
 
@@ -346,6 +370,52 @@ A **spec document** is a structured YAML or JSON document submitted to ATC to au
 - **RULE-SDD-5:** If an explicit callsign override is provided, it MUST be unique across all crafts in the project. A collision MUST be rejected with `CALLSIGN_CONFLICT`.
 - **RULE-SDD-6:** If an explicit `pilots.captain` is provided, that pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
 - **RULE-SDD-7:** If explicit `pilots.firstOfficers` are provided, each listed pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
+
+### 2.8 Finding
+
+A **finding** is a structured record of an issue discovered by an inspector during adversarial review of a vector. Findings are the primary mechanism by which an inspector communicates defects, risks, or gaps to the implementing crew.
+
+#### Properties
+
+| Property    | Type                                          | Constraints                                                        |
+| ----------- | --------------------------------------------- | ------------------------------------------------------------------ |
+| Identifier  | `string`                                      | Unique within the craft. Immutable after creation.                 |
+| Vector ID   | `string`                                      | Required. The vector this finding is filed against.                |
+| Inspector   | `string`                                      | Required. Identifier of the inspector who submitted the finding.   |
+| Description | `string`                                      | Required. Clear description of the issue found.                    |
+| Severity    | `"critical" \| "major" \| "minor"`            | Required. Determines whether the finding blocks vector passage.    |
+| Status      | `"open" \| "acknowledged" \| "resolved" \| "closed"` | Required. Lifecycle status of the finding. Initial: `open`.       |
+| Response    | `string \| null`                              | Optional. The builder's response or explanation of the resolution. |
+| Created At  | `Date`                                        | Required. Timestamp when the finding was submitted.                |
+| Updated At  | `Date`                                        | Required. Timestamp of the most recent status change.              |
+
+#### Finding Severity
+
+| Severity   | Impact                                                                                         |
+| ---------- | ---------------------------------------------------------------------------------------------- |
+| `critical` | Blocks vector passage. MUST be resolved before the vector can transition to `Passed`.          |
+| `major`    | Blocks vector passage. MUST be resolved before the vector can transition to `Passed`.          |
+| `minor`    | Does NOT block vector passage. SHOULD be resolved but MAY be closed with justification.        |
+
+#### Finding Status Transitions
+
+| From           | To             | Actor                  | Description                                         |
+| -------------- | -------------- | ---------------------- | --------------------------------------------------- |
+| `open`         | `acknowledged` | Captain or First Officer | Builder acknowledges the finding and begins work.  |
+| `open`         | `closed`       | Inspector              | Inspector withdraws a finding (e.g., false positive). |
+| `acknowledged` | `resolved`     | Captain or First Officer | Builder marks the finding as addressed with a response. |
+| `resolved`     | `closed`       | Inspector              | Inspector verifies the resolution and closes the finding. |
+| `resolved`     | `open`         | Inspector              | Inspector rejects the resolution; finding reopened.  |
+
+#### Rules
+
+- **RULE-FIND-1:** A finding MUST have a unique identifier within the craft, a target vector, an inspector, a description, a severity, and an initial status of `open`.
+- **RULE-FIND-2:** Only an inspector MAY submit a finding. Findings MUST be filed against a specific vector in the craft's flight plan.
+- **RULE-FIND-3:** Only the implementing crew (captain or first officer) MAY transition a finding from `open` to `acknowledged` or from `acknowledged` to `resolved`. The inspector MUST NOT resolve their own findings.
+- **RULE-FIND-4:** Only the inspector who submitted the finding (or another inspector on the craft) MAY transition a finding from `resolved` to `closed` or from `resolved` back to `open`.
+- **RULE-FIND-5:** Findings with severity `critical` or `major` MUST be resolved and closed before the associated vector can transition from `UnderReview` to `Passed` (see RULE-VEC-7).
+- **RULE-FIND-6:** Findings with severity `minor` MAY be closed by the inspector without resolution, but the closure reason MUST be recorded in the black box.
+- **RULE-FIND-7:** Every finding status transition MUST be recorded in the black box using the appropriate adversarial entry type (see §2.1.1).
 
 ## 3. Craft Lifecycle
 
@@ -726,6 +796,42 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 - **RULE-UXR-4:** Changes to the web package MUST maintain or improve accessibility: sufficient color contrast (WCAG AA), keyboard navigability, and screen-reader-compatible markup.
 - **RULE-UXR-5:** Destructive or irreversible actions MUST require explicit user confirmation before execution. Users MUST be able to recover from errors without losing in-progress work.
 
+### 4.8 Adversarial Review Protocol
+
+Adversarial review is a verification protocol in which an inspector independently evaluates a vector's deliverables before the vector can pass. The inspector acts as an adversarial verifier — their role is to find defects, not to confirm success.
+
+#### 4.8.1 Applicability
+
+Adversarial review is triggered when an inspector is assigned to a craft. Once an inspector is aboard, all vectors in the craft's flight plan are subject to review before they can transition to `Passed`.
+
+#### 4.8.2 Review Procedure
+
+1. The implementing pilot completes work on a vector and reports readiness to ATC.
+2. ATC transitions the vector to `UnderReview` and records an `AdversarialReviewStarted` entry in the black box.
+3. The inspector reviews the vector's deliverables against the acceptance criteria.
+4. During review, the inspector MAY submit zero or more findings (see §2.8).
+5. For each finding submitted, an `AdversarialFindingSubmitted` entry is recorded in the black box, and a notification is sent to the builder (captain) and any first officers.
+6. The implementing crew acknowledges and addresses findings. Each acknowledgment and resolution is recorded in the black box.
+7. Once all `critical` and `major` findings are `resolved` or `closed`, the inspector MAY approve the vector, transitioning it to `Passed` with an `AdversarialReviewPassed` entry.
+8. If the inspector determines that unresolved findings make the vector unacceptable, they MAY fail the vector, transitioning it to `Failed` with an `AdversarialReviewFailed` entry. The implementing crew addresses the failures and resubmits.
+
+#### 4.8.3 Concurrency
+
+- **RULE-ADVR-1:** Only one adversarial review MAY be active per vector at a time. A vector in `UnderReview` status MUST NOT have a second review initiated until the current review concludes (with `AdversarialReviewPassed` or `AdversarialReviewFailed`).
+- **RULE-ADVR-2:** An inspector MAY review multiple vectors on the same craft concurrently, provided each vector is in `UnderReview` status independently.
+- **RULE-ADVR-3:** The implementing crew MAY continue work on subsequent vectors while a prior vector is `UnderReview`, subject to RULE-VEC-2 (vectors must be passed in order). A vector that has not yet been approved by the inspector is not considered passed.
+
+#### 4.8.4 Notification Requirements
+
+- **RULE-NOTIFY-1:** When an `AdversarialFindingSubmitted` entry is recorded, the system MUST notify the captain and all first officers on the craft via the intercom. The notification MUST include the finding ID, severity, target vector, and a summary of the description.
+- **RULE-NOTIFY-2:** When an `AdversarialReviewPassed` or `AdversarialReviewFailed` entry is recorded, the system MUST notify the captain and all first officers via the intercom with the review outcome and summary.
+
+#### 4.8.5 Rules
+
+- **RULE-ADVR-4:** An inspector MUST NOT review a vector that is still in `Pending` status. The implementing pilot must first report the vector as ready.
+- **RULE-ADVR-5:** If all findings on a vector are `minor` severity and the inspector chooses to approve, the vector MAY transition to `Passed` even if minor findings remain `open`. The inspector MUST record the rationale in the `AdversarialReviewPassed` black box entry.
+- **RULE-ADVR-6:** The adversarial review protocol does not replace the landing checklist (§4.2). A craft with an inspector must still pass its landing checklist after all vectors are approved.
+
 ## 5. Appendices
 
 ### Appendix A: Rule Index
@@ -742,14 +848,19 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-BBOX-2    | Black box entries are append-only, immutable.                        | 2.1.1   |
 | RULE-BBOX-3    | All pilots (including jumpseaters) may write to black box.           | 2.1.1   |
 | RULE-BBOX-4    | Complete black box provided to origin on emergency.                  | 2.1.1   |
+| RULE-BBOX-5    | Every adversarial review event must use the corresponding entry type.| 2.1.1   |
+| RULE-BBOX-6    | AdversarialFindingSubmitted must include finding ID, vector, severity, description. | 2.1.1 |
+| RULE-BBOX-7    | AdversarialReviewPassed/Failed must include inspector, vector, finding summary. | 2.1.1 |
 | RULE-PILOT-1   | Pilot identifier must be unique.                                     | 2.2.1   |
 | RULE-PILOT-2   | Certifications determine captain/FO eligibility.                     | 2.2.1   |
 | RULE-SEAT-1    | Craft must have exactly one captain.                                 | 2.2.3   |
 | RULE-SEAT-2    | Captain/FO requires certification for craft's category.              | 2.2.3   |
 | RULE-SEAT-3    | Uncertified pilots may only board in jumpseat.                       | 2.2.3   |
 | RULE-SEAT-4    | Pilot may occupy seats on multiple crafts concurrently.              | 2.2.3   |
+| RULE-SEAT-5    | Inspector seat requires certification; read-all, submit findings, block vectors; no code/controls. | 2.2.3 |
+| RULE-SEAT-6    | Inspector must not also hold implementation seat on same craft.      | 2.2.3   |
 | RULE-CTRL-1    | Captain holds exclusive controls at craft creation.                  | 2.2.4   |
-| RULE-CTRL-2    | Only captain/FO may hold controls; jumpseaters never.               | 2.2.4   |
+| RULE-CTRL-2    | Only captain/FO may hold controls; jumpseaters and inspectors never. | 2.2.4  |
 | RULE-CTRL-3    | Must hold controls to modify code.                                   | 2.2.4   |
 | RULE-CTRL-3a   | Adversarial reviewer holds exclusive controls; builder must release before vector entry. | 2.2.4 |
 | RULE-CTRL-4    | Should use exclusive controls for conflict-prone changes.            | 2.2.4   |
@@ -770,10 +881,9 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-VEC-3     | Pilot must report vector passage to ATC.                             | 2.4     |
 | RULE-VEC-4     | All vectors must be passed before Landing Checklist.                 | 2.4     |
 | RULE-VEC-5     | May declare emergency if vector criteria cannot be met.              | 2.4     |
-| RULE-VEC-6     | Vector type is `standard` (default) or `adversarial_review`.        | 2.4     |
-| RULE-VEC-7     | adversarial_review vector must specify reviewerPilotId; reviewer must not have filed the preceding vector report. | 2.4 |
-| RULE-VEC-8     | Pilot may not file passing report for adversarial_review vector if they filed the immediately preceding standard report. | 2.4 |
-| RULE-VEC-9     | Designated reviewer must hold Captain or First Officer seat at vector entry. | 2.4 |
+| RULE-VEC-6     | With inspector, vector must enter UnderReview before Passed.         | 2.4     |
+| RULE-VEC-7     | UnderReview → Passed blocked while critical/major findings open.     | 2.4     |
+| RULE-VEC-8     | Only inspector may approve/fail vectors under review.                | 2.4     |
 | RULE-ORIG-1    | Unlandable crafts must be sent to origin airport.                    | 2.5     |
 | RULE-ORIG-2    | Origin receives callsign, cargo, flight plan, and black box.        | 2.5     |
 | RULE-ORIG-3    | Origin diagnoses root cause and decides re-plan/re-scope/abandon.   | 2.5     |
@@ -841,3 +951,18 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-UXR-3     | All user-visible states covered: success, error, loading, empty.     | 4.7.3   |
 | RULE-UXR-4     | Web changes must maintain/improve accessibility (WCAG AA).           | 4.7.3   |
 | RULE-UXR-5     | Destructive actions require confirmation; errors must be recoverable.| 4.7.3   |
+| RULE-FIND-1    | Finding must have unique ID, vector, inspector, description, severity, status open. | 2.8 |
+| RULE-FIND-2    | Only inspector may submit findings; must target a specific vector.   | 2.8     |
+| RULE-FIND-3    | Only implementing crew may acknowledge/resolve findings.             | 2.8     |
+| RULE-FIND-4    | Only inspector may close or reopen resolved findings.                | 2.8     |
+| RULE-FIND-5    | Critical/major findings must be resolved/closed before vector passes.| 2.8     |
+| RULE-FIND-6    | Minor findings may be closed without resolution; reason recorded.    | 2.8     |
+| RULE-FIND-7    | Every finding status transition recorded in black box.               | 2.8     |
+| RULE-ADVR-1    | Only one active review per vector at a time.                         | 4.8.3   |
+| RULE-ADVR-2    | Inspector may review multiple vectors concurrently.                  | 4.8.3   |
+| RULE-ADVR-3    | Crew may work on subsequent vectors while prior is under review.     | 4.8.3   |
+| RULE-ADVR-4    | Inspector must not review a vector still in Pending status.          | 4.8.5   |
+| RULE-ADVR-5    | Vector may pass with open minor findings if inspector approves.      | 4.8.5   |
+| RULE-ADVR-6    | Adversarial review does not replace the landing checklist.           | 4.8.5   |
+| RULE-NOTIFY-1  | System must notify captain/FOs on AdversarialFindingSubmitted.       | 4.8.4   |
+| RULE-NOTIFY-2  | System must notify captain/FOs on review passed/failed.              | 4.8.4   |
