@@ -84,7 +84,7 @@ export async function metricsRoutes(app: FastifyInstance): Promise<void> {
     // ------------------------------------------------------------------
     const allCrafts = app.craftStore.listAll();
     const craftCountByStatus = new Map<string, number>(CRAFT_STATUSES.map((s) => [s, 0]));
-    for (const { craft } of allCrafts) {
+    for (const craft of allCrafts) {
       const current = craftCountByStatus.get(craft.status) ?? 0;
       craftCountByStatus.set(craft.status, current + 1);
     }
