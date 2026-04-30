@@ -134,6 +134,64 @@ describe("tower routes", () => {
       expect(res.statusCode).toBe(404);
     });
   });
+
+  describe("DELETE /api/v1/projects/:name/tower/:callsign", () => {
+    it("removes craft from queue and transitions ClearedToLand → GoAround (RULE-LIFE-2)", async () => {
+      seedCraft(true);
+      // Promote to ClearedToLand so the transition is valid per RULE-LIFE-2.
+      craftStore.set(PROJECT, { ...craftStore.get(PROJECT, "charlie-1")!, status: CraftStatus.ClearedToLand });
+      towerStore.enqueue(PROJECT, "charlie-1");
+
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/v1/projects/${PROJECT}/tower/charlie-1`,
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ denied: true });
+
+      expect(towerStore.getQueue(PROJECT)).toHaveLength(0);
+
+      const craft = craftStore.get(PROJECT, "charlie-1")!;
+      expect(craft.status).toBe(CraftStatus.GoAround);
+
+      const types = craft.blackBox.map((e) => e.type);
+      expect(types).toContain("TowerDequeued");
+      expect(types).toContain("StateTransition");
+    });
+
+    it("returns 404 for unknown craft", async () => {
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/v1/projects/${PROJECT}/tower/ghost`,
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("returns 409 when craft is not in the queue", async () => {
+      seedCraft(true);
+      // Craft exists but was never enqueued.
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/v1/projects/${PROJECT}/tower/charlie-1`,
+      });
+      expect(res.statusCode).toBe(409);
+    });
+
+    it("returns 409 when craft is in the queue but its status is invalid for GoAround transition", async () => {
+      // Seed craft with InFlight status (not ClearedToLand) and enqueue it.
+      seedCraft(true);
+      // InFlight → GoAround is not in TRANSITIONS, so transitionCraft must reject it.
+      towerStore.enqueue(PROJECT, "charlie-1");
+
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/v1/projects/${PROJECT}/tower/charlie-1`,
+      });
+
+      expect(res.statusCode).toBe(409);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
