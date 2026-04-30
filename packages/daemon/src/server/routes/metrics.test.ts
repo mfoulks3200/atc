@@ -208,5 +208,42 @@ describe("GET /metrics", () => {
 
       expect(response.body).toContain('project="proj\\\\backslash"');
     });
+
+    it("escapes newlines in project names", async () => {
+      app = createApp();
+      app.towerStore.enqueue("proj\nnewline", "ALPHA01");
+
+      const response = await app.inject({ method: "GET", url: "/metrics" });
+
+      expect(response.body).toContain('project="proj\\nnewline"');
+    });
+  });
+
+  describe("unknown status values", () => {
+    it("counts a craft with an unrecognised status without throwing", async () => {
+      app = createApp();
+      app.craftStore.set("proj", {
+        ...makeCraftState("Z"),
+        status: "ghost" as unknown as CraftStatus,
+      });
+
+      const response = await app.inject({ method: "GET", url: "/metrics" });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain('atc_craft_count{status="ghost"} 1');
+    });
+
+    it("counts an agent with an unrecognised status without throwing", async () => {
+      app = createApp();
+      app.agentStore.set({
+        ...makeAgentRecord("x1"),
+        status: "zombie" as unknown as "running",
+      });
+
+      const response = await app.inject({ method: "GET", url: "/metrics" });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain('atc_agent_count{status="zombie"} 1');
+    });
   });
 });

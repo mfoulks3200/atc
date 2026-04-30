@@ -8,6 +8,7 @@
 
 ### Added
 
+- `GET /metrics` — Prometheus text exposition (v0.0.4) endpoint exposing `atc_merge_queue_depth{project}`, `atc_craft_count{status}`, and `atc_agent_count{status}` gauges. Derives agent crash rate via `rate(atc_agent_count{status="terminated"}[5m])`.
 - `publishCraftEvent` / `publishCraftRemoved` helpers (`src/server/routes/broadcast.ts`) — fan out craft mutations to both the per-craft (`craft:<callsign>`) and per-project (`project:<name>`) WebSocket channels as structured `WsEvent` payloads. Called from every mutation route (craft create/delete/launch/checklist/emergency, vector report, intercom post, tower clearance) so subscribed clients receive live updates without polling. Tower clearance additionally emits a `tower:<project>` `tower.queue.changed` event.
 - `appendBlackBoxEntry` helper (`src/server/routes/blackbox-helpers.ts`) — single entry point used by REST routes to append lifecycle events to a craft's black box and broadcast them as `craft.blackbox.appended` WebSocket events on both the per-craft and per-project channels. Wraps the core `createBlackBoxEntry` / `appendToBlackBox` helpers to honor the append-only invariant (RULE-BBOX-2) while normalising timestamps to ISO-8601 for the persisted daemon shape. @see RULE-BBOX-1
 - Lifecycle black box entries recorded by REST routes:
