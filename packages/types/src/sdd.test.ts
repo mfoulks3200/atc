@@ -13,6 +13,20 @@ describe("SpecVector", () => {
     expectTypeOf(v.name).toBeString();
     expectTypeOf(v.criteria).toEqualTypeOf<string[]>();
   });
+
+  it("accepts optional checklists array (RULE-SDD-18)", () => {
+    const v: SpecVector = {
+      name: "Setup DB",
+      criteria: ["migration runs"],
+      checklists: ["tmpl-1", "tmpl-2"],
+    };
+    expectTypeOf(v.checklists).toEqualTypeOf<string[] | undefined>();
+  });
+
+  it("checklists is optional — vector without it is valid", () => {
+    const v: SpecVector = { name: "v", criteria: ["c"] };
+    expectTypeOf(v.checklists).toEqualTypeOf<string[] | undefined>();
+  });
 });
 
 describe("SpecPilotHints", () => {

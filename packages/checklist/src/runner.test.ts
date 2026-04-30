@@ -232,6 +232,26 @@ describe("runChecklist", () => {
     expect(result.passed).toBe(true);
   });
 
+  it("returns failed when mcp-tool executor has no handler provided (RULE-CHKL-1)", async () => {
+    const mcpItem: ChecklistItemDef = {
+      name: "Check Docs",
+      title: "Documentation Coverage",
+      severity: ChecklistItemSeverity.Required,
+      executor: { type: "mcp-tool", tool: "check-docs", params: {} },
+    };
+    const result = await runChecklist({
+      checklistName: "MCP",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "ATC-1",
+      attempt: 1,
+      items: [mcpItem],
+      // intentionally no mcpHandler
+    });
+    expect(result.passed).toBe(false);
+    expect(result.items[0]!.output).toBe("No MCP handler provided");
+    expect(result.items[0]!.agentAssessed).toBe(false);
+  });
+
   it("handles MCP tool executor", async () => {
     const mcpHandler: McpToolHandler = vi.fn().mockResolvedValue({ passed: true, output: "ok" });
     const mcpItem: ChecklistItemDef = {
