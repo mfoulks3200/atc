@@ -18,7 +18,8 @@ import { createWorktree } from "../../git/worktree.js";
 import { getDefaultBranch } from "../../git/merge.js";
 import { listChangedFiles, getFileAtRef, isFileBinary } from "../../git/diff.js";
 import { loadProjectMetadata } from "../../config/loader.js";
-import { runChecklist } from "../../checklist/runner.js";
+import { runChecklist } from "@airtrafficcontrol/checklist";
+import { ChecklistItemSeverity, LifecycleEvent } from "@airtrafficcontrol/types";
 import { publishCraftEvent, publishCraftRemoved } from "./broadcast.js";
 import { appendBlackBoxEntry } from "./blackbox-helpers.js";
 import type { CraftState, VectorState } from "../../types.js";
@@ -359,7 +360,29 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const worktreePath = join(app.profileDir, "projects", name, "crafts", callsign, "worktree");
-      const result = await runChecklist(metadata.checklist, worktreePath);
+
+      // Convert legacy ChecklistItemConfig[] to shared ChecklistItemDef[] format.
+      // Commands are wrapped with `cd <worktreePath> &&` to preserve cwd behaviour.
+      const checklistItems = metadata.checklist.map((item) => ({
+        name: item.name,
+        title: item.name,
+        severity: ChecklistItemSeverity.Required,
+        executor: {
+          type: "shell" as const,
+          command: `cd ${JSON.stringify(worktreePath)} && ${item.command}`,
+        },
+      }));
+
+      const result =
+        checklistItems.length > 0
+          ? await runChecklist({
+              checklistName: "Landing Checklist",
+              event: LifecycleEvent.BeforeLandingCheck,
+              craftCallsign: callsign,
+              attempt: 1,
+              items: checklistItems,
+            })
+          : { passed: true, items: [] as Array<{ name: string; passed: boolean; durationMs: number }> };
 
       // RULE-CHKL-5: per-item granularity in the black box.
       for (const item of result.items) {

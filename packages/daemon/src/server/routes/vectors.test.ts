@@ -4,8 +4,14 @@ import { createApp } from "../app.js";
 import { CraftStore } from "../../state/craft-store.js";
 import { AgentStore } from "../../state/agent-store.js";
 import { TowerStore } from "../../state/tower-store.js";
-import { CraftStatus } from "@airtrafficcontrol/types";
+import { CraftStatus, ChecklistItemSeverity, LifecycleEvent } from "@airtrafficcontrol/types";
+import {
+  createTemplateRegistry,
+  createBindingRegistry,
+  createOverrideStore,
+} from "@airtrafficcontrol/checklist";
 import type { CraftState } from "../../types.js";
+import type { ProjectChecklistRegistries } from "../app.js";
 
 describe("vector routes", () => {
   let app: FastifyInstance;
@@ -120,6 +126,232 @@ describe("vector routes", () => {
         payload: { evidence: "nope" },
       });
       expect(res.statusCode).toBe(404);
+    });
+
+    it("returns 404 for unknown craft callsign on report", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/ghost/vectors/design/report`,
+        payload: { evidence: "should not matter" },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Vector checklist integration (RULE-CHKL-10, RULE-VEC-2)
+  // -------------------------------------------------------------------------
+
+  describe("POST vector report — checklist integration (RULE-CHKL-10)", () => {
+    function makeRegistries(): ProjectChecklistRegistries {
+      return {
+        templates: createTemplateRegistry(),
+        bindings: createBindingRegistry(),
+        overrides: createOverrideStore(),
+      };
+    }
+
+    it("reports vector when no before:vector-complete bindings are registered", async () => {
+      const registries = makeRegistries();
+      const localApp = createApp({
+        craftStore,
+        agentStore: new AgentStore("/tmp/atc-vec-test"),
+        towerStore: new TowerStore("/tmp/atc-vec-test"),
+        projectChecklistRegistries: new Map([[PROJECT, registries]]),
+      });
+
+      try {
+        const res = await localApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+          payload: { evidence: "Design reviewed" },
+        });
+        expect(res.statusCode).toBe(200);
+        const plan = res.json<Array<{ status: string }>>();
+        expect(plan[0].status).toBe("Passed");
+      } finally {
+        await localApp.close();
+      }
+    });
+
+    it("allows vector report when before:vector-complete checklist passes (RULE-CHKL-10)", async () => {
+      const registries = makeRegistries();
+      const template = registries.templates.create({
+        name: "Design gate",
+        items: [
+          {
+            name: "ok",
+            title: "Always passes",
+            description: "Always passes",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "echo ok" },
+          },
+        ],
+      });
+      registries.bindings.create({
+        templateId: template.id,
+        event: LifecycleEvent.BeforeVectorComplete,
+        craftCategory: "backend",
+        vectorName: "design",
+      });
+
+      const localApp = createApp({
+        craftStore,
+        agentStore: new AgentStore("/tmp/atc-vec-test"),
+        towerStore: new TowerStore("/tmp/atc-vec-test"),
+        projectChecklistRegistries: new Map([[PROJECT, registries]]),
+      });
+
+      try {
+        const res = await localApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+          payload: { evidence: "Design reviewed" },
+        });
+        expect(res.statusCode).toBe(200);
+        const plan = res.json<Array<{ status: string }>>();
+        expect(plan[0].status).toBe("Passed");
+      } finally {
+        await localApp.close();
+      }
+    });
+
+    it("blocks vector report and returns 422 when before:vector-complete checklist fails (RULE-CHKL-10)", async () => {
+      const registries = makeRegistries();
+      const template = registries.templates.create({
+        name: "Blocking gate",
+        items: [
+          {
+            name: "fail",
+            title: "Always fails",
+            description: "Always fails",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "exit 1" },
+          },
+        ],
+      });
+      registries.bindings.create({
+        templateId: template.id,
+        event: LifecycleEvent.BeforeVectorComplete,
+        craftCategory: "backend",
+        vectorName: "design",
+      });
+
+      const localApp = createApp({
+        craftStore,
+        agentStore: new AgentStore("/tmp/atc-vec-test"),
+        towerStore: new TowerStore("/tmp/atc-vec-test"),
+        projectChecklistRegistries: new Map([[PROJECT, registries]]),
+      });
+
+      try {
+        const res = await localApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+          payload: { evidence: "Attempted report" },
+        });
+        expect(res.statusCode).toBe(422);
+        const body = res.json<{ code: string; checklistResults: unknown[] }>();
+        expect(body.code).toBe("VECTOR_CHECKLIST_FAILED");
+        expect(body.checklistResults).toHaveLength(1);
+
+        // Vector must not have been marked as Passed.
+        const craft = craftStore.get(PROJECT, "bravo-1")!;
+        expect(craft.flightPlan[0].status).toBe("Pending");
+      } finally {
+        await localApp.close();
+      }
+    });
+
+    it("does not block vector report when after:vector-complete checklist fails (advisory)", async () => {
+      const registries = makeRegistries();
+      const template = registries.templates.create({
+        name: "Post-vector",
+        items: [
+          {
+            name: "advisory",
+            title: "Advisory check",
+            description: "Advisory only",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "exit 1" },
+          },
+        ],
+      });
+      registries.bindings.create({
+        templateId: template.id,
+        event: LifecycleEvent.AfterVectorComplete,
+        craftCategory: "backend",
+        vectorName: "design",
+      });
+
+      const localApp = createApp({
+        craftStore,
+        agentStore: new AgentStore("/tmp/atc-vec-test"),
+        towerStore: new TowerStore("/tmp/atc-vec-test"),
+        projectChecklistRegistries: new Map([[PROJECT, registries]]),
+      });
+
+      try {
+        const res = await localApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+          payload: { evidence: "Design reviewed" },
+        });
+        // After-checklist failure must not block the response.
+        expect(res.statusCode).toBe(200);
+        const plan = res.json<Array<{ status: string }>>();
+        expect(plan[0].status).toBe("Passed");
+
+        // ChecklistRun entry should still be recorded in the black box.
+        const craft = craftStore.get(PROJECT, "bravo-1")!;
+        const checklistEntries = craft.blackBox.filter((e) => e.type === "ChecklistRun");
+        expect(checklistEntries).toHaveLength(1);
+      } finally {
+        await localApp.close();
+      }
+    });
+
+    it("does not apply bindings for a different vector name (RULE-CHKL-10)", async () => {
+      const registries = makeRegistries();
+      const template = registries.templates.create({
+        name: "Implement gate",
+        items: [
+          {
+            name: "fail",
+            title: "Always fails",
+            description: "Always fails",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "exit 1" },
+          },
+        ],
+      });
+      registries.bindings.create({
+        templateId: template.id,
+        event: LifecycleEvent.BeforeVectorComplete,
+        craftCategory: "backend",
+        vectorName: "implement",
+      });
+
+      const localApp = createApp({
+        craftStore,
+        agentStore: new AgentStore("/tmp/atc-vec-test"),
+        towerStore: new TowerStore("/tmp/atc-vec-test"),
+        projectChecklistRegistries: new Map([[PROJECT, registries]]),
+      });
+
+      try {
+        // Reporting "design" — the binding is scoped to "implement" and should not apply.
+        const res = await localApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+          payload: { evidence: "Design reviewed" },
+        });
+        expect(res.statusCode).toBe(200);
+        const plan = res.json<Array<{ status: string }>>();
+        expect(plan[0].status).toBe("Passed");
+      } finally {
+        await localApp.close();
+      }
     });
   });
 });

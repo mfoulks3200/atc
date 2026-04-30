@@ -4,20 +4,22 @@ import { createApp } from "../app.js";
 import { CraftStore } from "../../state/craft-store.js";
 import { AgentStore } from "../../state/agent-store.js";
 import { TowerStore } from "../../state/tower-store.js";
-import type { CraftState } from "../../types.js";
+import type { CraftState, ProjectMetadata } from "../../types.js";
+import { ChecklistItemSeverity, LifecycleEvent } from "@airtrafficcontrol/types";
+import type { ChecklistRunResult } from "@airtrafficcontrol/types";
 
 // Mock filesystem-dependent modules so checklist route tests don't need real disk state
 vi.mock("../../config/loader.js", () => ({
   loadProjectMetadata: vi.fn().mockResolvedValue({
     name: "test-project",
-    repoPath: "/tmp/fake-repo",
     checklist: [{ name: "echo ok", command: "echo ok" }],
-  }),
+  } as unknown as ProjectMetadata),
 }));
 
-vi.mock("../../checklist/runner.js", () => ({
-  runChecklist: vi.fn(),
-}));
+vi.mock("@airtrafficcontrol/checklist", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@airtrafficcontrol/checklist")>();
+  return { ...actual, runChecklist: vi.fn() };
+});
 
 vi.mock("../../git/merge.js", () => ({
   getDefaultBranch: vi.fn().mockResolvedValue("main"),
@@ -29,8 +31,10 @@ vi.mock("../../git/diff.js", () => ({
   isFileBinary: vi.fn().mockResolvedValue(false),
 }));
 
-import { runChecklist } from "../../checklist/runner.js";
+import { runChecklist } from "@airtrafficcontrol/checklist";
 import { listChangedFiles, getFileAtRef, isFileBinary } from "../../git/diff.js";
+import { getDefaultBranch } from "../../git/merge.js";
+import { loadProjectMetadata } from "../../config/loader.js";
 
 describe("craft routes", () => {
   let app: FastifyInstance;
@@ -392,7 +396,15 @@ describe("craft routes", () => {
 
     it("transitions to ClearedToLand when checklist passes", async () => {
       await seedCraftInFlight();
-      vi.mocked(runChecklist).mockResolvedValueOnce({ passed: true, items: [] });
+      vi.mocked(runChecklist).mockResolvedValueOnce({
+        checklistName: "Landing Checklist",
+        event: LifecycleEvent.BeforeLandingCheck,
+        craftCallsign: "alpha-1",
+        attempt: 1,
+        timestamp: new Date().toISOString(),
+        passed: true,
+        items: [],
+      } satisfies ChecklistRunResult);
 
       const res = await app.inject({
         method: "POST",
@@ -410,9 +422,24 @@ describe("craft routes", () => {
     it("transitions to GoAround when checklist fails", async () => {
       await seedCraftInFlight();
       vi.mocked(runChecklist).mockResolvedValueOnce({
+        checklistName: "Landing Checklist",
+        event: LifecycleEvent.BeforeLandingCheck,
+        craftCallsign: "alpha-1",
+        attempt: 1,
+        timestamp: new Date().toISOString(),
         passed: false,
-        items: [{ name: "lint", passed: false, stdout: "", stderr: "error", durationMs: 10 }],
-      });
+        items: [
+          {
+            name: "lint",
+            title: "Lint",
+            passed: false,
+            severity: ChecklistItemSeverity.Required,
+            output: "error",
+            durationMs: 10,
+            agentAssessed: false,
+          },
+        ],
+      } satisfies ChecklistRunResult);
 
       const res = await app.inject({
         method: "POST",
@@ -429,12 +456,32 @@ describe("craft routes", () => {
     it("appends per-item and ChecklistRun entries plus GoAround on failure", async () => {
       await seedCraftInFlight();
       vi.mocked(runChecklist).mockResolvedValueOnce({
+        checklistName: "Landing Checklist",
+        event: LifecycleEvent.BeforeLandingCheck,
+        craftCallsign: "alpha-1",
+        attempt: 1,
+        timestamp: new Date().toISOString(),
         passed: false,
         items: [
-          { name: "tests", passed: true, stdout: "", stderr: "", durationMs: 5 },
-          { name: "lint", passed: false, stdout: "", stderr: "bad", durationMs: 7 },
+          {
+            name: "tests",
+            title: "Tests",
+            passed: true,
+            severity: ChecklistItemSeverity.Required,
+            durationMs: 5,
+            agentAssessed: false,
+          },
+          {
+            name: "lint",
+            title: "Lint",
+            passed: false,
+            severity: ChecklistItemSeverity.Required,
+            output: "bad",
+            durationMs: 7,
+            agentAssessed: false,
+          },
         ],
-      });
+      } satisfies ChecklistRunResult);
 
       await app.inject({
         method: "POST",
@@ -456,9 +503,23 @@ describe("craft routes", () => {
     it("appends ChecklistRun and StateTransition entries on success (no GoAround)", async () => {
       await seedCraftInFlight();
       vi.mocked(runChecklist).mockResolvedValueOnce({
+        checklistName: "Landing Checklist",
+        event: LifecycleEvent.BeforeLandingCheck,
+        craftCallsign: "alpha-1",
+        attempt: 1,
+        timestamp: new Date().toISOString(),
         passed: true,
-        items: [{ name: "tests", passed: true, stdout: "", stderr: "", durationMs: 3 }],
-      });
+        items: [
+          {
+            name: "tests",
+            title: "Tests",
+            passed: true,
+            severity: ChecklistItemSeverity.Required,
+            durationMs: 3,
+            agentAssessed: false,
+          },
+        ],
+      } satisfies ChecklistRunResult);
 
       await app.inject({
         method: "POST",
@@ -483,7 +544,15 @@ describe("craft routes", () => {
       craft.status = "GoAround" as CraftState["status"];
       craftStore.set(PROJECT, craft);
 
-      vi.mocked(runChecklist).mockResolvedValueOnce({ passed: true, items: [] });
+      vi.mocked(runChecklist).mockResolvedValueOnce({
+        checklistName: "Landing Checklist",
+        event: LifecycleEvent.BeforeLandingCheck,
+        craftCallsign: "alpha-1",
+        attempt: 1,
+        timestamp: new Date().toISOString(),
+        passed: true,
+        items: [],
+      } satisfies ChecklistRunResult);
 
       const res = await app.inject({
         method: "POST",
@@ -721,6 +790,76 @@ describe("craft routes", () => {
       expect(body.binary).toBe(true);
       expect(body.original).toBeNull();
       expect(body.modified).toBeNull();
+    });
+
+    it("returns binary flag when base is text but craft branch is binary", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts`,
+        payload: validCraftBody,
+      });
+
+      // First call (base branch): not binary. Second call (craft branch): binary.
+      vi.mocked(isFileBinary).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/diff/files/assets/logo.png`,
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.binary).toBe(true);
+      expect(body.original).toBeNull();
+      expect(body.modified).toBeNull();
+    });
+
+    it("returns 500 when getDefaultBranch throws", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts`,
+        payload: validCraftBody,
+      });
+
+      vi.mocked(getDefaultBranch).mockRejectedValueOnce(new Error("git error"));
+
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/diff/files/src/index.ts`,
+      });
+
+      expect(res.statusCode).toBe(500);
+      expect(res.json<{ error: string }>().error).toMatch(/git error/);
+    });
+  });
+
+  describe("POST /api/v1/projects/:name/crafts/:callsign/checklist — empty config", () => {
+    it("treats empty checklist config as auto-pass (no runChecklist call)", async () => {
+      vi.mocked(runChecklist).mockClear();
+      vi.mocked(loadProjectMetadata).mockResolvedValueOnce({
+        name: PROJECT,
+        checklist: [],
+      } as unknown as ProjectMetadata);
+
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts`,
+        payload: validCraftBody,
+      });
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/launch`,
+      });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json().passed).toBe(true);
+      expect(res.json().status).toBe("ClearedToLand");
+      expect(vi.mocked(runChecklist)).not.toHaveBeenCalled();
     });
   });
 });

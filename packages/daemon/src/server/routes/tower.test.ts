@@ -2,14 +2,21 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "../app.js";
 import { CraftStore } from "../../state/craft-store.js";
 import { AgentStore } from "../../state/agent-store.js";
 import { TowerStore } from "../../state/tower-store.js";
-import { CraftStatus } from "@airtrafficcontrol/types";
+import { CraftStatus, ChecklistItemSeverity, LifecycleEvent } from "@airtrafficcontrol/types";
+import { Tower } from "@airtrafficcontrol/tower";
+import {
+  createTemplateRegistry,
+  createBindingRegistry,
+  createOverrideStore,
+} from "@airtrafficcontrol/checklist";
 import type { CraftState } from "../../types.js";
+import type { ProjectChecklistRegistries } from "../app.js";
 
 describe("tower routes", () => {
   let app: FastifyInstance;
@@ -132,6 +139,173 @@ describe("tower routes", () => {
         payload: { callsign: "ghost" },
       });
       expect(res.statusCode).toBe(404);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Clearance checklist integration (RULE-TMRG-5, RULE-CHKL-13, RULE-CHKL-14)
+  // -------------------------------------------------------------------------
+
+  describe("POST /tower/clearance — checklist integration", () => {
+    function makeRegistries(): ProjectChecklistRegistries {
+      return {
+        templates: createTemplateRegistry(),
+        bindings: createBindingRegistry(),
+        overrides: createOverrideStore(),
+      };
+    }
+
+    it("grants clearance and skips checklists when no bindings are registered (RULE-TMRG-5)", async () => {
+      const registries = makeRegistries();
+      const localApp = createApp({
+        craftStore,
+        towerStore,
+        agentStore: new AgentStore("/tmp/atc-tower-test"),
+        projectChecklistRegistries: new Map([[PROJECT, registries]]),
+      });
+
+      try {
+        seedCraft(true);
+        const res = await localApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/tower/clearance`,
+          payload: { callsign: "charlie-1" },
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json<{ granted: boolean }>().granted).toBe(true);
+      } finally {
+        await localApp.close();
+      }
+    });
+
+    it("grants clearance when clearance checklist passes (RULE-TMRG-5)", async () => {
+      const registries = makeRegistries();
+      const template = registries.templates.create({
+        name: "CI check",
+        items: [
+          {
+            name: "ok",
+            title: "Passing check",
+            description: "Always passes",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "echo ok" },
+          },
+        ],
+      });
+      registries.bindings.create({
+        templateId: template.id,
+        event: LifecycleEvent.BeforeTowerClearance,
+        craftCategory: "backend",
+      });
+
+      const localApp = createApp({
+        craftStore,
+        towerStore,
+        agentStore: new AgentStore("/tmp/atc-tower-test"),
+        projectChecklistRegistries: new Map([[PROJECT, registries]]),
+      });
+
+      try {
+        seedCraft(true);
+        const res = await localApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/tower/clearance`,
+          payload: { callsign: "charlie-1" },
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json<{ granted: boolean }>().granted).toBe(true);
+        expect(towerStore.getQueue(PROJECT)).toHaveLength(1);
+      } finally {
+        await localApp.close();
+      }
+    });
+
+    it("denies clearance and returns 422 when checklist fails (RULE-CHKL-14)", async () => {
+      const registries = makeRegistries();
+      const template = registries.templates.create({
+        name: "Failing check",
+        items: [
+          {
+            name: "fail",
+            title: "Always failing",
+            description: "Always fails",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "exit 1" },
+          },
+        ],
+      });
+      registries.bindings.create({
+        templateId: template.id,
+        event: LifecycleEvent.BeforeTowerClearance,
+        craftCategory: "backend",
+      });
+
+      const localApp = createApp({
+        craftStore,
+        towerStore,
+        agentStore: new AgentStore("/tmp/atc-tower-test"),
+        projectChecklistRegistries: new Map([[PROJECT, registries]]),
+      });
+
+      try {
+        seedCraft(true);
+        const res = await localApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/tower/clearance`,
+          payload: { callsign: "charlie-1" },
+        });
+        expect(res.statusCode).toBe(422);
+        const body = res.json<{ denialReason: string; checklistResults: unknown[] }>();
+        expect(body.denialReason).toBe("checklist-failed");
+        expect(body.checklistResults).toHaveLength(1);
+        expect(towerStore.getQueue(PROJECT)).toHaveLength(0);
+      } finally {
+        await localApp.close();
+      }
+    });
+
+    it("appends ChecklistRun black box entry on checklist failure (RULE-CHKL-14)", async () => {
+      const registries = makeRegistries();
+      const template = registries.templates.create({
+        name: "Failing check",
+        items: [
+          {
+            name: "fail",
+            title: "Always failing",
+            description: "Always fails",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "exit 1" },
+          },
+        ],
+      });
+      registries.bindings.create({
+        templateId: template.id,
+        event: LifecycleEvent.BeforeTowerClearance,
+        craftCategory: "backend",
+      });
+
+      const localApp = createApp({
+        craftStore,
+        towerStore,
+        agentStore: new AgentStore("/tmp/atc-tower-test"),
+        projectChecklistRegistries: new Map([[PROJECT, registries]]),
+      });
+
+      try {
+        seedCraft(true);
+        await localApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/tower/clearance`,
+          payload: { callsign: "charlie-1" },
+        });
+        const craft = craftStore.get(PROJECT, "charlie-1")!;
+        const types = craft.blackBox.map((e) => e.type);
+        expect(types).toContain("ClearanceRequested");
+        expect(types).toContain("ChecklistRun");
+        expect(types).not.toContain("TowerEnqueued");
+      } finally {
+        await localApp.close();
+      }
     });
   });
 });
@@ -345,5 +519,56 @@ describe("tower merge route", () => {
       payload: { callsign: "ghost" },
     });
     expect(res.statusCode).toBe(404);
+  });
+
+  it("returns craft to GoAround and records MergeConflict on conflict (RULE-TMRG-3)", async () => {
+    await seedBareRepo("feature line\n");
+    seedCraftAndQueue();
+
+    vi.spyOn(Tower.prototype, "executeMerge").mockResolvedValueOnce({
+      kind: "conflict",
+      mainBranch: "main",
+      reason: "CONFLICT (content): Merge conflict in feature.txt",
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${PROJECT}/tower/merge`,
+      payload: { callsign: CALLSIGN },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ outcome: string; status: string }>();
+    expect(body.outcome).toBe("conflict");
+    expect(body.status).toBe(CraftStatus.GoAround);
+
+    const craft = craftStore.get(PROJECT, CALLSIGN)!;
+    expect(craft.status).toBe(CraftStatus.GoAround);
+    const types = craft.blackBox.map((e) => e.type);
+    expect(types).toContain("MergeConflict");
+    expect(types).toContain("TowerDequeued");
+    expect(towerStore.getQueue(PROJECT)).toHaveLength(0);
+
+    vi.restoreAllMocks();
+  });
+
+  it("returns 500 when executeMerge throws unexpectedly", async () => {
+    await seedBareRepo("feature line\n");
+    seedCraftAndQueue();
+
+    vi.spyOn(Tower.prototype, "executeMerge").mockRejectedValueOnce(
+      new Error("Unexpected git failure"),
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${PROJECT}/tower/merge`,
+      payload: { callsign: CALLSIGN },
+    });
+
+    expect(res.statusCode).toBe(500);
+    expect(res.json<{ error: string }>().error).toMatch(/Unexpected git failure/);
+
+    vi.restoreAllMocks();
   });
 });

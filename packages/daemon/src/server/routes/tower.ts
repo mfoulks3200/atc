@@ -17,6 +17,8 @@ import { publishCraftEvent } from "./broadcast.js";
 import { appendBlackBoxEntry } from "./blackbox-helpers.js";
 import { createTowerMergeExecutor } from "../../git/tower-merge-executor.js";
 import type { CraftState, WsEvent } from "../../types.js";
+import { DaemonClearanceChecklistRunner } from "../clearance-checklist-runner.js";
+import { getOrCreateProjectChecklistRegistries } from "../app.js";
 
 // ---------------------------------------------------------------------------
 // Request types
@@ -41,6 +43,8 @@ function craftFacade(state: CraftState): Craft {
     callsign: state.callsign,
     branch: state.branch,
     cargo: state.cargo,
+    category: state.category,
+    flightPlan: state.flightPlan,
   } as unknown as Craft;
 }
 
@@ -77,7 +81,15 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
   /**
    * Request landing clearance for a craft.
    *
-   * @see RULE-TOWER-2 — all vectors must be passed before clearance can be granted.
+   * Verifies all vectors are passed (RULE-TOWER-2), then runs any
+   * `before:tower-clearance` checklists (RULE-TMRG-5). Dispatches
+   * `before:tower-clearance` and `after:tower-clearance` events explicitly
+   * (NOT through mapTransitionToEvents — see §4.4 note in spec).
+   *
+   * @see RULE-TOWER-2  — all vectors must be passed before clearance.
+   * @see RULE-TMRG-5   — run clearance checklists after vector check, before enqueue.
+   * @see RULE-CHKL-13  — tower executes before:tower-clearance checklists.
+   * @see RULE-CHKL-14  — deny on required failure; return structured denial payload.
    */
   app.post<{ Params: { name: string }; Body: ClearanceBody }>(
     "/api/v1/projects/:name/tower/clearance",
@@ -101,11 +113,42 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
         `Landing clearance requested for ${callsign}`,
       );
 
-      // RULE-TOWER-2: all vectors must be passed
-      const allPassed = craft.flightPlan.every((v) => v.status === "Passed");
-      if (!allPassed) {
+      const registries = getOrCreateProjectChecklistRegistries(
+        app.projectChecklistRegistries,
+        name,
+      );
+      const checklistRunner = new DaemonClearanceChecklistRunner(registries);
+
+      const tower = new Tower();
+      const craftFacadeObj = craftFacade(craft);
+
+      const result = await tower.requestClearance(craftFacadeObj, checklistRunner);
+
+      if (!result.granted) {
+        if (result.denialReason === "checklist-failed") {
+          // RULE-CHKL-14: record failure details in the black box.
+          appendBlackBoxEntry(
+            app,
+            name,
+            craft,
+            "system",
+            BlackBoxEntryType.ChecklistRun,
+            `Tower clearance checklists failed for ${callsign}`,
+          );
+          app.craftStore.set(name, craft);
+          return reply.code(422).send({
+            error: "Tower clearance checklist failed",
+            code: "CLEARANCE_CHECKLIST_FAILED",
+            denialReason: result.denialReason,
+            checklistResults: result.checklistResults,
+          });
+        }
+        // vectors-incomplete
         app.craftStore.set(name, craft);
-        return reply.code(409).send({ error: "Not all vectors have passed" });
+        return reply.code(409).send({
+          error: "Not all vectors have passed",
+          denialReason: result.denialReason,
+        });
       }
 
       app.towerStore.enqueue(name, callsign);
@@ -118,6 +161,8 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
         `Enqueued on tower landing queue for project ${name}`,
       );
       app.craftStore.set(name, craft);
+
+      // Dispatch after:tower-clearance — explicitly, not via mapTransitionToEvents (§4.4).
       publishCraftEvent(app, name, craft, "craft.clearance.granted");
 
       // Notify tower queue subscribers so list views refresh.

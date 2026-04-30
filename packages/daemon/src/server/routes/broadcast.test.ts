@@ -5,7 +5,8 @@ import { CraftStore } from "../../state/craft-store.js";
 import { AgentStore } from "../../state/agent-store.js";
 import { TowerStore } from "../../state/tower-store.js";
 import { ChannelRegistry } from "../websocket/channels.js";
-import { CraftStatus } from "@airtrafficcontrol/types";
+import { CraftStatus, ChecklistItemSeverity, LifecycleEvent } from "@airtrafficcontrol/types";
+import type { ChecklistRunResult } from "@airtrafficcontrol/types";
 import { publishCraftEvent, publishCraftRemoved } from "./broadcast.js";
 import type { CraftState, WsEvent } from "../../types.js";
 
@@ -17,11 +18,12 @@ vi.mock("../../config/loader.js", () => ({
   }),
 }));
 
-vi.mock("../../checklist/runner.js", () => ({
-  runChecklist: vi.fn(),
-}));
+vi.mock("@airtrafficcontrol/checklist", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@airtrafficcontrol/checklist")>();
+  return { ...actual, runChecklist: vi.fn() };
+});
 
-import { runChecklist } from "../../checklist/runner.js";
+import { runChecklist } from "@airtrafficcontrol/checklist";
 
 const PROJECT = "test-project";
 
@@ -205,7 +207,15 @@ describe("broadcast wiring on mutation routes", () => {
   it("POST /checklist broadcasts checklist.started and checklist.passed on success", async () => {
     seedCraft(craftStore, CraftStatus.InFlight);
     publishSpy.mockClear();
-    vi.mocked(runChecklist).mockResolvedValueOnce({ passed: true, items: [] });
+    vi.mocked(runChecklist).mockResolvedValueOnce({
+      checklistName: "Landing Checklist",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "alpha-1",
+      attempt: 1,
+      timestamp: new Date().toISOString(),
+      passed: true,
+      items: [],
+    } satisfies ChecklistRunResult);
 
     const res = await app.inject({
       method: "POST",
@@ -223,9 +233,24 @@ describe("broadcast wiring on mutation routes", () => {
     seedCraft(craftStore, CraftStatus.InFlight);
     publishSpy.mockClear();
     vi.mocked(runChecklist).mockResolvedValueOnce({
+      checklistName: "Landing Checklist",
+      event: LifecycleEvent.BeforeLandingCheck,
+      craftCallsign: "alpha-1",
+      attempt: 1,
+      timestamp: new Date().toISOString(),
       passed: false,
-      items: [{ name: "lint", passed: false, stdout: "", stderr: "err", durationMs: 1 }],
-    });
+      items: [
+        {
+          name: "lint",
+          title: "Lint",
+          passed: false,
+          severity: ChecklistItemSeverity.Required,
+          output: "err",
+          durationMs: 1,
+          agentAssessed: false,
+        },
+      ],
+    } satisfies ChecklistRunResult);
 
     await app.inject({
       method: "POST",

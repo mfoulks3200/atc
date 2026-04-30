@@ -4,6 +4,7 @@ import { TowerError, EmergencyError } from "@airtrafficcontrol/errors";
 import type {
   QueueEntry,
   ClearanceResult,
+  ClearanceChecklistRunner,
   EmergencyReport,
   MergeOutcome,
   MergeExecutor,
@@ -27,24 +28,40 @@ export class Tower {
 
   /**
    * Request landing clearance for a craft.
-   * Verifies all vectors in the flight plan have Passed status.
-   * If granted, the craft is automatically enqueued for merge.
+   *
+   * Verifies all vectors in the flight plan have Passed status (RULE-TMRG-1), then
+   * executes all `before:tower-clearance` checklists via the optional runner
+   * (RULE-TMRG-5). If all checks pass, the craft is enqueued for merge.
    *
    * @param craft - The craft requesting clearance.
+   * @param checklistRunner - Optional runner for `before:tower-clearance` checklists.
+   *   When omitted, the checklist step is skipped (useful in tests or unconfigured projects).
    * @returns A ClearanceResult indicating whether clearance was granted.
-   * @see RULE-TOWER-2, RULE-TMRG-1, RULE-TMRG-4
+   * @see RULE-TOWER-2, RULE-TMRG-1, RULE-TMRG-4, RULE-TMRG-5, RULE-CHKL-13, RULE-CHKL-14
    */
-  requestClearance(craft: Craft): ClearanceResult {
+  async requestClearance(
+    craft: Craft,
+    checklistRunner?: ClearanceChecklistRunner,
+  ): Promise<ClearanceResult> {
+    // RULE-TMRG-1: all vectors must be Passed before clearance.
     const allPassed = craft.flightPlan.every((v) => v.status === VectorStatus.Passed);
 
     if (!allPassed) {
-      const unpassed = craft.flightPlan
-        .filter((v) => v.status !== VectorStatus.Passed)
-        .map((v) => v.name);
-      return {
-        granted: false,
-        reason: `Landing clearance denied: the following vector(s) have not passed: ${unpassed.join(", ")}`,
-      };
+      return { granted: false, denialReason: "vectors-incomplete" };
+    }
+
+    // RULE-TMRG-5: run before:tower-clearance checklists after vector check, before enqueue.
+    if (checklistRunner !== undefined) {
+      const checklistResults = await checklistRunner.runClearanceChecklists(
+        craft.callsign,
+        craft.category,
+      );
+
+      // RULE-CHKL-14: deny clearance on any required failure; return structured payload.
+      const anyRequiredFailure = checklistResults.some((r) => !r.passed);
+      if (anyRequiredFailure) {
+        return { granted: false, denialReason: "checklist-failed", checklistResults };
+      }
     }
 
     this.enqueue(craft);

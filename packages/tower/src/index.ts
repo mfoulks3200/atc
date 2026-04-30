@@ -1,6 +1,7 @@
 export type {
   QueueEntry,
   ClearanceResult,
+  ClearanceChecklistRunner,
   EmergencyReport,
   MergeOutcome,
   MergeExecutor,

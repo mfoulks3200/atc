@@ -31,6 +31,22 @@ import { craftsGlobalRoutes } from "./routes/crafts-global.js";
 import type { LayeredConfigStore } from "../config/layered-store.js";
 import type { GlobalConfig, ProjectMetadataConfig } from "../config/schema.js";
 import { PilotConfigStore } from "../config/pilot-config-store.js";
+import {
+  createTemplateRegistry,
+  createBindingRegistry,
+  createOverrideStore,
+} from "@airtrafficcontrol/checklist";
+
+/**
+ * Per-project checklist registries — templates, bindings, and per-craft overrides.
+ * Created once at startup per project and injected into route handlers.
+ * @see RULE-CHKL-1, RULE-CHKL-2, RULE-CHKL-3
+ */
+export interface ProjectChecklistRegistries {
+  readonly templates: ReturnType<typeof createTemplateRegistry>;
+  readonly bindings: ReturnType<typeof createBindingRegistry>;
+  readonly overrides: ReturnType<typeof createOverrideStore>;
+}
 
 /**
  * Options passed to {@link createApp}.
@@ -62,6 +78,31 @@ export interface AppOptions {
   projectConfigStores?: Map<string, LayeredConfigStore<ProjectMetadataConfig>>;
   /** Store for per-pilot configuration (in-memory). */
   pilotConfigStore?: PilotConfigStore;
+  /** Map of project name -> per-project checklist registries (templates, bindings, overrides). */
+  projectChecklistRegistries?: Map<string, ProjectChecklistRegistries>;
+}
+
+/**
+ * Get-or-create the checklist registries for a given project.
+ * Registries are initialised lazily the first time they are accessed.
+ *
+ * @param registriesMap - The shared map stored on the FastifyInstance.
+ * @param projectName - The project to look up or create registries for.
+ * @returns The (possibly freshly created) registries for that project.
+ */
+export function getOrCreateProjectChecklistRegistries(
+  registriesMap: Map<string, ProjectChecklistRegistries>,
+  projectName: string,
+): ProjectChecklistRegistries {
+  const existing = registriesMap.get(projectName);
+  if (existing !== undefined) return existing;
+  const fresh: ProjectChecklistRegistries = {
+    templates: createTemplateRegistry(),
+    bindings: createBindingRegistry(),
+    overrides: createOverrideStore(),
+  };
+  registriesMap.set(projectName, fresh);
+  return fresh;
 }
 
 /**
@@ -98,6 +139,10 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
           options.channelRegistry ?? app.channelRegistry,
         ),
       ),
+  );
+  app.decorate(
+    "projectChecklistRegistries",
+    options.projectChecklistRegistries ?? new Map<string, ProjectChecklistRegistries>(),
   );
 
   void app.register(websocket);
@@ -187,5 +232,7 @@ declare module "fastify" {
     projectConfigStores: Map<string, LayeredConfigStore<ProjectMetadataConfig>>;
     /** In-memory store for per-pilot config. */
     pilotConfigStore: PilotConfigStore;
+    /** Map of project name -> per-project checklist registries. */
+    projectChecklistRegistries: Map<string, ProjectChecklistRegistries>;
   }
 }

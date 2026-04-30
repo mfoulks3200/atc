@@ -7,7 +7,9 @@ import {
 } from "@airtrafficcontrol/types";
 import type { Craft } from "@airtrafficcontrol/types";
 import { Tower, createTower } from "./tower.js";
-import type { MergeExecutor, MergeOutcome } from "./types.js";
+import type { ClearanceChecklistRunner, MergeExecutor, MergeOutcome } from "./types.js";
+import type { ChecklistRunResult } from "@airtrafficcontrol/types";
+import { ChecklistItemSeverity, LifecycleEvent } from "@airtrafficcontrol/types";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -211,22 +213,21 @@ describe("Tower.requestClearance", () => {
     tower = createTower();
   });
 
-  it("grants clearance when all vectors are passed (RULE-TOWER-2)", () => {
+  it("grants clearance when all vectors are passed (RULE-TOWER-2)", async () => {
     const craft = makeReadyCraft("CLEAR-1");
-    const result = tower.requestClearance(craft);
+    const result = await tower.requestClearance(craft);
     expect(result.granted).toBe(true);
-    expect(result.reason).toBeUndefined();
+    expect(result.denialReason).toBeUndefined();
   });
 
-  it("denies clearance when any vector is not passed (RULE-TOWER-2, RULE-TMRG-1)", () => {
+  it("denies clearance when any vector is not passed (RULE-TOWER-2, RULE-TMRG-1)", async () => {
     const craft = makeUnreadyCraft("DENY-1");
-    const result = tower.requestClearance(craft);
+    const result = await tower.requestClearance(craft);
     expect(result.granted).toBe(false);
-    expect(result.reason).toBeDefined();
-    expect(result.reason).toContain("vector");
+    expect(result.denialReason).toBe("vectors-incomplete");
   });
 
-  it("denies clearance when a vector has Failed status", () => {
+  it("denies clearance when a vector has Failed status", async () => {
     const craft = makeCraft({
       callsign: "FAIL-VEC",
       flightPlan: [
@@ -242,31 +243,124 @@ describe("Tower.requestClearance", () => {
         },
       ],
     });
-    const result = tower.requestClearance(craft);
+    const result = await tower.requestClearance(craft);
     expect(result.granted).toBe(false);
-    expect(result.reason).toBeDefined();
+    expect(result.denialReason).toBe("vectors-incomplete");
   });
 
-  it("grants clearance for a craft with an empty flight plan (no vectors to fail)", () => {
+  it("grants clearance for a craft with an empty flight plan (no vectors to fail)", async () => {
     const craft = makeCraft({
       callsign: "EMPTY-FP",
       flightPlan: [],
       status: CraftStatus.LandingChecklist,
     });
-    const result = tower.requestClearance(craft);
+    const result = await tower.requestClearance(craft);
     expect(result.granted).toBe(true);
   });
 
-  it("enqueues the craft when clearance is granted (RULE-TMRG-4)", () => {
+  it("enqueues the craft when clearance is granted (RULE-TMRG-4)", async () => {
     const craft = makeReadyCraft("AUTO-Q");
-    tower.requestClearance(craft);
+    await tower.requestClearance(craft);
     expect(tower.queueSize).toBe(1);
     expect(tower.peek()!.craft.callsign).toBe("AUTO-Q");
   });
 
-  it("does not enqueue the craft when clearance is denied", () => {
+  it("does not enqueue the craft when clearance is denied", async () => {
     const craft = makeUnreadyCraft("NO-Q");
-    tower.requestClearance(craft);
+    await tower.requestClearance(craft);
+    expect(tower.queueSize).toBe(0);
+  });
+
+  // --- checklist runner integration (RULE-TMRG-5, RULE-CHKL-13, RULE-CHKL-14) ---
+
+  function makePassingRunner(): ClearanceChecklistRunner {
+    return {
+      runClearanceChecklists: async (): Promise<readonly ChecklistRunResult[]> => [
+        {
+          checklistName: "Pre-merge checks",
+          event: LifecycleEvent.BeforeTowerClearance,
+          craftCallsign: "ANY",
+          attempt: 1,
+          timestamp: new Date().toISOString(),
+          passed: true,
+          items: [
+            {
+              name: "ci",
+              title: "CI passes",
+              passed: true,
+              severity: ChecklistItemSeverity.Required,
+              durationMs: 100,
+              agentAssessed: false,
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  function makeFailingRunner(): ClearanceChecklistRunner {
+    return {
+      runClearanceChecklists: async (): Promise<readonly ChecklistRunResult[]> => [
+        {
+          checklistName: "Pre-merge checks",
+          event: LifecycleEvent.BeforeTowerClearance,
+          craftCallsign: "ANY",
+          attempt: 1,
+          timestamp: new Date().toISOString(),
+          passed: false,
+          items: [
+            {
+              name: "ci",
+              title: "CI passes",
+              passed: false,
+              severity: ChecklistItemSeverity.Required,
+              message: "Build failed",
+              durationMs: 100,
+              agentAssessed: false,
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  it("grants clearance when checklist runner passes all items (RULE-TMRG-5)", async () => {
+    const craft = makeReadyCraft("CL-PASS");
+    const result = await tower.requestClearance(craft, makePassingRunner());
+    expect(result.granted).toBe(true);
+    expect(tower.queueSize).toBe(1);
+  });
+
+  it("denies clearance and returns structured payload when checklist fails (RULE-CHKL-14)", async () => {
+    const craft = makeReadyCraft("CL-FAIL");
+    const result = await tower.requestClearance(craft, makeFailingRunner());
+    expect(result.granted).toBe(false);
+    expect(result.denialReason).toBe("checklist-failed");
+    expect(result.checklistResults).toBeDefined();
+    expect(result.checklistResults!.length).toBe(1);
+    expect(result.checklistResults![0].passed).toBe(false);
+    expect(tower.queueSize).toBe(0);
+  });
+
+  it("does not enqueue craft when checklist fails (RULE-CHKL-14)", async () => {
+    const craft = makeReadyCraft("CL-NOEQ");
+    await tower.requestClearance(craft, makeFailingRunner());
+    expect(tower.queueSize).toBe(0);
+  });
+
+  it("runs no checklists when runner is omitted (backward compatible)", async () => {
+    const craft = makeReadyCraft("NO-RUNNER");
+    const result = await tower.requestClearance(craft);
+    expect(result.granted).toBe(true);
+    expect(tower.queueSize).toBe(1);
+  });
+
+  it("vector check takes priority over checklist (RULE-TMRG-1 before RULE-TMRG-5)", async () => {
+    const craft = makeUnreadyCraft("VEC-FIRST");
+    const result = await tower.requestClearance(craft, makePassingRunner());
+    expect(result.granted).toBe(false);
+    expect(result.denialReason).toBe("vectors-incomplete");
+    expect(result.checklistResults).toBeUndefined();
     expect(tower.queueSize).toBe(0);
   });
 });
@@ -334,9 +428,9 @@ describe("Tower.declareEmergency", () => {
     expect(emergencyEntries[0].author).toBe("pilot-a");
   });
 
-  it("removes the craft from the queue if it was enqueued", () => {
+  it("removes the craft from the queue if it was enqueued", async () => {
     const craft = makeReadyCraft("QUEUED-SOS");
-    tower.requestClearance(craft);
+    await tower.requestClearance(craft);
     expect(tower.queueSize).toBe(1);
     tower.declareEmergency(craft, "pilot-a", "Changed our mind");
     expect(tower.queueSize).toBe(0);

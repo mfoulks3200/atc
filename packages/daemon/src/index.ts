@@ -100,13 +100,6 @@ export { initBareRepo, cloneBareRepo, fetchBareRepo } from "./git/bare-repo.js";
 export { createWorktree, removeWorktree } from "./git/worktree.js";
 
 // ---------------------------------------------------------------------------
-// Checklist runner
-// ---------------------------------------------------------------------------
-
-export { runChecklist } from "./checklist/runner.js";
-export type { ChecklistResult, ChecklistItemResult } from "./checklist/runner.js";
-
-// ---------------------------------------------------------------------------
 // Process utilities
 // ---------------------------------------------------------------------------
 

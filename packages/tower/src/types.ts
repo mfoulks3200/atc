@@ -1,4 +1,4 @@
-import type { Craft, FlightPlan, BlackBoxEntry } from "@airtrafficcontrol/types";
+import type { Craft, FlightPlan, BlackBoxEntry, ChecklistRunResult } from "@airtrafficcontrol/types";
 
 /**
  * A craft waiting in the merge queue.
@@ -14,14 +14,48 @@ export interface QueueEntry {
 
 /**
  * Result of a landing clearance request.
- * Granted means the craft may proceed to merge; denied includes a reason.
- * @see RULE-TOWER-2, RULE-TMRG-1
+ * Granted means the craft may proceed to merge; denied includes a structured denial payload.
+ * @see RULE-TOWER-2, RULE-TMRG-1, RULE-CHKL-14
  */
 export interface ClearanceResult {
   /** Whether landing clearance was granted. */
   readonly granted: boolean;
-  /** If denied, the reason clearance was not granted. */
-  readonly reason?: string;
+  /**
+   * If denied, the machine-readable reason.
+   * `"vectors-incomplete"` — not all vectors have Passed status (RULE-TMRG-1).
+   * `"checklist-failed"` — a required tower clearance checklist item failed (RULE-CHKL-14).
+   * @see RULE-CHKL-14
+   */
+  readonly denialReason?: "vectors-incomplete" | "checklist-failed";
+  /**
+   * Present when `denialReason` is `"checklist-failed"`.
+   * Contains per-template checklist results so the caller can surface item-level detail.
+   * @see RULE-CHKL-14
+   */
+  readonly checklistResults?: readonly ChecklistRunResult[];
+}
+
+/**
+ * Callback interface injected into the tower to run `before:tower-clearance` checklists.
+ *
+ * Keeping this interface in the tower package (and not importing the checklist package directly)
+ * prevents a circular dependency: the daemon supplies the concrete implementation.
+ *
+ * @see RULE-CHKL-13, RULE-TMRG-5
+ */
+export interface ClearanceChecklistRunner {
+  /**
+   * Resolve and execute all checklists bound to `before:tower-clearance` for the given craft.
+   *
+   * @param craftCallsign - The callsign of the craft requesting clearance.
+   * @param craftCategory - The category of the craft (used for binding resolution).
+   * @returns Per-template checklist results in binding registration order.
+   * @see RULE-CHKL-13
+   */
+  runClearanceChecklists(
+    craftCallsign: string,
+    craftCategory: string,
+  ): Promise<readonly ChecklistRunResult[]>;
 }
 
 /**
