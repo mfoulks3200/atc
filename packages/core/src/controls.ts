@@ -99,6 +99,33 @@ export function shareControls(
 }
 
 /**
+ * Validates that the builder has released exclusive controls before an
+ * `adversarial_review` vector can be entered.
+ *
+ * An `adversarial_review` vector requires a peer reviewer distinct from the
+ * builder. The builder must explicitly transfer or release exclusive controls
+ * before the review phase can begin. Controls in Shared mode are treated as
+ * implicitly released for this purpose (the builder no longer holds
+ * sole authority).
+ *
+ * @param controls - The current control state of the craft.
+ * @param builderId - Identifier of the pilot who filed the preceding vector report.
+ * @throws {ControlsError} If the builder still holds exclusive controls.
+ * @see RULE-CTRL-3a
+ */
+export function validateControlsReleasedForAdversarialReview(
+  controls: ControlState,
+  builderId: string,
+): void {
+  if (controls.mode === ControlMode.Exclusive && controls.holder === builderId) {
+    throw new ControlsError(
+      `Pilot "${builderId}" must release exclusive controls before an adversarial_review vector can begin [RULE-CTRL-3a]`,
+      "RULE-CTRL-3a",
+    );
+  }
+}
+
+/**
  * Checks whether a pilot currently holds controls on a craft.
  *
  * In Exclusive mode, returns true only for the single holder.

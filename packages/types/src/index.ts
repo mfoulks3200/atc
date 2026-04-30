@@ -4,6 +4,7 @@ export {
   ControlMode,
   VectorType,
   VectorStatus,
+  VectorType,
   BlackBoxEntryType,
   CraftCategoryEnum,
 } from "./enums.js";

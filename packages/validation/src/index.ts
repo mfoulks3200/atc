@@ -8,3 +8,8 @@ export {
   validateSpecCallsign,
   validateSpecPilots,
 } from "./spec.js";
+export {
+  isAdversarialReviewVector,
+  validateAdversarialReviewerIdentity,
+  validateAdversarialReviewerSeat,
+} from "./vector.js";

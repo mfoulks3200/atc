@@ -4,6 +4,8 @@
 
 ### Added
 
+- `validateControlsReleasedForAdversarialReview(controls, builderId)` — throws `ControlsError` (RULE-CTRL-3a) if the builder still holds exclusive controls when an `adversarial_review` vector is about to begin.
+
 - `createTfr(params: CreateTfrParams): TemporaryFlightRestriction` — creates a new TFR with validation. Rejects global TFRs from the tower (RULE-TFR-4) and enforces scope/target invariants (RULE-TFR-2). Throws `TfrError`.
 - `liftTfr(tfr: TemporaryFlightRestriction): TemporaryFlightRestriction` — returns a copy with `liftedAt` set. Throws `TfrError` if already lifted. @see RULE-TFRP-3
 - `isAffectedByTfr(tfr, projectName, callsign): boolean` — returns true if the TFR is active and its scope applies to the given project/craft. @see RULE-TFR-7

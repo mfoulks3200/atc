@@ -58,7 +58,7 @@ export enum VectorType {
 
 /**
  * Status of a vector in a craft's flight plan.
- * @see RULE-VEC-1 through RULE-VEC-5
+ * @see RULE-VEC-1 through RULE-VEC-9
  */
 export enum VectorStatus {
   /** Vector has not been attempted yet. */
