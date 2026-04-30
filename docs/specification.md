@@ -1,11 +1,12 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.4.0
+**Version:** 0.4.1
 **Status:** Draft
-**Date:** 2026-04-29
+**Date:** 2026-04-30
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
+- 0.4.1 (2026-04-30): Fix finding rule consistency — authorize `open → closed` inspector transition in RULE-FIND-4; align RULE-FIND-5 wording with RULE-VEC-7 ("resolved **or** closed") (AIR-477).
 - 0.4.0 (2026-04-29): Add Adversarial Review protocol (§2.8, §4.8), Inspector seat type (RULE-SEAT-5, RULE-SEAT-6), `UnderReview` vector status (RULE-VEC-6 through RULE-VEC-8), Finding entity (RULE-FIND-1 through RULE-FIND-7), adversarial BBOX entry types (RULE-BBOX-5 through RULE-BBOX-7), review protocol rules (RULE-ADVR-1 through RULE-ADVR-6), and notification rules (RULE-NOTIFY-1, RULE-NOTIFY-2).
 - 0.3.0 (2026-04-21): Add UX Review protocol (§4.7, RULE-UXR-1 through RULE-UXR-5).
 - 0.2.0 (2026-04-21): Add Spec-Driven Development protocol (§2.7, §4.6, RULE-SDD-1 through RULE-SDD-17).
@@ -410,8 +411,8 @@ A **finding** is a structured record of an issue discovered by an inspector duri
 - **RULE-FIND-1:** A finding MUST have a unique identifier within the craft, a target vector, an inspector, a description, a severity, and an initial status of `open`.
 - **RULE-FIND-2:** Only an inspector MAY submit a finding. Findings MUST be filed against a specific vector in the craft's flight plan.
 - **RULE-FIND-3:** Only the implementing crew (captain or first officer) MAY transition a finding from `open` to `acknowledged` or from `acknowledged` to `resolved`. The inspector MUST NOT resolve their own findings.
-- **RULE-FIND-4:** Only the inspector who submitted the finding (or another inspector on the craft) MAY transition a finding from `resolved` to `closed` or from `resolved` back to `open`.
-- **RULE-FIND-5:** Findings with severity `critical` or `major` MUST be resolved and closed before the associated vector can transition from `UnderReview` to `Passed` (see RULE-VEC-7).
+- **RULE-FIND-4:** Only the inspector who submitted the finding (or another inspector on the craft) MAY transition a finding from `open` directly to `closed` (false-positive withdrawal), from `resolved` to `closed`, or from `resolved` back to `open`.
+- **RULE-FIND-5:** Findings with severity `critical` or `major` MUST be `resolved` or `closed` before the associated vector can transition from `UnderReview` to `Passed` (see RULE-VEC-7).
 - **RULE-FIND-6:** Findings with severity `minor` MAY be closed by the inspector without resolution, but the closure reason MUST be recorded in the black box.
 - **RULE-FIND-7:** Every finding status transition MUST be recorded in the black box using the appropriate adversarial entry type (see §2.1.1).
 
@@ -951,7 +952,7 @@ Adversarial review is triggered when an inspector is assigned to a craft. Once a
 | RULE-FIND-1    | Finding must have unique ID, vector, inspector, description, severity, status open. | 2.8 |
 | RULE-FIND-2    | Only inspector may submit findings; must target a specific vector.   | 2.8     |
 | RULE-FIND-3    | Only implementing crew may acknowledge/resolve findings.             | 2.8     |
-| RULE-FIND-4    | Only inspector may close or reopen resolved findings.                | 2.8     |
+| RULE-FIND-4    | Inspector may close open findings (false-positive withdrawal) or close/reopen resolved findings. | 2.8 |
 | RULE-FIND-5    | Critical/major findings must be resolved/closed before vector passes.| 2.8     |
 | RULE-FIND-6    | Minor findings may be closed without resolution; reason recorded.    | 2.8     |
 | RULE-FIND-7    | Every finding status transition recorded in black box.               | 2.8     |
