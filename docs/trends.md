@@ -4,7 +4,7 @@ Distilled findings from Hacker News and AI industry research, maintained for ref
 
 **Freshness policy:** Prune entries older than 6 months that are no longer in active discussion, or sooner if a technology has clearly been superseded. Refresh on each AIR-149 heartbeat.
 
-**Last updated:** 2026-04-22
+**Last updated:** 2026-04-29
 
 ---
 
@@ -128,16 +128,75 @@ The bottleneck is no longer writing code — it's task decomposition, agent spec
 
 ---
 
+### 10. Google Scion: The "Hypervisor for Agents" Pattern
+
+**NEW — April 2026. This is the most architecturally relevant development for ATC this cycle.**
+
+Google [open-sourced Scion](https://github.com/GoogleCloudPlatform/scion) (April 7, [153 points on HN](https://news.ycombinator.com/item?id=47675213)), an experimental orchestration testbed that manages concurrent "deep agents" (Claude Code, Gemini CLI, Codex) running in containers with isolated git worktrees. Google describes it as a "hypervisor for agents."
+
+Key design choices:
+- Each agent gets its own container, git worktree, and credentials
+- Dynamic task graphs execute in parallel with distinct objectives
+- Supports multiple containerization runtimes: Docker, Podman, Apple containers, Kubernetes
+- Agent-agnostic via adapter "harnesses" managing lifecycle, auth, and config
+- **Favors isolation over constraints** — runs agents in permissive mode behind infrastructure-level guardrails rather than embedding behavioral rules
+
+Current status: local mode is stable, hub-based workflows ~80% verified, Kubernetes runtime has rough edges. HN commenters pointed to Gas Town as a more mature alternative with "formulas" for defining agent behavior patterns.
+
+**ATC implication (critical):** Scion occupies the same design space as ATC — worktree-based isolation, parallel agent execution, harness adapters — but takes a fundamentally different philosophical approach. Where ATC encodes rules into the domain model (RULE-CTRL-*, RULE-LIFE-*, RULE-LCHK-*), Scion delegates safety entirely to infrastructure isolation. This is both **validation** (Google independently arrived at worktrees + per-agent isolation + adapter harnesses) and a **design challenge** (ATC must articulate why domain-level governance adds value beyond container walls). A steering committee brainstorm is warranted.
+
+---
+
+### 11. Agent-to-Agent Protocol (A2A) Reaches v1.0 Under Linux Foundation Governance
+
+The [Agent-to-Agent Protocol](https://a2a-protocol.org/latest/) hit its one-year anniversary (April 9) with 150+ participating organizations and a stable v1.0 specification. A2A v1.0 introduces multi-protocol support, enterprise-grade multi-tenancy, modernized security flows, and a defined migration path for early adopters.
+
+The governance story is equally significant: the Linux Foundation's [Agentic AI Foundation (AAIF)](https://aaif.io/) now governs both **MCP** (vertical: agent↔tools) and **A2A** (horizontal: agent↔agent), creating a two-axis standardization framework. The first [MCP Dev Summit](https://aaif.io/blog/mcp-is-now-enterprise-infrastructure-everything-that-happened-at-mcp-dev-summit-north-america-2026/) (April 2–3, NYC) drew 1,200 attendees, double the previous event. MCP v2.1 shipped in Claude Desktop and Cursor during April.
+
+Vertical adoption spans supply chain, financial services, insurance, and IT operations. Microsoft, AWS, Salesforce, SAP, and ServiceNow are all participating.
+
+**ATC implication:** The "standardized agent communication protocols" signal from last cycle has resolved: A2A is the winner for inter-agent coordination. ATC's intercom model should evaluate alignment with A2A's task card and streaming patterns. The MCP vertical (agent↔tools) is already relevant to ATC's adapter interface. Ignoring these standards risks ATC's intercom becoming a proprietary island.
+
+---
+
+### 12. Agent Sandboxing Converges on Zero-Trust Isolation
+
+Agent sandboxing has gone from "nice to have" to a hard requirement across the industry in April 2026:
+
+- **[Docker Sandboxes](https://www.docker.com/blog/docker-sandboxes-a-new-approach-for-coding-agent-safety/)** — wraps agents in containers mirroring the local workspace; moving from containers to dedicated microVMs for defense in depth
+- **[Cloudflare Dynamic Workers](https://blog.cloudflare.com/dynamic-workers/)** — V8 isolate-based sandboxing, the same mechanism underpinning Cloudflare Workers for eight years, now applied to agent execution
+- **[OpenAI Agents SDK + Harness](https://www.helpnetsecurity.com/2026/04/16/openai-agents-sdk-harness-and-sandbox-update/)** (April 16) — standardized sandbox infrastructure letting developers connect frontier models safely to files and approved tools
+- **[Safehouse](https://tessl.io/blog/safehouse-sandboxes-ai-coding-agents-on-macos/)** — macOS-native sandboxing for coding agents
+
+The shared principle: **zero-trust by default**. All agent-generated code is treated as potentially malicious. Once an agent can run `pytest` or `npm install`, it is a few tool calls away from editing a deployment script or leaking a token. A [security vulnerability in Google's Antigravity IDE](https://thehackernews.com/) bypassing Strict Mode underscored the risk.
+
+**ATC implication:** ATC currently delegates isolation to the execution environment (worktrees provide file-level separation but not process-level sandboxing). As agent actions grow more powerful (checklist runners executing shell commands, merge execution touching the repo), ATC should define a security boundary model. The daemon's shell-based checklist runner (RULE-LCHK-*) is the highest-risk surface — it runs arbitrary commands on behalf of agents with no sandbox. This is a gap worth addressing before production use.
+
+---
+
+### 13. The IDE-to-Orchestrator Transition Accelerates
+
+[Cursor 3](https://www.infoq.com/news/2026/04/cursor-3-agent-first-interface/) rebuilt its interface from scratch as an agent management surface rather than a code editor. The data: autonomous agent usage now outpaces tab completion 2:1, inverting the previous 2.5:1 ratio favoring completion. All running agents (local and cloud) appear in a unified sidebar regardless of origin — mobile, web, desktop, Slack, GitHub, or Linear.
+
+Key features: local-to-cloud agent handoff (start locally, shift to cloud for background work), a plugin marketplace for MCPs/skills/subagents, and native support for parallel agents across repositories.
+
+Community tension is real: some developers argue the agent-first model "sacrifices any connection to your code" and creates mental fatigue replacing traditional flow states. Cost transparency is also a concern — token consumption varies dramatically across platforms for identical workflows.
+
+**ATC implication:** The convergence of IDE → orchestrator validates ATC's dashboard concept. The Cursor 3 design also shows that agent-management UIs need to surface agent state, cost, and context health — not just task status. ATC's web dashboard could learn from Cursor's unified agent sidebar pattern while maintaining ATC's aviation-metaphor clarity.
+
+---
+
 ## Signals to Watch
 
 These items are not yet strong trends but have appeared enough to warrant monitoring:
 
 - **PR review effort prediction** — MSR 2026 research on forecasting high-effort AI-generated PRs before they land; could inform Tower clearance criteria weighting
 - **Agent identity and signing** — emerging discussion about cryptographically-signed agent commits for accountability; relates to ATC's pilot certification model
-- **Standardized agent communication protocols** — no winner yet, but the space is active; ATC's intercom model could be positioned as an implementation
+- **ICLR 2026 multi-agent failure taxonomy** — [academic research](https://news.ycombinator.com/item?id=46837484) identifying five primary failure modes (latency, token costs, error cascades, brittle topologies, observability) with promising mitigations: Speculative Actions (~30% speedup via parallel API execution), KVComm (efficient inter-agent communication via KV pairs), DoVer (intervention-driven debugging flipping 28% of failures to successes). Early-stage but directly relevant to ATC's retry and go-around mechanisms.
+- **Model-tiered agent architectures** — production pattern of using fast/cheap models for triage and routing agents, with capable models for complex reasoning agents; could inform ATC's pilot certification tiers
 
 ---
 
 ## Pruned / No Longer Current
 
-*(none yet — first entry)*
+- **Standardized agent communication protocols** (moved from Signals to Watch → promoted to Active Trend #11). A2A v1.0 is now the clear winner with Linux Foundation governance and 150+ organizations.
