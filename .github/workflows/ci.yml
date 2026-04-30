@@ -90,6 +90,17 @@ jobs:
       - name: Run tests with coverage
         run: pnpm run test:coverage
 
+  spec-rule-count:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check spec rule count
+        run: ./scripts/check-rule-count.sh "origin/${{ github.base_ref }}"
+
   publish:
     needs: [format, lint, typecheck, test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
