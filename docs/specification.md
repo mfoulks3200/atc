@@ -1,6 +1,6 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.4.0
+**Version:** 0.4.1
 **Status:** Draft
 **Date:** 2026-04-28
 **Brief:** [`docs/overview.md`](overview.md)
@@ -374,7 +374,8 @@ A **spec document** is a structured YAML or JSON document submitted to ATC to au
 | 6 | `GoAround`        | `LandingChecklist` | Pilot re-attempts after addressing failures.           | Pilot has addressed failure(s).      |
 | 7 | `GoAround`        | `Emergency`        | Repeated failures exceed threshold or pilot escalates. | Captain decision.                    |
 | 8 | `ClearedToLand`   | `Landed`           | Tower merges branch into main.                         | Branch up to date with main.         |
-| 9 | `Emergency`       | `ReturnToOrigin`   | Craft sent back to design stage with black box.        | Emergency declaration recorded in black box. |
+| 9 | `ClearedToLand`   | `GoAround`         | Tower denies clearance (merge conflict or checklist regression detected). | Tower denial recorded in black box. |
+| 10 | `Emergency`      | `ReturnToOrigin`   | Craft sent back to design stage with black box.        | Emergency declaration recorded in black box. |
 
 ### 3.3 Rules
 
@@ -386,6 +387,7 @@ A **spec document** is a structured YAML or JSON document submitted to ATC to au
 - **RULE-LIFE-6:** `ClearedToLand` → `Landed` requires the tower to verify the branch is up to date with main and execute the merge.
 - **RULE-LIFE-7:** `Emergency` → `ReturnToOrigin` requires an `EmergencyDeclaration` entry in the black box.
 - **RULE-LIFE-8:** `Landed` and `ReturnToOrigin` are terminal states. No transitions out are permitted.
+- **RULE-LIFE-9:** `ClearedToLand` → `GoAround` is triggered by tower denial. This occurs when the tower detects that the craft is no longer safe to land — for example, a merge conflict has appeared since clearance was granted, or a regression was identified in the landing checklist. The tower MUST record a `TowerDequeued` black box entry with the denial reason before the transition completes. The craft re-enters `GoAround` to address the issue before requesting clearance again.
 
 ## 4. Protocols
 
@@ -785,6 +787,7 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-LIFE-6    | ClearedToLand → Landed requires branch up to date + merge.         | 3.3     |
 | RULE-LIFE-7    | Emergency → ReturnToOrigin requires EmergencyDeclaration in bbox.   | 3.3     |
 | RULE-LIFE-8    | Landed and ReturnToOrigin are terminal; no transitions out.          | 3.3     |
+| RULE-LIFE-9    | ClearedToLand → GoAround requires tower denial with TowerDequeued entry in black box. | 3.3 |
 | RULE-VRPT-1    | Vector report must be filed on every vector passage.                 | 4.1     |
 | RULE-VRPT-2    | Report must include callsign, vector name, evidence, timestamp.      | 4.1     |
 | RULE-VRPT-3    | ATC must record report and update flight plan status.                | 4.1     |
