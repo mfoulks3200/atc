@@ -2,11 +2,12 @@
 
 **Version:** 0.4.0
 **Status:** Draft
-**Date:** 2026-04-28
+**Date:** 2026-04-29
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
-- 0.4.0 (2026-04-28): Add VSDD adversarial review rules (RULE-VEC-6 through RULE-VEC-9, RULE-CTRL-3a). Introduces `adversarial_review` vector type with reviewer identity constraint and mandatory controls handoff.
+
+- 0.4.0 (2026-04-29): Add Adversarial Review protocol (§2.8, §4.8), Inspector seat type (RULE-SEAT-5, RULE-SEAT-6), `UnderReview` vector status (RULE-VEC-6 through RULE-VEC-8), Finding entity (RULE-FIND-1 through RULE-FIND-7), adversarial BBOX entry types (RULE-BBOX-5 through RULE-BBOX-7), review protocol rules (RULE-ADVR-1 through RULE-ADVR-6), and notification rules (RULE-NOTIFY-1, RULE-NOTIFY-2). Supersedes earlier VSDD adversarial review rules (RULE-VEC-6–9, RULE-CTRL-3a from AIR-294).
 - 0.3.0 (2026-04-21): Add UX Review protocol (§4.7, RULE-UXR-1 through RULE-UXR-5).
 - 0.2.0 (2026-04-21): Add Spec-Driven Development protocol (§2.7, §4.6, RULE-SDD-1 through RULE-SDD-17).
 
@@ -18,36 +19,39 @@ This document is the authoritative reference for ATC's domain model, lifecycle, 
 
 ### 1.1 Terminology
 
-| Aviation Term    | Software Meaning                                                                 |
-| ---------------- | -------------------------------------------------------------------------------- |
-| Craft (Aircraft) | A unit of work — one discrete change to the codebase, associated with a git branch. |
-| Callsign         | A unique identifier for a craft.                                                 |
-| Cargo            | The description and scope of the change a craft carries.                         |
-| Pilot            | An autonomous agent assigned to work on a craft.                                 |
-| Captain          | The pilot-in-command of a craft; has final authority.                             |
-| First Officer    | A certified pilot assisting the captain.                                         |
-| Jumpseat         | An observer seat for uncertified pilots; advisory only, no code modification.    |
-| Craft Category   | A classification of change type used to match certified pilots to crafts.        |
-| Controls         | The mechanism governing which pilot(s) may actively modify code at a given time. |
-| Intercom         | A shared communication channel for all pilots aboard a craft.                    |
-| Tower            | A centralized agent responsible for merge coordination; one per repository.      |
-| Vector           | A milestone with acceptance criteria that a craft must pass through.             |
-| Flight Plan      | An ordered sequence of vectors assigned to a craft.                              |
-| Black Box        | An append-only log of decisions and events maintained on every craft.            |
-| Checklist        | A configurable, ordered list of validation tasks bound to lifecycle events.      |
-| Checklist Template | A reusable checklist definition that can be bound to events and craft categories. |
-| Lifecycle Event  | A hookable moment in the craft lifecycle (e.g., before takeoff, after landing).  |
-| Landing Checklist| A checklist bound to the `before:landing-check` event. Legacy term for the pre-landing checklist. |
-| Go-Around        | A return to implementation after a failed checklist or landing attempt.          |
-| Landing Clearance| Permission from the tower to merge a craft's branch into main.                   |
-| Landed           | A craft whose branch has been successfully merged. Terminal state.               |
-| Origin Airport   | The spec/design stage; where crafts return on emergency.                         |
-| Emergency        | A declaration that a craft cannot be landed; triggers return to origin.          |
-| Temporary Flight Restriction (TFR) | An externally imposed pause on agent activity, scoped globally, per-project, or per-craft. |
-| Spec Document    | A structured YAML/JSON document that fully describes a proposed craft — cargo, category, vectors, and pilot hints — submitted to ATC to create a craft automatically. |
-| Spec-Driven Development (SDD) | The protocol by which ATC automatically creates and optionally launches a craft from a submitted spec document. |
-| Selection Count  | A per-pilot monotonic counter tracking how many times a pilot has been auto-selected as captain or first officer, used for equitable workload distribution in SDD. |
-| Adversarial Review Vector | A vector of type `adversarial_review` in a flight plan. Requires a designated reviewer pilot who is different from the pilot who completed the preceding vector, and mandates an exclusive controls handoff before the review begins. |
+| Aviation Term                      | Software Meaning                                                                                                                                                                                                                      |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Craft (Aircraft)                   | A unit of work — one discrete change to the codebase, associated with a git branch.                                                                                                                                                   |
+| Callsign                           | A unique identifier for a craft.                                                                                                                                                                                                      |
+| Cargo                              | The description and scope of the change a craft carries.                                                                                                                                                                              |
+| Pilot                              | An autonomous agent assigned to work on a craft.                                                                                                                                                                                      |
+| Captain                            | The pilot-in-command of a craft; has final authority.                                                                                                                                                                                 |
+| First Officer                      | A certified pilot assisting the captain.                                                                                                                                                                                              |
+| Jumpseat                           | An observer seat for uncertified pilots; advisory only, no code modification.                                                                                                                                                         |
+| Craft Category                     | A classification of change type used to match certified pilots to crafts.                                                                                                                                                             |
+| Controls                           | The mechanism governing which pilot(s) may actively modify code at a given time.                                                                                                                                                      |
+| Intercom                           | A shared communication channel for all pilots aboard a craft.                                                                                                                                                                         |
+| Tower                              | A centralized agent responsible for merge coordination; one per repository.                                                                                                                                                           |
+| Vector                             | A milestone with acceptance criteria that a craft must pass through.                                                                                                                                                                  |
+| Flight Plan                        | An ordered sequence of vectors assigned to a craft.                                                                                                                                                                                   |
+| Black Box                          | An append-only log of decisions and events maintained on every craft.                                                                                                                                                                 |
+| Checklist                          | A configurable, ordered list of validation tasks bound to lifecycle events.                                                                                                                                                           |
+| Checklist Template                 | A reusable checklist definition that can be bound to events and craft categories.                                                                                                                                                     |
+| Lifecycle Event                    | A hookable moment in the craft lifecycle (e.g., before takeoff, after landing).                                                                                                                                                       |
+| Landing Checklist                  | A checklist bound to the `before:landing-check` event. Legacy term for the pre-landing checklist.                                                                                                                                     |
+| Go-Around                          | A return to implementation after a failed checklist or landing attempt.                                                                                                                                                               |
+| Landing Clearance                  | Permission from the tower to merge a craft's branch into main.                                                                                                                                                                        |
+| Landed                             | A craft whose branch has been successfully merged. Terminal state.                                                                                                                                                                    |
+| Origin Airport                     | The spec/design stage; where crafts return on emergency.                                                                                                                                                                              |
+| Emergency                          | A declaration that a craft cannot be landed; triggers return to origin.                                                                                                                                                               |
+| Temporary Flight Restriction (TFR) | An externally imposed pause on agent activity, scoped globally, per-project, or per-craft.                                                                                                                                            |
+| Spec Document                      | A structured YAML/JSON document that fully describes a proposed craft — cargo, category, vectors, and pilot hints — submitted to ATC to create a craft automatically.                                                                 |
+| Inspector                          | A certified reviewer occupying the inspector seat on a craft; can read all code, submit findings, and block vector passage, but cannot modify code or hold controls.                                                                  |
+| Finding                            | A structured record of an issue discovered during adversarial review, tied to a specific vector, with severity and lifecycle status.                                                                                                  |
+| Adversarial Review                 | A verification protocol in which an inspector independently evaluates a vector's deliverables and submits findings before the vector can pass.                                                                                        |
+| Spec-Driven Development (SDD)      | The protocol by which ATC automatically creates and optionally launches a craft from a submitted spec document.                                                                                                                       |
+| Selection Count                    | A per-pilot monotonic counter tracking how many times a pilot has been auto-selected as captain or first officer, used for equitable workload distribution in SDD.                                                                    |
+| Adversarial Review Vector          | A vector of type `adversarial_review` in a flight plan. Requires a designated reviewer pilot who is different from the pilot who completed the preceding vector, and mandates an exclusive controls handoff before the review begins. |
 
 ## 2. Domain Model
 
@@ -57,20 +61,22 @@ A **craft** is the fundamental unit of work in ATC. Each craft represents a sing
 
 #### Properties
 
-| Property       | Type                | Constraints                        |
-| -------------- | ------------------- | ---------------------------------- |
-| Callsign       | `string`            | Unique, immutable after creation.  |
-| Created At     | `Date`              | Required. Timestamp when the craft entered the Taxiing phase. |
-| Branch         | `string`            | Unique, 1:1 with craft.           |
-| Cargo          | `string`            | Required. Description of the change and its scope. |
-| Category       | `CraftCategory`     | Required. Determines pilot eligibility (see 2.2.2). |
-| Captain        | `Pilot`             | Required. Exactly one per craft.   |
-| First Officers | `Pilot[]`           | Zero or more. Must be certified for craft's category. |
-| Jumpseaters    | `Pilot[]`           | Zero or more. No certification required. |
-| Flight Plan    | `Vector[]`          | Ordered. Assigned at creation, defines all required vectors. |
-| Black Box      | `BlackBoxEntry[]`   | Append-only. Created at Taxiing phase. See 2.1.1. |
-| Controls       | `ControlState`      | See 2.2.4. |
-| Status         | `CraftStatus`       | See Section 3. |
+| Property       | Type              | Constraints                                                      |
+| -------------- | ----------------- | ---------------------------------------------------------------- |
+| Callsign       | `string`          | Unique, immutable after creation.                                |
+| Created At     | `Date`            | Required. Timestamp when the craft entered the Taxiing phase.    |
+| Branch         | `string`          | Unique, 1:1 with craft.                                          |
+| Cargo          | `string`          | Required. Description of the change and its scope.               |
+| Category       | `CraftCategory`   | Required. Determines pilot eligibility (see 2.2.2).              |
+| Captain        | `Pilot`           | Required. Exactly one per craft.                                 |
+| First Officers | `Pilot[]`         | Zero or more. Must be certified for craft's category.            |
+| Jumpseaters    | `Pilot[]`         | Zero or more. No certification required.                         |
+| Inspectors     | `Pilot[]`         | Zero or more. Must be certified for craft's category. See 2.2.3. |
+| Findings       | `Finding[]`       | Zero or more. Adversarial review findings. See 2.8.              |
+| Flight Plan    | `Vector[]`        | Ordered. Assigned at creation, defines all required vectors.     |
+| Black Box      | `BlackBoxEntry[]` | Append-only. Created at Taxiing phase. See 2.1.1.                |
+| Controls       | `ControlState`    | See 2.2.4.                                                       |
+| Status         | `CraftStatus`     | See Section 3.                                                   |
 
 #### Rules
 
@@ -87,39 +93,45 @@ The **black box** is an append-only log maintained on every craft throughout its
 
 ##### Entry Schema
 
-| Field     | Type                 | Description                                          |
-| --------- | -------------------- | ---------------------------------------------------- |
-| Timestamp | `Date`               | When the entry was recorded.                         |
-| Author    | `string`             | Identifier of the pilot who recorded the entry.      |
-| Type      | `BlackBoxEntryType`  | The kind of event.                                   |
-| Content   | `string`             | Description of the decision, event, or observation.  |
+| Field     | Type                | Description                                         |
+| --------- | ------------------- | --------------------------------------------------- |
+| Timestamp | `Date`              | When the entry was recorded.                        |
+| Author    | `string`            | Identifier of the pilot who recorded the entry.     |
+| Type      | `BlackBoxEntryType` | The kind of event.                                  |
+| Content   | `string`            | Description of the decision, event, or observation. |
 
 ##### Entry Types
 
-| Type                    | When to Record                                                            |
-| ----------------------- | ------------------------------------------------------------------------- |
-| `Decision`              | An implementation decision (algorithm, library, approach choice).         |
-| `VectorPassed`          | A vector's acceptance criteria were met (alongside ATC vector report).    |
-| `GoAround`              | A checklist failed and a go-around was initiated.                         |
-| `Conflict`              | A disagreement between pilots on approach, and how it was resolved.       |
-| `Observation`           | Any other noteworthy event, risk, or context worth preserving.            |
-| `EmergencyDeclaration`  | The captain has declared an emergency (final entry before origin handoff).|
-| `ChecklistRun`          | A checklist was executed. Contains full `ChecklistRunResult` metadata (see 4.2). |
-| `TFRIssued`             | A TFR has taken effect on this craft. Records scope, mode, reason, and issuer.   |
-| `TFRLifted`             | A TFR affecting this craft has been lifted. Records duration and issuer.          |
-| `CraftCreated`          | The craft was created (flight plan opened, craft enters Taxiing).                 |
-| `Launched`              | The craft was launched from Taxiing into InFlight.                                |
-| `VectorFailed`          | A vector was reported as failed (reserved for the failing-vector protocol).       |
-| `ChecklistItem`         | A single checklist item completed. Recorded once per item, alongside `ChecklistRun`. |
-| `ClearanceRequested`    | The captain requested landing clearance from the tower.                           |
-| `TowerEnqueued`         | The craft was added to the tower landing queue.                                   |
-| `TowerDequeued`         | The craft was removed from the tower landing queue.                               |
-| `StateTransition`       | The craft transitioned between lifecycle states. Used for structured audit trail. |
-| `AgentOutput`           | A captured line of stdout/stderr from a piloting agent's subprocess. Recorded by the daemon's output pipe; distinct from `Observation`, which is authored by an agent. |
-| `Merge`                 | The craft's branch was successfully merged into main by the tower (final lifecycle event before `Landed`). |
-| `MergeStale`            | Tower attempted a merge but the craft's branch was not up to date with main. The craft is sent on a go-around. |
-| `MergeConflict`         | Tower attempted a merge but encountered conflicts. The craft is sent on a go-around to resolve them. |
-| `SpecCreated`           | The craft was created from a spec document via SDD. Records the submitter identity, submission source, spec title, and whether autoLaunch was requested and executed or suppressed (with reason). The raw spec document is attached. |
+| Type                             | When to Record                                                                                                                                                                                                                       |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Decision`                       | An implementation decision (algorithm, library, approach choice).                                                                                                                                                                    |
+| `VectorPassed`                   | A vector's acceptance criteria were met (alongside ATC vector report).                                                                                                                                                               |
+| `GoAround`                       | A checklist failed and a go-around was initiated.                                                                                                                                                                                    |
+| `Conflict`                       | A disagreement between pilots on approach, and how it was resolved.                                                                                                                                                                  |
+| `Observation`                    | Any other noteworthy event, risk, or context worth preserving.                                                                                                                                                                       |
+| `EmergencyDeclaration`           | The captain has declared an emergency (final entry before origin handoff).                                                                                                                                                           |
+| `ChecklistRun`                   | A checklist was executed. Contains full `ChecklistRunResult` metadata (see 4.2).                                                                                                                                                     |
+| `TFRIssued`                      | A TFR has taken effect on this craft. Records scope, mode, reason, and issuer.                                                                                                                                                       |
+| `TFRLifted`                      | A TFR affecting this craft has been lifted. Records duration and issuer.                                                                                                                                                             |
+| `CraftCreated`                   | The craft was created (flight plan opened, craft enters Taxiing).                                                                                                                                                                    |
+| `Launched`                       | The craft was launched from Taxiing into InFlight.                                                                                                                                                                                   |
+| `VectorFailed`                   | A vector was reported as failed (reserved for the failing-vector protocol).                                                                                                                                                          |
+| `ChecklistItem`                  | A single checklist item completed. Recorded once per item, alongside `ChecklistRun`.                                                                                                                                                 |
+| `ClearanceRequested`             | The captain requested landing clearance from the tower.                                                                                                                                                                              |
+| `TowerEnqueued`                  | The craft was added to the tower landing queue.                                                                                                                                                                                      |
+| `TowerDequeued`                  | The craft was removed from the tower landing queue.                                                                                                                                                                                  |
+| `StateTransition`                | The craft transitioned between lifecycle states. Used for structured audit trail.                                                                                                                                                    |
+| `AgentOutput`                    | A captured line of stdout/stderr from a piloting agent's subprocess. Recorded by the daemon's output pipe; distinct from `Observation`, which is authored by an agent.                                                               |
+| `Merge`                          | The craft's branch was successfully merged into main by the tower (final lifecycle event before `Landed`).                                                                                                                           |
+| `MergeStale`                     | Tower attempted a merge but the craft's branch was not up to date with main. The craft is sent on a go-around.                                                                                                                       |
+| `MergeConflict`                  | Tower attempted a merge but encountered conflicts. The craft is sent on a go-around to resolve them.                                                                                                                                 |
+| `SpecCreated`                    | The craft was created from a spec document via SDD. Records the submitter identity, submission source, spec title, and whether autoLaunch was requested and executed or suppressed (with reason). The raw spec document is attached. |
+| `AdversarialReviewStarted`       | An inspector has been assigned to review a vector. Records: inspector identifier, vector name, and review start timestamp.                                                                                                           |
+| `AdversarialFindingSubmitted`    | An inspector has submitted a finding against a vector. Records: finding ID, vector name, severity, and description.                                                                                                                  |
+| `AdversarialFindingAcknowledged` | The builder (captain or first officer) has acknowledged a finding. Records: finding ID, acknowledging pilot, and optional initial response.                                                                                          |
+| `AdversarialFindingResolved`     | The builder has marked a finding as addressed. Records: finding ID, resolving pilot, and resolution description.                                                                                                                     |
+| `AdversarialReviewPassed`        | The inspector has closed the review with no open findings. Records: inspector identifier, vector name, and count of findings resolved.                                                                                               |
+| `AdversarialReviewFailed`        | The inspector has closed the review citing unresolved findings. Records: inspector identifier, vector name, and list of unresolved finding IDs with severities.                                                                      |
 
 ##### Rules
 
@@ -127,6 +139,9 @@ The **black box** is an append-only log maintained on every craft throughout its
 - **RULE-BBOX-2:** Black box entries are append-only. No entry may be modified or deleted once recorded.
 - **RULE-BBOX-3:** All pilots (captain, first officers, and jumpseaters) MAY write to the black box.
 - **RULE-BBOX-4:** In the event of an emergency declaration, the complete black box MUST be provided to the origin airport as the primary artifact for investigation.
+- **RULE-BBOX-5:** Every adversarial review lifecycle event MUST be recorded in the black box using the corresponding entry type (`AdversarialReviewStarted`, `AdversarialFindingSubmitted`, `AdversarialFindingAcknowledged`, `AdversarialFindingResolved`, `AdversarialReviewPassed`, `AdversarialReviewFailed`).
+- **RULE-BBOX-6:** An `AdversarialFindingSubmitted` entry MUST include the finding ID, target vector name, severity (`critical`, `major`, or `minor`), and a description of the issue.
+- **RULE-BBOX-7:** An `AdversarialReviewPassed` or `AdversarialReviewFailed` entry MUST include the inspector identifier, the vector name, and a summary of finding disposition (count resolved, count unresolved with IDs and severities).
 
 ### 2.2 Pilot
 
@@ -134,10 +149,10 @@ A **pilot** is an autonomous agent that can be assigned to a craft. Each pilot h
 
 #### 2.2.1 Properties
 
-| Property        | Type       | Constraints                                              |
-| --------------- | ---------- | -------------------------------------------------------- |
-| Identifier      | `string`   | Unique across the system.                                |
-| Certifications  | `string[]` | List of craft categories the pilot is certified to fly.  |
+| Property        | Type       | Constraints                                                                                                                                                     |
+| --------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identifier      | `string`   | Unique across the system.                                                                                                                                       |
+| Certifications  | `string[]` | List of craft categories the pilot is certified to fly.                                                                                                         |
 | Selection Count | `number`   | Monotonic counter; incremented each time this pilot is auto-selected as captain or first officer via SDD. Persisted; used for equitable scheduling. Default: 0. |
 
 ##### Rules
@@ -160,11 +175,12 @@ A **craft category** represents a type or scale of change. Categories are projec
 
 Every pilot on a craft occupies exactly one **seat**:
 
-| Seat          | Certification Required | Can Modify Code | Cardinality       |
-| ------------- | ---------------------- | --------------- | ----------------- |
-| Captain       | Yes                    | Yes             | Exactly 1         |
-| First Officer | Yes                    | Yes             | 0 or more         |
-| Jumpseat      | No                     | **No**          | 0 or more         |
+| Seat          | Certification Required | Can Modify Code | Can Submit Findings | Cardinality |
+| ------------- | ---------------------- | --------------- | ------------------- | ----------- |
+| Captain       | Yes                    | Yes             | No                  | Exactly 1   |
+| First Officer | Yes                    | Yes             | No                  | 0 or more   |
+| Inspector     | Yes                    | **No**          | **Yes**             | 0 or more   |
+| Jumpseat      | No                     | **No**          | No                  | 0 or more   |
 
 ##### Rules
 
@@ -172,6 +188,8 @@ Every pilot on a craft occupies exactly one **seat**:
 - **RULE-SEAT-2:** A pilot MAY only occupy the captain or first officer seat if they hold a certification for the craft's category.
 - **RULE-SEAT-3:** A pilot who is not certified for the craft's category MAY only board in the jumpseat.
 - **RULE-SEAT-4:** A pilot MAY occupy seats on multiple crafts concurrently.
+- **RULE-SEAT-5:** A pilot MAY only occupy the inspector seat if they hold a certification for the craft's category. An inspector has read access to all code on the craft's branch, MAY submit findings against any vector, and MAY block vector passage by leaving findings unresolved. An inspector MUST NOT modify code or hold controls.
+- **RULE-SEAT-6:** A pilot MUST NOT occupy both an implementation seat (captain or first officer) and the inspector seat on the same craft. The inspector MUST be independent of the implementing crew.
 
 #### 2.2.4 Controls
 
@@ -182,7 +200,7 @@ A craft has a single set of **controls** that govern which pilot(s) are actively
 | Mode        | Description                                                                                |
 | ----------- | ------------------------------------------------------------------------------------------ |
 | `Exclusive` | A single pilot holds the controls. All others must wait until controls are released.       |
-| `Shared`    | Two or more pilots hold controls simultaneously, each with explicit non-overlapping areas.  |
+| `Shared`    | Two or more pilots hold controls simultaneously, each with explicit non-overlapping areas. |
 
 ##### Handoff Protocol
 
@@ -194,7 +212,7 @@ A craft has a single set of **controls** that govern which pilot(s) are actively
 ##### Rules
 
 - **RULE-CTRL-1:** At craft creation, the captain holds exclusive controls by default.
-- **RULE-CTRL-2:** Only the captain or a first officer MAY claim controls. Jumpseaters MUST NOT hold controls.
+- **RULE-CTRL-2:** Only the captain or a first officer MAY claim controls. Jumpseaters and inspectors MUST NOT hold controls.
 - **RULE-CTRL-3:** A pilot MUST NOT modify code on the craft's branch unless they currently hold controls (exclusively or within their shared area).
 - **RULE-CTRL-3a:** During adversarial review (while an `adversarial_review` vector is the active vector), the designated reviewer MUST hold exclusive controls. The builder MUST release controls and the reviewer MUST acknowledge the handoff before the vector can be entered. All control transfers for adversarial review MUST be recorded in the black box per RULE-CTRL-7.
 - **RULE-CTRL-4:** Pilots SHOULD claim exclusive controls for changes that risk conflicts if done concurrently.
@@ -208,10 +226,10 @@ The **intercom** is a shared communication channel for all pilots aboard a craft
 
 ##### Message Types
 
-| Type                 | Description                                                                     |
-| -------------------- | ------------------------------------------------------------------------------- |
-| Pilot Message        | A message from one pilot to the crew. Follows radio discipline rules below.     |
-| System Notification  | An automated notification from the ATC system (e.g., checklist results). Contains: source system, summary, outcome, and optional reference to a black box entry for full details. |
+| Type                | Description                                                                                                                                                                       |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pilot Message       | A message from one pilot to the crew. Follows radio discipline rules below.                                                                                                       |
+| System Notification | An automated notification from the ATC system (e.g., checklist results). Contains: source system, summary, outcome, and optional reference to a black box entry for full details. |
 
 ##### Radio Discipline
 
@@ -244,13 +262,21 @@ A **vector** is a defined milestone that a craft must pass through during its fl
 
 #### Properties
 
-| Property            | Type             | Constraints                                                                      |
-| ------------------- | ---------------- | -------------------------------------------------------------------------------- |
-| Name                | `string`         | Required. Short, descriptive identifier.                                         |
-| Acceptance Criteria | `string`         | Required. Specific, verifiable conditions.                                       |
-| Status              | `VectorStatus`   | One of: `Pending`, `Passed`, `Failed`.                                           |
-| Type                | `VectorType`     | `standard` (default) or `adversarial_review`. If unset, defaults to `standard`. |
-| Reviewer Pilot ID   | `string \| null` | Required when `type` is `adversarial_review`. `null` for standard vectors.      |
+| Property            | Type           | Constraints                                           |
+| ------------------- | -------------- | ----------------------------------------------------- |
+| Name                | `string`       | Required. Short, descriptive identifier.              |
+| Acceptance Criteria | `string`       | Required. Specific, verifiable conditions.            |
+| Status              | `VectorStatus` | One of: `Pending`, `UnderReview`, `Passed`, `Failed`. |
+
+##### Vector Status Transitions
+
+| From          | To            | Trigger                                                               |
+| ------------- | ------------- | --------------------------------------------------------------------- |
+| `Pending`     | `Passed`      | Pilot reports vector passed (no inspector assigned).                  |
+| `Pending`     | `UnderReview` | Inspector begins adversarial review of the vector.                    |
+| `UnderReview` | `Passed`      | Inspector approves; all findings resolved or closed.                  |
+| `UnderReview` | `Failed`      | Inspector fails the review citing unresolved critical/major findings. |
+| `Failed`      | `Pending`     | Pilot addresses failures and resubmits the vector.                    |
 
 #### Rules
 
@@ -259,10 +285,9 @@ A **vector** is a defined milestone that a craft must pass through during its fl
 - **RULE-VEC-3:** When a craft passes through a vector, the pilot MUST report it to ATC (see Section 4.1).
 - **RULE-VEC-4:** A craft MUST NOT enter the Landing Checklist phase until all vectors in its flight plan have been passed and reported.
 - **RULE-VEC-5:** If a vector's acceptance criteria cannot be met, the pilot MAY declare an emergency (see Section 4.3).
-- **RULE-VEC-6:** A Vector MAY carry a `type` of `standard` (default) or `adversarial_review`. If `type` is unset, it MUST be treated as `standard`.
-- **RULE-VEC-7:** An `adversarial_review` vector MUST specify a `reviewerPilotId` at flight plan creation. The designated reviewer MUST NOT be the pilot who filed the most recent preceding vector report on this craft.
-- **RULE-VEC-8:** A pilot MAY NOT file a passing vector report for an `adversarial_review` vector if they filed the immediately preceding standard vector report on this craft.
-- **RULE-VEC-9:** The designated reviewer for an `adversarial_review` vector MUST hold a Captain or First Officer seat on the craft at the time the vector is entered.
+- **RULE-VEC-6:** When an inspector is assigned to a craft, a vector MUST enter `UnderReview` status before it can transition to `Passed`. The inspector initiates review by recording an `AdversarialReviewStarted` entry in the black box.
+- **RULE-VEC-7:** A vector in `UnderReview` status MUST NOT transition to `Passed` while any finding with severity `critical` or `major` remains in `open` or `acknowledged` status. All such findings MUST be `resolved` or `closed` before the inspector can approve the vector.
+- **RULE-VEC-8:** Only the assigned inspector MAY transition a vector from `UnderReview` to `Passed` or `Failed`. The implementing crew (captain, first officers) MUST NOT approve or fail their own vectors under review.
 
 ### 2.5 Origin Airport
 
@@ -280,16 +305,16 @@ A **Temporary Flight Restriction (TFR)** is an externally imposed constraint tha
 
 #### Properties
 
-| Property   | Type                                  | Constraints                                                                  |
-|------------|---------------------------------------|------------------------------------------------------------------------------|
-| Identifier | `string`                              | Unique, immutable after creation.                                            |
-| Scope      | `"global"`, `"project"`, or `"craft"` | Required. Determines what is affected.                                       |
+| Property   | Type                                  | Constraints                                                                         |
+| ---------- | ------------------------------------- | ----------------------------------------------------------------------------------- |
+| Identifier | `string`                              | Unique, immutable after creation.                                                   |
+| Scope      | `"global"`, `"project"`, or `"craft"` | Required. Determines what is affected.                                              |
 | Target     | `string \| null`                      | Required for `project` (project ID) and `craft` (callsign) scopes. Null for global. |
-| Mode       | `"graceful"` or `"immediate"`         | Required. Default: `graceful`.                                               |
-| Reason     | `string`                              | Required. Why the TFR was issued.                                            |
-| Issued By  | `"user"` or `"tower"`                 | Required. Who issued the TFR.                                                |
-| Issued At  | `Date`                                | Timestamp when the TFR was issued.                                           |
-| Lifted At  | `Date \| null`                        | Null while active. Set when lifted.                                          |
+| Mode       | `"graceful"` or `"immediate"`         | Required. Default: `graceful`.                                                      |
+| Reason     | `string`                              | Required. Why the TFR was issued.                                                   |
+| Issued By  | `"user"` or `"tower"`                 | Required. Who issued the TFR.                                                       |
+| Issued At  | `Date`                                | Timestamp when the TFR was issued.                                                  |
+| Lifted At  | `Date \| null`                        | Null while active. Set when lifted.                                                 |
 
 #### Rules
 
@@ -299,7 +324,7 @@ A **Temporary Flight Restriction (TFR)** is an externally imposed constraint tha
 - **RULE-TFR-4:** The tower MAY issue a TFR at the project or craft scope only if tower-initiated TFRs are enabled in project configuration. The tower MUST NOT issue global TFRs.
 - **RULE-TFR-5:** A TFR MUST NOT alter a craft's lifecycle state. Affected crafts retain their current `CraftStatus` but MUST have a `holdingPattern` flag set to `true`.
 - **RULE-TFR-6:** While a craft's `holdingPattern` flag is `true`, no pilot on that craft MAY take any action — no code modifications, no vector reports, no checklist executions, no intercom messages, no control transfers.
-- **RULE-TFR-7:** Multiple TFRs MAY be active simultaneously. A craft is in a holding pattern if *any* active TFR applies to it (by global scope, matching project, or matching callsign).
+- **RULE-TFR-7:** Multiple TFRs MAY be active simultaneously. A craft is in a holding pattern if _any_ active TFR applies to it (by global scope, matching project, or matching callsign).
 - **RULE-TFR-8:** Lifting a TFR clears the `holdingPattern` flag on all affected crafts that are not subject to another active TFR.
 
 ### 2.7 Spec Document
@@ -308,35 +333,35 @@ A **spec document** is a structured YAML or JSON document submitted to ATC to au
 
 #### Properties
 
-| Property                    | Type                                     | Required | Description |
-| --------------------------- | ---------------------------------------- | -------- | ----------- |
-| Title                       | `string`                                 | Yes      | Short name for the work. Used in callsign generation and search. |
-| Cargo                       | `string`                                 | Yes      | Full description of the change and its scope. Becomes the craft's `cargo`. |
-| Category                    | `CraftCategory`                          | Yes      | Craft category. Must match a project-configured category. |
-| Vectors                     | `SpecVector[]`                           | Yes      | Ordered list of flight-plan milestones. At least one required. |
-| Priority                    | `low \| medium \| high \| critical`      | No       | Default: `medium`. |
-| Auto Launch                 | `boolean`                                | No       | Default: `false`. Request immediate craft launch. Subject to layered safety guards (see §4.6.3). |
-| Callsign Override           | `string \| null`                         | No       | Explicit callsign. Must be unique. If absent, auto-generated (see §4.6.2). |
-| Pilots                      | `SpecPilotHints`                         | No       | Optional pilot assignment hints (see below). |
-| Notes                       | `string \| null`                         | No       | Markdown. Stored verbatim in the craft's black box at creation. |
-| Metadata                    | `Record<string, string>`                 | No       | Arbitrary key-value pairs stored in the black box. |
+| Property          | Type                                | Required | Description                                                                                      |
+| ----------------- | ----------------------------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| Title             | `string`                            | Yes      | Short name for the work. Used in callsign generation and search.                                 |
+| Cargo             | `string`                            | Yes      | Full description of the change and its scope. Becomes the craft's `cargo`.                       |
+| Category          | `CraftCategory`                     | Yes      | Craft category. Must match a project-configured category.                                        |
+| Vectors           | `SpecVector[]`                      | Yes      | Ordered list of flight-plan milestones. At least one required.                                   |
+| Priority          | `low \| medium \| high \| critical` | No       | Default: `medium`.                                                                               |
+| Auto Launch       | `boolean`                           | No       | Default: `false`. Request immediate craft launch. Subject to layered safety guards (see §4.6.3). |
+| Callsign Override | `string \| null`                    | No       | Explicit callsign. Must be unique. If absent, auto-generated (see §4.6.2).                       |
+| Pilots            | `SpecPilotHints`                    | No       | Optional pilot assignment hints (see below).                                                     |
+| Notes             | `string \| null`                    | No       | Markdown. Stored verbatim in the craft's black box at creation.                                  |
+| Metadata          | `Record<string, string>`            | No       | Arbitrary key-value pairs stored in the black box.                                               |
 
 **SpecVector:**
 
-| Field    | Type       | Required | Description |
-| -------- | ---------- | -------- | ----------- |
-| Name     | `string`   | Yes      | Short, descriptive milestone name. |
+| Field    | Type       | Required | Description                                                                                                 |
+| -------- | ---------- | -------- | ----------------------------------------------------------------------------------------------------------- |
+| Name     | `string`   | Yes      | Short, descriptive milestone name.                                                                          |
 | Criteria | `string[]` | Yes      | One or more acceptance criteria in natural language. Each criterion must be specific, binary, and testable. |
 
 **SpecPilotHints:**
 
-| Field                    | Type       | Description |
-| ------------------------ | ---------- | ----------- |
-| Captain                  | `string`   | Explicit pilot ID. If absent, auto-selected. |
-| First Officers           | `string[]` | Explicit first officer pilot IDs. |
-| Jumpseaters              | `string[]` | Explicit jumpseat pilot IDs. |
-| Require Certifications   | `string[]` | Additional certifications the auto-selected captain must hold. |
-| Exclude                  | `string[]` | Pilot IDs excluded from auto-selection. |
+| Field                  | Type       | Description                                                    |
+| ---------------------- | ---------- | -------------------------------------------------------------- |
+| Captain                | `string`   | Explicit pilot ID. If absent, auto-selected.                   |
+| First Officers         | `string[]` | Explicit first officer pilot IDs.                              |
+| Jumpseaters            | `string[]` | Explicit jumpseat pilot IDs.                                   |
+| Require Certifications | `string[]` | Additional certifications the auto-selected captain must hold. |
+| Exclude                | `string[]` | Pilot IDs excluded from auto-selection.                        |
 
 #### Rules
 
@@ -347,34 +372,80 @@ A **spec document** is a structured YAML or JSON document submitted to ATC to au
 - **RULE-SDD-6:** If an explicit `pilots.captain` is provided, that pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
 - **RULE-SDD-7:** If explicit `pilots.firstOfficers` are provided, each listed pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
 
+### 2.8 Finding
+
+A **finding** is a structured record of an issue discovered by an inspector during adversarial review of a vector. Findings are the primary mechanism by which an inspector communicates defects, risks, or gaps to the implementing crew.
+
+#### Properties
+
+| Property    | Type                                                 | Constraints                                                        |
+| ----------- | ---------------------------------------------------- | ------------------------------------------------------------------ |
+| Identifier  | `string`                                             | Unique within the craft. Immutable after creation.                 |
+| Vector ID   | `string`                                             | Required. The vector this finding is filed against.                |
+| Inspector   | `string`                                             | Required. Identifier of the inspector who submitted the finding.   |
+| Description | `string`                                             | Required. Clear description of the issue found.                    |
+| Severity    | `"critical" \| "major" \| "minor"`                   | Required. Determines whether the finding blocks vector passage.    |
+| Status      | `"open" \| "acknowledged" \| "resolved" \| "closed"` | Required. Lifecycle status of the finding. Initial: `open`.        |
+| Response    | `string \| null`                                     | Optional. The builder's response or explanation of the resolution. |
+| Created At  | `Date`                                               | Required. Timestamp when the finding was submitted.                |
+| Updated At  | `Date`                                               | Required. Timestamp of the most recent status change.              |
+
+#### Finding Severity
+
+| Severity   | Impact                                                                                  |
+| ---------- | --------------------------------------------------------------------------------------- |
+| `critical` | Blocks vector passage. MUST be resolved before the vector can transition to `Passed`.   |
+| `major`    | Blocks vector passage. MUST be resolved before the vector can transition to `Passed`.   |
+| `minor`    | Does NOT block vector passage. SHOULD be resolved but MAY be closed with justification. |
+
+#### Finding Status Transitions
+
+| From           | To             | Actor                    | Description                                               |
+| -------------- | -------------- | ------------------------ | --------------------------------------------------------- |
+| `open`         | `acknowledged` | Captain or First Officer | Builder acknowledges the finding and begins work.         |
+| `open`         | `closed`       | Inspector                | Inspector withdraws a finding (e.g., false positive).     |
+| `acknowledged` | `resolved`     | Captain or First Officer | Builder marks the finding as addressed with a response.   |
+| `resolved`     | `closed`       | Inspector                | Inspector verifies the resolution and closes the finding. |
+| `resolved`     | `open`         | Inspector                | Inspector rejects the resolution; finding reopened.       |
+
+#### Rules
+
+- **RULE-FIND-1:** A finding MUST have a unique identifier within the craft, a target vector, an inspector, a description, a severity, and an initial status of `open`.
+- **RULE-FIND-2:** Only an inspector MAY submit a finding. Findings MUST be filed against a specific vector in the craft's flight plan.
+- **RULE-FIND-3:** Only the implementing crew (captain or first officer) MAY transition a finding from `open` to `acknowledged` or from `acknowledged` to `resolved`. The inspector MUST NOT resolve their own findings.
+- **RULE-FIND-4:** Only the inspector who submitted the finding (or another inspector on the craft) MAY transition a finding from `resolved` to `closed` or from `resolved` back to `open`.
+- **RULE-FIND-5:** Findings with severity `critical` or `major` MUST be resolved and closed before the associated vector can transition from `UnderReview` to `Passed` (see RULE-VEC-7).
+- **RULE-FIND-6:** Findings with severity `minor` MAY be closed by the inspector without resolution, but the closure reason MUST be recorded in the black box.
+- **RULE-FIND-7:** Every finding status transition MUST be recorded in the black box using the appropriate adversarial entry type (see §2.1.1).
+
 ## 3. Craft Lifecycle
 
 ### 3.1 States
 
-| State               | Terminal | Description                                                                |
-| ------------------- | -------- | -------------------------------------------------------------------------- |
-| `Taxiing`           | No       | Craft initialized — branch created, pilots assigned, cargo and flight plan defined. |
-| `InFlight`          | No       | Pilots actively implementing, navigating vectors in order.                 |
-| `LandingChecklist`  | No       | All vectors passed. Pilot runs validation checks.                         |
-| `GoAround`          | No       | Landing checklist failed. Pilot addresses failures before re-attempt.     |
-| `ClearedToLand`     | No       | Checklist passed, tower granted clearance. Craft is in merge queue.       |
-| `Landed`            | **Yes**  | Branch merged into main.                                                  |
-| `Emergency`         | No       | Pilot declared an emergency after repeated failures.                      |
-| `ReturnToOrigin`    | **Yes**  | Craft sent back to design stage for re-evaluation.                        |
+| State              | Terminal | Description                                                                         |
+| ------------------ | -------- | ----------------------------------------------------------------------------------- |
+| `Taxiing`          | No       | Craft initialized — branch created, pilots assigned, cargo and flight plan defined. |
+| `InFlight`         | No       | Pilots actively implementing, navigating vectors in order.                          |
+| `LandingChecklist` | No       | All vectors passed. Pilot runs validation checks.                                   |
+| `GoAround`         | No       | Landing checklist failed. Pilot addresses failures before re-attempt.               |
+| `ClearedToLand`    | No       | Checklist passed, tower granted clearance. Craft is in merge queue.                 |
+| `Landed`           | **Yes**  | Branch merged into main.                                                            |
+| `Emergency`        | No       | Pilot declared an emergency after repeated failures.                                |
+| `ReturnToOrigin`   | **Yes**  | Craft sent back to design stage for re-evaluation.                                  |
 
 ### 3.2 Transitions
 
-| # | From              | To                 | Trigger                                                | Preconditions                        |
-|---|-------------------|--------------------|--------------------------------------------------------|--------------------------------------|
-| 1 | `Taxiing`         | `InFlight`         | Pilot begins implementation.                           | Captain, cargo, and flight plan assigned. |
-| 2 | `InFlight`        | `InFlight`         | Pilot passes a vector and reports to ATC.              | Next vector in flight plan sequence. |
-| 3 | `InFlight`        | `LandingChecklist` | Pilot begins validation checks.                       | All vectors passed and reported.     |
-| 4 | `LandingChecklist`| `ClearedToLand`    | All required checks pass; tower grants clearance.      | All required checklist items pass.   |
-| 5 | `LandingChecklist`| `GoAround`         | One or more required checks fail.                      | At least one required checklist item failed. |
-| 6 | `GoAround`        | `LandingChecklist` | Pilot re-attempts after addressing failures.           | Pilot has addressed failure(s).      |
-| 7 | `GoAround`        | `Emergency`        | Repeated failures exceed threshold or pilot escalates. | Captain decision.                    |
-| 8 | `ClearedToLand`   | `Landed`           | Tower merges branch into main.                         | Branch up to date with main.         |
-| 9 | `Emergency`       | `ReturnToOrigin`   | Craft sent back to design stage with black box.        | Emergency declaration recorded in black box. |
+| #   | From               | To                 | Trigger                                                | Preconditions                                |
+| --- | ------------------ | ------------------ | ------------------------------------------------------ | -------------------------------------------- |
+| 1   | `Taxiing`          | `InFlight`         | Pilot begins implementation.                           | Captain, cargo, and flight plan assigned.    |
+| 2   | `InFlight`         | `InFlight`         | Pilot passes a vector and reports to ATC.              | Next vector in flight plan sequence.         |
+| 3   | `InFlight`         | `LandingChecklist` | Pilot begins validation checks.                        | All vectors passed and reported.             |
+| 4   | `LandingChecklist` | `ClearedToLand`    | All required checks pass; tower grants clearance.      | All required checklist items pass.           |
+| 5   | `LandingChecklist` | `GoAround`         | One or more required checks fail.                      | At least one required checklist item failed. |
+| 6   | `GoAround`         | `LandingChecklist` | Pilot re-attempts after addressing failures.           | Pilot has addressed failure(s).              |
+| 7   | `GoAround`         | `Emergency`        | Repeated failures exceed threshold or pilot escalates. | Captain decision.                            |
+| 8   | `ClearedToLand`    | `Landed`           | Tower merges branch into main.                         | Branch up to date with main.                 |
+| 9   | `Emergency`        | `ReturnToOrigin`   | Craft sent back to design stage with black box.        | Emergency declaration recorded in black box. |
 
 ### 3.3 Rules
 
@@ -395,12 +466,12 @@ Each time a craft passes through a vector, the pilot MUST file a vector report w
 
 #### Report Schema
 
-| Field               | Type     | Description                                                      |
-| ------------------- | -------- | ---------------------------------------------------------------- |
-| Craft Callsign      | `string` | The craft that passed the vector.                                |
-| Vector Name         | `string` | The vector that was passed.                                      |
+| Field               | Type     | Description                                                       |
+| ------------------- | -------- | ----------------------------------------------------------------- |
+| Craft Callsign      | `string` | The craft that passed the vector.                                 |
+| Vector Name         | `string` | The vector that was passed.                                       |
 | Acceptance Evidence | `string` | Proof that acceptance criteria were met (test output, artifacts). |
-| Timestamp           | `Date`   | When the vector was passed.                                      |
+| Timestamp           | `Date`   | When the vector was passed.                                       |
 
 #### Rules
 
@@ -417,31 +488,31 @@ Checklists are configurable, ordered lists of validation tasks that run automati
 
 A **lifecycle event** is a hookable moment in the craft lifecycle. Events come in before/after pairs.
 
-| Event                    | Fires When                              | Type   |
-| ------------------------ | --------------------------------------- | ------ |
-| `before:takeoff`         | `Taxiing → InFlight`                    | Before |
-| `after:takeoff`          | After `Taxiing → InFlight` completes    | After  |
-| `before:vector-complete` | `reportVector()` called                 | Before |
-| `after:vector-complete`  | After vector report is recorded         | After  |
-| `before:landing-check`   | `LandingChecklist → ClearedToLand`      | Before |
-| `after:landing-check`    | After landing check passes              | After  |
-| `before:go-around`       | `GoAround → LandingChecklist`           | Before |
-| `after:go-around`        | After go-around re-attempt begins       | After  |
-| `before:emergency`       | `GoAround → Emergency`                  | Before |
-| `after:emergency`        | After emergency is declared             | After  |
-| `before:landing`         | `ClearedToLand → Landed`               | Before |
-| `after:landing`          | After branch is merged                  | After  |
+| Event                    | Fires When                           | Type   |
+| ------------------------ | ------------------------------------ | ------ |
+| `before:takeoff`         | `Taxiing → InFlight`                 | Before |
+| `after:takeoff`          | After `Taxiing → InFlight` completes | After  |
+| `before:vector-complete` | `reportVector()` called              | Before |
+| `after:vector-complete`  | After vector report is recorded      | After  |
+| `before:landing-check`   | `LandingChecklist → ClearedToLand`   | Before |
+| `after:landing-check`    | After landing check passes           | After  |
+| `before:go-around`       | `GoAround → LandingChecklist`        | Before |
+| `after:go-around`        | After go-around re-attempt begins    | After  |
+| `before:emergency`       | `GoAround → Emergency`               | Before |
+| `after:emergency`        | After emergency is declared          | After  |
+| `before:landing`         | `ClearedToLand → Landed`             | Before |
+| `after:landing`          | After branch is merged               | After  |
 
 #### 4.2.2 Checklist Items
 
 Each item in a checklist has:
 
-| Field       | Type                                | Required | Description                                              |
-| ----------- | ----------------------------------- | -------- | -------------------------------------------------------- |
-| Name        | `string`                            | Yes      | Unique within template.                                  |
-| Description | `string`                            | No       | Returned to agents on failure for remediation context.   |
-| Severity    | `"required"` or `"advisory"`        | Yes      | Required items block before-event transitions.           |
-| Executor    | `ShellExecutor` or `McpToolExecutor` | Yes     | How to run the check.                                    |
+| Field       | Type                                 | Required | Description                                            |
+| ----------- | ------------------------------------ | -------- | ------------------------------------------------------ |
+| Name        | `string`                             | Yes      | Unique within template.                                |
+| Description | `string`                             | No       | Returned to agents on failure for remediation context. |
+| Severity    | `"required"` or `"advisory"`         | Yes      | Required items block before-event transitions.         |
+| Executor    | `ShellExecutor` or `McpToolExecutor` | Yes      | How to run the check.                                  |
 
 **ShellExecutor:** A shell command. Pass/fail determined by exit code (0 = pass).
 
@@ -463,12 +534,12 @@ Individual crafts may override inherited bindings for a specific event:
 
 A built-in template bound to `before:landing-check` for all categories provides baseline validation:
 
-| Check          | Severity | Validation                                 |
-| -------------- | -------- | ------------------------------------------ |
-| Tests          | Required | All test suites pass.                      |
-| Lint           | Required | No lint errors or warnings.                |
-| Documentation  | Advisory | Required docs are present and up to date.  |
-| Build          | Required | Project builds successfully.               |
+| Check         | Severity | Validation                                |
+| ------------- | -------- | ----------------------------------------- |
+| Tests         | Required | All test suites pass.                     |
+| Lint          | Required | No lint errors or warnings.               |
+| Documentation | Advisory | Required docs are present and up to date. |
+| Build         | Required | Project builds successfully.              |
 
 Projects configure checklists by creating templates and bindings. The defaults are provided as a starting point.
 
@@ -476,15 +547,15 @@ Projects configure checklists by creating templates and bindings. The defaults a
 
 Every checklist execution produces a `ChecklistRunResult` containing:
 
-| Field         | Description                                                           |
-| ------------- | --------------------------------------------------------------------- |
-| Checklist name | The template that was executed.                                      |
-| Event         | The lifecycle event that triggered the run.                           |
-| Craft callsign | The craft this ran against.                                          |
-| Attempt       | Attempt number (1-indexed, increments on re-runs for the same event). |
-| Timestamp     | When the run completed.                                               |
-| Passed        | True if no required items failed.                                     |
-| Item results  | Per-item: name, passed, severity, message, captured output, duration. |
+| Field          | Description                                                           |
+| -------------- | --------------------------------------------------------------------- |
+| Checklist name | The template that was executed.                                       |
+| Event          | The lifecycle event that triggered the run.                           |
+| Craft callsign | The craft this ran against.                                           |
+| Attempt        | Attempt number (1-indexed, increments on re-runs for the same event). |
+| Timestamp      | When the run completed.                                               |
+| Passed         | True if no required items failed.                                     |
+| Item results   | Per-item: name, passed, severity, message, captured output, duration. |
 
 Output is capped at 500 lines per item to keep black box entries manageable.
 
@@ -679,20 +750,20 @@ Criteria are natural language strings verified by the pilot through self-assessm
 - **Binary** — pass or fail without subjective thresholds.
 - **Testable** — the pilot can write a test or run a manual check against it.
 
-Criteria express *what success looks like*. Structural gates (tests pass, lint clean, build succeeds) belong in the landing checklist, not in criteria.
+Criteria express _what success looks like_. Structural gates (tests pass, lint clean, build succeeds) belong in the landing checklist, not in criteria.
 
 #### 4.6.8 Error Reference
 
-| Code | HTTP | Description |
-|------|------|-------------|
-| `SPEC_PARSE_ERROR` | 400 | Spec document is malformed YAML/JSON. |
-| `SPEC_VALIDATION_ERROR` | 422 | Required field is missing or invalid. |
-| `UNKNOWN_CATEGORY` | 422 | `category` does not match any project-configured category. |
-| `CALLSIGN_CONFLICT` | 409 | Callsign already in use (explicit override collision or 100 generated collisions). |
-| `NO_CERTIFIED_PILOT` | 422 | No pilots certified for the category remain after all filters. |
-| `PILOT_NOT_CERTIFIED` | 422 | Explicitly named pilot lacks required certification. |
-| `PILOT_ROLE_CONFLICT` | 422 | Same pilot assigned as both captain and first officer (RULE-SDD-10). |
-| `BRANCH_CREATION_FAILED` | 500 | Git branch could not be created. No craft record is written. |
+| Code                     | HTTP | Description                                                                        |
+| ------------------------ | ---- | ---------------------------------------------------------------------------------- |
+| `SPEC_PARSE_ERROR`       | 400  | Spec document is malformed YAML/JSON.                                              |
+| `SPEC_VALIDATION_ERROR`  | 422  | Required field is missing or invalid.                                              |
+| `UNKNOWN_CATEGORY`       | 422  | `category` does not match any project-configured category.                         |
+| `CALLSIGN_CONFLICT`      | 409  | Callsign already in use (explicit override collision or 100 generated collisions). |
+| `NO_CERTIFIED_PILOT`     | 422  | No pilots certified for the category remain after all filters.                     |
+| `PILOT_NOT_CERTIFIED`    | 422  | Explicitly named pilot lacks required certification.                               |
+| `PILOT_ROLE_CONFLICT`    | 422  | Same pilot assigned as both captain and first officer (RULE-SDD-10).               |
+| `BRANCH_CREATION_FAILED` | 500  | Git branch could not be created. No craft record is written.                       |
 
 ### 4.7 UX Review Protocol
 
@@ -706,7 +777,7 @@ A UX review is required when a change touches any of the following:
 - The SDD spec document schema or submission flow (§4.6).
 - Dashboard views, components, or layout in the web package.
 - The operating manual (`docs/agent/operating-manual.md`).
-- Protocol sections (§4.*) that introduce user-visible confirmation, notification, or interaction steps.
+- Protocol sections (§4.\*) that introduce user-visible confirmation, notification, or interaction steps.
 - CLI output formatting or interactive prompts.
 
 Changes that are purely internal (refactors, backend logic with no user-visible surface, test-only changes) are exempt.
@@ -726,118 +797,173 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 - **RULE-UXR-4:** Changes to the web package MUST maintain or improve accessibility: sufficient color contrast (WCAG AA), keyboard navigability, and screen-reader-compatible markup.
 - **RULE-UXR-5:** Destructive or irreversible actions MUST require explicit user confirmation before execution. Users MUST be able to recover from errors without losing in-progress work.
 
+### 4.8 Adversarial Review Protocol
+
+Adversarial review is a verification protocol in which an inspector independently evaluates a vector's deliverables before the vector can pass. The inspector acts as an adversarial verifier — their role is to find defects, not to confirm success.
+
+#### 4.8.1 Applicability
+
+Adversarial review is triggered when an inspector is assigned to a craft. Once an inspector is aboard, all vectors in the craft's flight plan are subject to review before they can transition to `Passed`.
+
+#### 4.8.2 Review Procedure
+
+1. The implementing pilot completes work on a vector and reports readiness to ATC.
+2. ATC transitions the vector to `UnderReview` and records an `AdversarialReviewStarted` entry in the black box.
+3. The inspector reviews the vector's deliverables against the acceptance criteria.
+4. During review, the inspector MAY submit zero or more findings (see §2.8).
+5. For each finding submitted, an `AdversarialFindingSubmitted` entry is recorded in the black box, and a notification is sent to the builder (captain) and any first officers.
+6. The implementing crew acknowledges and addresses findings. Each acknowledgment and resolution is recorded in the black box.
+7. Once all `critical` and `major` findings are `resolved` or `closed`, the inspector MAY approve the vector, transitioning it to `Passed` with an `AdversarialReviewPassed` entry.
+8. If the inspector determines that unresolved findings make the vector unacceptable, they MAY fail the vector, transitioning it to `Failed` with an `AdversarialReviewFailed` entry. The implementing crew addresses the failures and resubmits.
+
+#### 4.8.3 Concurrency
+
+- **RULE-ADVR-1:** Only one adversarial review MAY be active per vector at a time. A vector in `UnderReview` status MUST NOT have a second review initiated until the current review concludes (with `AdversarialReviewPassed` or `AdversarialReviewFailed`).
+- **RULE-ADVR-2:** An inspector MAY review multiple vectors on the same craft concurrently, provided each vector is in `UnderReview` status independently.
+- **RULE-ADVR-3:** The implementing crew MAY continue work on subsequent vectors while a prior vector is `UnderReview`, subject to RULE-VEC-2 (vectors must be passed in order). A vector that has not yet been approved by the inspector is not considered passed.
+
+#### 4.8.4 Notification Requirements
+
+- **RULE-NOTIFY-1:** When an `AdversarialFindingSubmitted` entry is recorded, the system MUST notify the captain and all first officers on the craft via the intercom. The notification MUST include the finding ID, severity, target vector, and a summary of the description.
+- **RULE-NOTIFY-2:** When an `AdversarialReviewPassed` or `AdversarialReviewFailed` entry is recorded, the system MUST notify the captain and all first officers via the intercom with the review outcome and summary.
+
+#### 4.8.5 Rules
+
+- **RULE-ADVR-4:** An inspector MUST NOT review a vector that is still in `Pending` status. The implementing pilot must first report the vector as ready.
+- **RULE-ADVR-5:** If all findings on a vector are `minor` severity and the inspector chooses to approve, the vector MAY transition to `Passed` even if minor findings remain `open`. The inspector MUST record the rationale in the `AdversarialReviewPassed` black box entry.
+- **RULE-ADVR-6:** The adversarial review protocol does not replace the landing checklist (§4.2). A craft with an inspector must still pass its landing checklist after all vectors are approved.
+
 ## 5. Appendices
 
 ### Appendix A: Rule Index
 
-| Rule ID        | Summary                                                              | Section |
-| -------------- | -------------------------------------------------------------------- | ------- |
-| RULE-CRAFT-1   | Craft callsign must be unique and immutable.                         | 2.1     |
-| RULE-CRAFT-2   | Craft must have exactly one git branch (1:1).                        | 2.1     |
-| RULE-CRAFT-3   | Craft must have a cargo description at creation.                     | 2.1     |
-| RULE-CRAFT-4   | Craft must have a category at creation.                              | 2.1     |
-| RULE-CRAFT-5   | Craft must have exactly one captain at all times.                    | 2.1     |
-| RULE-CRAFT-6   | Craft must record an immutable creation timestamp at Taxiing.        | 2.1     |
-| RULE-BBOX-1    | Black box created at Taxiing, persists for lifecycle.                | 2.1.1   |
-| RULE-BBOX-2    | Black box entries are append-only, immutable.                        | 2.1.1   |
-| RULE-BBOX-3    | All pilots (including jumpseaters) may write to black box.           | 2.1.1   |
-| RULE-BBOX-4    | Complete black box provided to origin on emergency.                  | 2.1.1   |
-| RULE-PILOT-1   | Pilot identifier must be unique.                                     | 2.2.1   |
-| RULE-PILOT-2   | Certifications determine captain/FO eligibility.                     | 2.2.1   |
-| RULE-SEAT-1    | Craft must have exactly one captain.                                 | 2.2.3   |
-| RULE-SEAT-2    | Captain/FO requires certification for craft's category.              | 2.2.3   |
-| RULE-SEAT-3    | Uncertified pilots may only board in jumpseat.                       | 2.2.3   |
-| RULE-SEAT-4    | Pilot may occupy seats on multiple crafts concurrently.              | 2.2.3   |
-| RULE-CTRL-1    | Captain holds exclusive controls at craft creation.                  | 2.2.4   |
-| RULE-CTRL-2    | Only captain/FO may hold controls; jumpseaters never.               | 2.2.4   |
-| RULE-CTRL-3    | Must hold controls to modify code.                                   | 2.2.4   |
-| RULE-CTRL-3a   | Adversarial reviewer holds exclusive controls; builder must release before vector entry. | 2.2.4 |
-| RULE-CTRL-4    | Should use exclusive controls for conflict-prone changes.            | 2.2.4   |
-| RULE-CTRL-5    | May use shared controls for separable concerns.                      | 2.2.4   |
-| RULE-CTRL-6    | Captain has final authority on control disputes.                     | 2.2.4   |
-| RULE-CTRL-7    | Control transfers must be recorded in black box.                     | 2.2.4   |
-| RULE-ICOM-1    | Check channel is clear before transmitting.                          | 2.2.5   |
-| RULE-ICOM-2    | Use 3W principle in every transmission.                              | 2.2.5   |
-| RULE-ICOM-3    | Read back safety-critical exchanges.                                 | 2.2.5   |
-| RULE-ICOM-4    | Signal when transmission is complete.                                | 2.2.5   |
-| RULE-ICOM-5    | Keep transmissions concise with standard phraseology.                | 2.2.5   |
-| RULE-ICOM-6    | System notifications must include source, summary, and bbox ref.     | 2.2.5   |
-| RULE-TOWER-1   | Exactly one tower per repository.                                    | 2.3     |
-| RULE-TOWER-2   | Tower must verify all vector reports before granting clearance.      | 2.3     |
-| RULE-TOWER-3   | Tower must verify branch is up to date before merge.                 | 2.3     |
-| RULE-VEC-1     | Flight plan assigned at creation during Taxiing.                     | 2.4     |
-| RULE-VEC-2     | Vectors must be passed in order; no skipping.                        | 2.4     |
-| RULE-VEC-3     | Pilot must report vector passage to ATC.                             | 2.4     |
-| RULE-VEC-4     | All vectors must be passed before Landing Checklist.                 | 2.4     |
-| RULE-VEC-5     | May declare emergency if vector criteria cannot be met.              | 2.4     |
-| RULE-VEC-6     | Vector type is `standard` (default) or `adversarial_review`.        | 2.4     |
-| RULE-VEC-7     | adversarial_review vector must specify reviewerPilotId; reviewer must not have filed the preceding vector report. | 2.4 |
-| RULE-VEC-8     | Pilot may not file passing report for adversarial_review vector if they filed the immediately preceding standard report. | 2.4 |
-| RULE-VEC-9     | Designated reviewer must hold Captain or First Officer seat at vector entry. | 2.4 |
-| RULE-ORIG-1    | Unlandable crafts must be sent to origin airport.                    | 2.5     |
-| RULE-ORIG-2    | Origin receives callsign, cargo, flight plan, and black box.        | 2.5     |
-| RULE-ORIG-3    | Origin diagnoses root cause and decides re-plan/re-scope/abandon.   | 2.5     |
-| RULE-LIFE-1    | Craft begins in Taxiing state.                                       | 3.3     |
-| RULE-LIFE-2    | Only listed transitions are valid.                                   | 3.3     |
-| RULE-LIFE-3    | Taxiing → InFlight requires captain, cargo, flight plan.            | 3.3     |
-| RULE-LIFE-4    | InFlight → LandingChecklist requires all vectors passed/reported.   | 3.3     |
-| RULE-LIFE-5    | LandingChecklist → ClearedToLand requires all required checks pass + tower. | 3.3 |
-| RULE-LIFE-6    | ClearedToLand → Landed requires branch up to date + merge.         | 3.3     |
-| RULE-LIFE-7    | Emergency → ReturnToOrigin requires EmergencyDeclaration in bbox.   | 3.3     |
-| RULE-LIFE-8    | Landed and ReturnToOrigin are terminal; no transitions out.          | 3.3     |
-| RULE-VRPT-1    | Vector report must be filed on every vector passage.                 | 4.1     |
-| RULE-VRPT-2    | Report must include callsign, vector name, evidence, timestamp.      | 4.1     |
-| RULE-VRPT-3    | ATC must record report and update flight plan status.                | 4.1     |
-| RULE-VRPT-4    | Missing vector report means landing clearance denied.                | 4.1     |
-| RULE-CHKL-1    | Template is named, ordered list with name, executor, severity, description. | 4.2  |
-| RULE-CHKL-2    | Templates bound to lifecycle events and craft categories.            | 4.2     |
-| RULE-CHKL-3    | Crafts may override bindings: add, remove, or disable.               | 4.2     |
-| RULE-CHKL-4    | Before-events: required failures block; after-events: never block.   | 4.2     |
-| RULE-CHKL-5    | Every execution recorded as ChecklistRun in black box with full metadata. | 4.2  |
-| RULE-CHKL-6    | System notification posted to intercom on completion.                | 4.2     |
-| RULE-CHKL-7    | Items execute sequentially; override items appended after template.  | 4.2     |
-| RULE-CHKL-8    | Lifecycle event enum is extensible.                                  | 4.2     |
-| RULE-EMER-1    | Only the captain may declare an emergency.                           | 4.3     |
-| RULE-EMER-2    | Captain must record EmergencyDeclaration in black box.               | 4.3     |
-| RULE-EMER-3    | Craft must return to origin on emergency.                            | 4.3     |
-| RULE-EMER-4    | Origin receives callsign, cargo, flight plan, and black box.        | 4.3     |
-| RULE-TMRG-1    | Tower must verify all vector reports before clearance.               | 4.4     |
-| RULE-TMRG-2    | Tower must verify branch is up to date before merge.                 | 4.4     |
-| RULE-TMRG-3    | Tower may send craft on go-around for merge conflicts.               | 4.4     |
-| RULE-TMRG-4    | Merges sequenced FCFS by default.                                    | 4.4     |
-| RULE-TFR-1     | TFR must have identifier, scope, mode, reason, and issuer.           | 2.6     |
-| RULE-TFR-2     | Project/craft TFRs require target; global TFRs have null target.     | 2.6     |
-| RULE-TFR-3     | User may issue TFR at any scope.                                     | 2.6     |
-| RULE-TFR-4     | Tower may issue project/craft TFR if enabled; never global.          | 2.6     |
-| RULE-TFR-5     | TFR must not alter lifecycle state; uses holdingPattern flag.        | 2.6     |
-| RULE-TFR-6     | No pilot actions permitted while holdingPattern is true.             | 2.6     |
-| RULE-TFR-7     | Multiple TFRs may coexist; craft holds if any TFR applies.           | 2.6     |
-| RULE-TFR-8     | Lifting TFR clears holdingPattern unless another TFR still applies.  | 2.6     |
-| RULE-TFRP-1    | Graceful mode: wind-down window before holding pattern.              | 4.5     |
-| RULE-TFRP-2    | Immediate mode: no wind-down, instant hold.                          | 4.5     |
-| RULE-TFRP-3    | Only the user may lift a TFR.                                        | 4.5     |
-| RULE-TFRP-4    | Agents auto-resume when TFR is lifted.                               | 4.5     |
-| RULE-TFRP-5    | TFRIssued and TFRLifted entries in affected craft black boxes.       | 4.5     |
-| RULE-TFRP-6    | TFR events posted as intercom system notifications.                  | 4.5     |
-| RULE-TFRP-7    | Tower maintains log of all TFR events.                               | 4.5     |
-| RULE-SDD-1     | Spec must include title, cargo, category, and at least one vector.   | 2.7     |
-| RULE-SDD-2     | Each vector must have a name and at least one non-empty criterion; reject with SPEC_VALIDATION_ERROR. | 2.7     |
-| RULE-SDD-3     | Category must match a project-configured craft category.             | 2.7     |
-| RULE-SDD-5     | Explicit callsign override must be unique.                           | 2.7     |
-| RULE-SDD-6     | Explicit captain must be certified for the spec's category.          | 2.7     |
-| RULE-SDD-7     | Explicit first officers must be certified for the spec's category.   | 2.7     |
-| RULE-SDD-8     | Auto-selected captains must be certified (RULE-PILOT-2 applies).     | 4.6.4   |
-| RULE-SDD-9     | No eligible pilot after filtering → fail with NO_CERTIFIED_PILOT.   | 4.6.4   |
-| RULE-SDD-10    | Same pilot must not be assigned as both captain and first officer.   | 4.6.4   |
-| RULE-SDD-11    | autoLaunch suppressed unless project sets allowAutoLaunch: true.     | 4.6.3   |
-| RULE-SDD-12    | Active TFR suppresses autoLaunch; craft created with holdingPattern. | 4.6.3   |
-| RULE-SDD-13    | API key must carry spec:autolaunch scope to enable autoLaunch.       | 4.6.3   |
-| RULE-SDD-14    | Agent-submitted specs cannot autoLaunch.                             | 4.6.3   |
-| RULE-SDD-15    | Dry-run: full validation + computation, no persistence or side effects. | 4.6.6   |
-| RULE-SDD-16    | SpecCreated bbox entry must record identity, source, title, notes, metadata, autoLaunch outcome. | 4.6.6 |
-| RULE-SDD-17    | File-watch inbox must not process the same file twice.               | 4.6.5   |
-| RULE-UXR-1     | User-facing changes must use domain model terminology from §1.1.     | 4.7.3   |
-| RULE-UXR-2     | Error messages/labels must be understandable without reading source.  | 4.7.3   |
-| RULE-UXR-3     | All user-visible states covered: success, error, loading, empty.     | 4.7.3   |
-| RULE-UXR-4     | Web changes must maintain/improve accessibility (WCAG AA).           | 4.7.3   |
-| RULE-UXR-5     | Destructive actions require confirmation; errors must be recoverable.| 4.7.3   |
+| Rule ID       | Summary                                                                                               | Section |
+| ------------- | ----------------------------------------------------------------------------------------------------- | ------- |
+| RULE-CRAFT-1  | Craft callsign must be unique and immutable.                                                          | 2.1     |
+| RULE-CRAFT-2  | Craft must have exactly one git branch (1:1).                                                         | 2.1     |
+| RULE-CRAFT-3  | Craft must have a cargo description at creation.                                                      | 2.1     |
+| RULE-CRAFT-4  | Craft must have a category at creation.                                                               | 2.1     |
+| RULE-CRAFT-5  | Craft must have exactly one captain at all times.                                                     | 2.1     |
+| RULE-CRAFT-6  | Craft must record an immutable creation timestamp at Taxiing.                                         | 2.1     |
+| RULE-BBOX-1   | Black box created at Taxiing, persists for lifecycle.                                                 | 2.1.1   |
+| RULE-BBOX-2   | Black box entries are append-only, immutable.                                                         | 2.1.1   |
+| RULE-BBOX-3   | All pilots (including jumpseaters) may write to black box.                                            | 2.1.1   |
+| RULE-BBOX-4   | Complete black box provided to origin on emergency.                                                   | 2.1.1   |
+| RULE-BBOX-5   | Every adversarial review event must use the corresponding entry type.                                 | 2.1.1   |
+| RULE-BBOX-6   | AdversarialFindingSubmitted must include finding ID, vector, severity, description.                   | 2.1.1   |
+| RULE-BBOX-7   | AdversarialReviewPassed/Failed must include inspector, vector, finding summary.                       | 2.1.1   |
+| RULE-PILOT-1  | Pilot identifier must be unique.                                                                      | 2.2.1   |
+| RULE-PILOT-2  | Certifications determine captain/FO eligibility.                                                      | 2.2.1   |
+| RULE-SEAT-1   | Craft must have exactly one captain.                                                                  | 2.2.3   |
+| RULE-SEAT-2   | Captain/FO requires certification for craft's category.                                               | 2.2.3   |
+| RULE-SEAT-3   | Uncertified pilots may only board in jumpseat.                                                        | 2.2.3   |
+| RULE-SEAT-4   | Pilot may occupy seats on multiple crafts concurrently.                                               | 2.2.3   |
+| RULE-SEAT-5   | Inspector seat requires certification; read-all, submit findings, block vectors; no code/controls.    | 2.2.3   |
+| RULE-SEAT-6   | Inspector must not also hold implementation seat on same craft.                                       | 2.2.3   |
+| RULE-CTRL-1   | Captain holds exclusive controls at craft creation.                                                   | 2.2.4   |
+| RULE-CTRL-2   | Only captain/FO may hold controls; jumpseaters and inspectors never.                                  | 2.2.4   |
+| RULE-CTRL-3   | Must hold controls to modify code.                                                                    | 2.2.4   |
+| RULE-CTRL-3a  | Adversarial reviewer holds exclusive controls; builder must release before vector entry.              | 2.2.4   |
+| RULE-CTRL-4   | Should use exclusive controls for conflict-prone changes.                                             | 2.2.4   |
+| RULE-CTRL-5   | May use shared controls for separable concerns.                                                       | 2.2.4   |
+| RULE-CTRL-6   | Captain has final authority on control disputes.                                                      | 2.2.4   |
+| RULE-CTRL-7   | Control transfers must be recorded in black box.                                                      | 2.2.4   |
+| RULE-ICOM-1   | Check channel is clear before transmitting.                                                           | 2.2.5   |
+| RULE-ICOM-2   | Use 3W principle in every transmission.                                                               | 2.2.5   |
+| RULE-ICOM-3   | Read back safety-critical exchanges.                                                                  | 2.2.5   |
+| RULE-ICOM-4   | Signal when transmission is complete.                                                                 | 2.2.5   |
+| RULE-ICOM-5   | Keep transmissions concise with standard phraseology.                                                 | 2.2.5   |
+| RULE-ICOM-6   | System notifications must include source, summary, and bbox ref.                                      | 2.2.5   |
+| RULE-TOWER-1  | Exactly one tower per repository.                                                                     | 2.3     |
+| RULE-TOWER-2  | Tower must verify all vector reports before granting clearance.                                       | 2.3     |
+| RULE-TOWER-3  | Tower must verify branch is up to date before merge.                                                  | 2.3     |
+| RULE-VEC-1    | Flight plan assigned at creation during Taxiing.                                                      | 2.4     |
+| RULE-VEC-2    | Vectors must be passed in order; no skipping.                                                         | 2.4     |
+| RULE-VEC-3    | Pilot must report vector passage to ATC.                                                              | 2.4     |
+| RULE-VEC-4    | All vectors must be passed before Landing Checklist.                                                  | 2.4     |
+| RULE-VEC-5    | May declare emergency if vector criteria cannot be met.                                               | 2.4     |
+| RULE-VEC-6    | With inspector, vector must enter UnderReview before Passed.                                          | 2.4     |
+| RULE-VEC-7    | UnderReview → Passed blocked while critical/major findings open.                                      | 2.4     |
+| RULE-VEC-8    | Only inspector may approve/fail vectors under review.                                                 | 2.4     |
+| RULE-ORIG-1   | Unlandable crafts must be sent to origin airport.                                                     | 2.5     |
+| RULE-ORIG-2   | Origin receives callsign, cargo, flight plan, and black box.                                          | 2.5     |
+| RULE-ORIG-3   | Origin diagnoses root cause and decides re-plan/re-scope/abandon.                                     | 2.5     |
+| RULE-LIFE-1   | Craft begins in Taxiing state.                                                                        | 3.3     |
+| RULE-LIFE-2   | Only listed transitions are valid.                                                                    | 3.3     |
+| RULE-LIFE-3   | Taxiing → InFlight requires captain, cargo, flight plan.                                              | 3.3     |
+| RULE-LIFE-4   | InFlight → LandingChecklist requires all vectors passed/reported.                                     | 3.3     |
+| RULE-LIFE-5   | LandingChecklist → ClearedToLand requires all required checks pass + tower.                           | 3.3     |
+| RULE-LIFE-6   | ClearedToLand → Landed requires branch up to date + merge.                                            | 3.3     |
+| RULE-LIFE-7   | Emergency → ReturnToOrigin requires EmergencyDeclaration in bbox.                                     | 3.3     |
+| RULE-LIFE-8   | Landed and ReturnToOrigin are terminal; no transitions out.                                           | 3.3     |
+| RULE-VRPT-1   | Vector report must be filed on every vector passage.                                                  | 4.1     |
+| RULE-VRPT-2   | Report must include callsign, vector name, evidence, timestamp.                                       | 4.1     |
+| RULE-VRPT-3   | ATC must record report and update flight plan status.                                                 | 4.1     |
+| RULE-VRPT-4   | Missing vector report means landing clearance denied.                                                 | 4.1     |
+| RULE-CHKL-1   | Template is named, ordered list with name, executor, severity, description.                           | 4.2     |
+| RULE-CHKL-2   | Templates bound to lifecycle events and craft categories.                                             | 4.2     |
+| RULE-CHKL-3   | Crafts may override bindings: add, remove, or disable.                                                | 4.2     |
+| RULE-CHKL-4   | Before-events: required failures block; after-events: never block.                                    | 4.2     |
+| RULE-CHKL-5   | Every execution recorded as ChecklistRun in black box with full metadata.                             | 4.2     |
+| RULE-CHKL-6   | System notification posted to intercom on completion.                                                 | 4.2     |
+| RULE-CHKL-7   | Items execute sequentially; override items appended after template.                                   | 4.2     |
+| RULE-CHKL-8   | Lifecycle event enum is extensible.                                                                   | 4.2     |
+| RULE-EMER-1   | Only the captain may declare an emergency.                                                            | 4.3     |
+| RULE-EMER-2   | Captain must record EmergencyDeclaration in black box.                                                | 4.3     |
+| RULE-EMER-3   | Craft must return to origin on emergency.                                                             | 4.3     |
+| RULE-EMER-4   | Origin receives callsign, cargo, flight plan, and black box.                                          | 4.3     |
+| RULE-TMRG-1   | Tower must verify all vector reports before clearance.                                                | 4.4     |
+| RULE-TMRG-2   | Tower must verify branch is up to date before merge.                                                  | 4.4     |
+| RULE-TMRG-3   | Tower may send craft on go-around for merge conflicts.                                                | 4.4     |
+| RULE-TMRG-4   | Merges sequenced FCFS by default.                                                                     | 4.4     |
+| RULE-TFR-1    | TFR must have identifier, scope, mode, reason, and issuer.                                            | 2.6     |
+| RULE-TFR-2    | Project/craft TFRs require target; global TFRs have null target.                                      | 2.6     |
+| RULE-TFR-3    | User may issue TFR at any scope.                                                                      | 2.6     |
+| RULE-TFR-4    | Tower may issue project/craft TFR if enabled; never global.                                           | 2.6     |
+| RULE-TFR-5    | TFR must not alter lifecycle state; uses holdingPattern flag.                                         | 2.6     |
+| RULE-TFR-6    | No pilot actions permitted while holdingPattern is true.                                              | 2.6     |
+| RULE-TFR-7    | Multiple TFRs may coexist; craft holds if any TFR applies.                                            | 2.6     |
+| RULE-TFR-8    | Lifting TFR clears holdingPattern unless another TFR still applies.                                   | 2.6     |
+| RULE-TFRP-1   | Graceful mode: wind-down window before holding pattern.                                               | 4.5     |
+| RULE-TFRP-2   | Immediate mode: no wind-down, instant hold.                                                           | 4.5     |
+| RULE-TFRP-3   | Only the user may lift a TFR.                                                                         | 4.5     |
+| RULE-TFRP-4   | Agents auto-resume when TFR is lifted.                                                                | 4.5     |
+| RULE-TFRP-5   | TFRIssued and TFRLifted entries in affected craft black boxes.                                        | 4.5     |
+| RULE-TFRP-6   | TFR events posted as intercom system notifications.                                                   | 4.5     |
+| RULE-TFRP-7   | Tower maintains log of all TFR events.                                                                | 4.5     |
+| RULE-SDD-1    | Spec must include title, cargo, category, and at least one vector.                                    | 2.7     |
+| RULE-SDD-2    | Each vector must have a name and at least one non-empty criterion; reject with SPEC_VALIDATION_ERROR. | 2.7     |
+| RULE-SDD-3    | Category must match a project-configured craft category.                                              | 2.7     |
+| RULE-SDD-5    | Explicit callsign override must be unique.                                                            | 2.7     |
+| RULE-SDD-6    | Explicit captain must be certified for the spec's category.                                           | 2.7     |
+| RULE-SDD-7    | Explicit first officers must be certified for the spec's category.                                    | 2.7     |
+| RULE-SDD-8    | Auto-selected captains must be certified (RULE-PILOT-2 applies).                                      | 4.6.4   |
+| RULE-SDD-9    | No eligible pilot after filtering → fail with NO_CERTIFIED_PILOT.                                     | 4.6.4   |
+| RULE-SDD-10   | Same pilot must not be assigned as both captain and first officer.                                    | 4.6.4   |
+| RULE-SDD-11   | autoLaunch suppressed unless project sets allowAutoLaunch: true.                                      | 4.6.3   |
+| RULE-SDD-12   | Active TFR suppresses autoLaunch; craft created with holdingPattern.                                  | 4.6.3   |
+| RULE-SDD-13   | API key must carry spec:autolaunch scope to enable autoLaunch.                                        | 4.6.3   |
+| RULE-SDD-14   | Agent-submitted specs cannot autoLaunch.                                                              | 4.6.3   |
+| RULE-SDD-15   | Dry-run: full validation + computation, no persistence or side effects.                               | 4.6.6   |
+| RULE-SDD-16   | SpecCreated bbox entry must record identity, source, title, notes, metadata, autoLaunch outcome.      | 4.6.6   |
+| RULE-SDD-17   | File-watch inbox must not process the same file twice.                                                | 4.6.5   |
+| RULE-UXR-1    | User-facing changes must use domain model terminology from §1.1.                                      | 4.7.3   |
+| RULE-UXR-2    | Error messages/labels must be understandable without reading source.                                  | 4.7.3   |
+| RULE-UXR-3    | All user-visible states covered: success, error, loading, empty.                                      | 4.7.3   |
+| RULE-UXR-4    | Web changes must maintain/improve accessibility (WCAG AA).                                            | 4.7.3   |
+| RULE-UXR-5    | Destructive actions require confirmation; errors must be recoverable.                                 | 4.7.3   |
+| RULE-FIND-1   | Finding must have unique ID, vector, inspector, description, severity, status open.                   | 2.8     |
+| RULE-FIND-2   | Only inspector may submit findings; must target a specific vector.                                    | 2.8     |
+| RULE-FIND-3   | Only implementing crew may acknowledge/resolve findings.                                              | 2.8     |
+| RULE-FIND-4   | Only inspector may close or reopen resolved findings.                                                 | 2.8     |
+| RULE-FIND-5   | Critical/major findings must be resolved/closed before vector passes.                                 | 2.8     |
+| RULE-FIND-6   | Minor findings may be closed without resolution; reason recorded.                                     | 2.8     |
+| RULE-FIND-7   | Every finding status transition recorded in black box.                                                | 2.8     |
+| RULE-ADVR-1   | Only one active review per vector at a time.                                                          | 4.8.3   |
+| RULE-ADVR-2   | Inspector may review multiple vectors concurrently.                                                   | 4.8.3   |
+| RULE-ADVR-3   | Crew may work on subsequent vectors while prior is under review.                                      | 4.8.3   |
+| RULE-ADVR-4   | Inspector must not review a vector still in Pending status.                                           | 4.8.5   |
+| RULE-ADVR-5   | Vector may pass with open minor findings if inspector approves.                                       | 4.8.5   |
+| RULE-ADVR-6   | Adversarial review does not replace the landing checklist.                                            | 4.8.5   |
+| RULE-NOTIFY-1 | System must notify captain/FOs on AdversarialFindingSubmitted.                                        | 4.8.4   |
+| RULE-NOTIFY-2 | System must notify captain/FOs on review passed/failed.                                               | 4.8.4   |
