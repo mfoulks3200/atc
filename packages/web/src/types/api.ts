@@ -1,3 +1,9 @@
+/** A single entry in the tower merge queue. */
+export interface QueueEntry {
+  callsign: string;
+  requestedAt: string;
+}
+
 /** Craft lifecycle status values. */
 export type CraftStatus =
   | "Taxiing"
