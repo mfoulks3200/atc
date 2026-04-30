@@ -75,6 +75,12 @@ export const TRANSITIONS: readonly CraftTransition[] = [
     preconditions: ["Branch up to date with main"],
   },
   {
+    from: CraftStatus.ClearedToLand,
+    to: CraftStatus.GoAround,
+    trigger: "Merge is stale, conflicts, or tower operator denies landing.",
+    preconditions: ["Branch not up to date, merge conflict, or operator denial"],
+  },
+  {
     from: CraftStatus.Emergency,
     to: CraftStatus.ReturnToOrigin,
     trigger: "Craft sent back to design stage with black box.",

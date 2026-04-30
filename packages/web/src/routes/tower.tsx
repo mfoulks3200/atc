@@ -53,13 +53,13 @@ export function Component() {
         <div className="mb-3 text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>
           MERGE QUEUE — {name?.toUpperCase()}
         </div>
-        {(!queue || queue.length === 0) ? (
-          <div className="py-8 text-center text-xs" style={{ color: "var(--text-dim)" }}>
-            Queue is empty. No crafts awaiting clearance.
-          </div>
-        ) : (
-          <div className="flex items-start gap-3">
-            {queue.map((entry, i) => {
+        <div className="flex items-start gap-3">
+          {(!queue || queue.length === 0) ? (
+            <div className="py-8 text-center text-xs" style={{ color: "var(--text-dim)" }}>
+              Queue is empty. No crafts awaiting clearance.
+            </div>
+          ) : (
+            queue.map((entry, i) => {
               const craft = craftMap.get(entry.callsign);
               if (!craft) return null;
               const isCleared = craft.status === "ClearedToLand";
@@ -83,17 +83,19 @@ export function Component() {
                   />
                 </div>
               );
-            })}
-            <div className="flex items-start gap-3">
+            })
+          )}
+          <div className="flex items-start gap-3">
+            {queue && queue.length > 0 && (
               <div className="pt-10 text-xl" style={{ color: "var(--text-dim)" }}>→</div>
-              <div className="flex min-h-[120px] flex-[0.6] flex-col items-center justify-center rounded-md border p-3.5" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}>
-                <div className="text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>RUNWAY</div>
-                <div className="mt-2 text-2xl" style={{ color: "var(--border)" }}>⊘</div>
-                <div className="mt-1 text-[10px]" style={{ color: "var(--text-dim)" }}>main branch</div>
-              </div>
+            )}
+            <div className="flex min-h-[120px] flex-[0.6] flex-col items-center justify-center rounded-md border p-3.5" style={{ backgroundColor: "var(--bg-surface)", borderColor: "var(--border)" }}>
+              <div className="text-[9px] uppercase tracking-widest" style={{ color: "var(--text-dim)" }}>RUNWAY</div>
+              <div className="mt-2 text-2xl" style={{ color: "var(--border)" }}>⊘</div>
+              <div className="mt-1 text-[10px]" style={{ color: "var(--text-dim)" }}>main branch</div>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
