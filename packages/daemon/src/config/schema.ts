@@ -28,13 +28,18 @@ export const ADAPTER_CONFIG_SCHEMA = z.object({
   config: z.record(z.unknown()),
 });
 
+/** Maximum allowed timeout for a single checklist step (10 minutes). */
+export const MAX_CHECKLIST_TIMEOUT_MS = 600_000;
+
 /**
  * Schema for a single checklist step configuration.
+ *
+ * @see RULE-CHKL-1
  */
 export const CHECKLIST_ITEM_CONFIG_SCHEMA = z.object({
-  name: z.string(),
-  command: z.string(),
-  timeout: z.number().optional(),
+  name: z.string().min(1).max(200),
+  command: z.string().min(1).max(2000),
+  timeout: z.number().int().min(1000).max(MAX_CHECKLIST_TIMEOUT_MS).optional(),
 });
 
 /**

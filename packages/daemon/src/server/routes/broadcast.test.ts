@@ -210,6 +210,7 @@ describe("broadcast wiring on mutation routes", () => {
     const res = await app.inject({
       method: "POST",
       url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+      payload: { pilotId: "pilot-1" },
     });
     expect(res.statusCode).toBe(200);
 
@@ -230,6 +231,7 @@ describe("broadcast wiring on mutation routes", () => {
     await app.inject({
       method: "POST",
       url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+      payload: { pilotId: "pilot-1" },
     });
 
     const eventNames = eventsFor("craft:").map((e) => e.event);

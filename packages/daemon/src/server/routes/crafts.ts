@@ -50,6 +50,10 @@ interface CreateCraftBody {
   }>;
 }
 
+interface ChecklistBody {
+  pilotId: string;
+}
+
 interface EmergencyBody {
   pilotId: string;
   reason: string;
@@ -337,10 +341,16 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
    * @see RULE-LCHK-1 through RULE-LCHK-4
    * @see RULE-LCHK-3
    */
-  app.post<{ Params: CraftParams }>(
+  app.post<{ Params: CraftParams; Body: ChecklistBody }>(
     "/api/v1/projects/:name/crafts/:callsign/checklist",
     async (request, reply) => {
       const { name, callsign } = request.params;
+      const { pilotId } = request.body ?? {};
+
+      // RULE-LCHK-1: pilot must hold controls to execute checklist.
+      if (!pilotId || typeof pilotId !== "string") {
+        return reply.code(400).send({ error: "pilotId is required to run the checklist" });
+      }
 
       if (!app.craftStore.get(name, callsign)) {
         return reply.code(404).send({ error: `Craft not found: ${callsign}` });
@@ -350,6 +360,27 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         const craft = app.craftStore.get(name, callsign);
         if (!craft) {
           return reply.code(404).send({ error: `Craft not found: ${callsign}` });
+        }
+
+        // RULE-LCHK-1: verify crew membership and controls ownership.
+        const isCrew =
+          craft.captain === pilotId ||
+          craft.firstOfficers.includes(pilotId) ||
+          craft.jumpseaters.includes(pilotId);
+        if (!isCrew) {
+          return reply
+            .code(403)
+            .send({ error: `Pilot "${pilotId}" is not a crew member of craft "${callsign}"` });
+        }
+
+        const holdsControls =
+          craft.controls.mode === "exclusive"
+            ? craft.controls.holder === pilotId
+            : (craft.controls.sharedAreas?.some((a) => a.pilotId === pilotId) ?? false);
+        if (!holdsControls) {
+          return reply.code(403).send({
+            error: `Pilot "${pilotId}" does not hold controls on craft "${callsign}" [RULE-LCHK-1]`,
+          });
         }
 
         // RULE-LCHK-3: only valid from InFlight or GoAround

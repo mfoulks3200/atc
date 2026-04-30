@@ -150,4 +150,52 @@ describe("PROJECT_METADATA_SCHEMA", () => {
     }) as Record<string, unknown>;
     expect(parsed["customField"]).toBe("retained");
   });
+
+  it("rejects a checklist item with an empty name", () => {
+    const result = PROJECT_METADATA_SCHEMA.safeParse({
+      ...PROJECT_METADATA_DEFAULTS,
+      checklist: [{ name: "", command: "pnpm test" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a checklist item with an empty command", () => {
+    const result = PROJECT_METADATA_SCHEMA.safeParse({
+      ...PROJECT_METADATA_DEFAULTS,
+      checklist: [{ name: "Tests", command: "" }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a checklist timeout exceeding MAX_CHECKLIST_TIMEOUT_MS", () => {
+    const result = PROJECT_METADATA_SCHEMA.safeParse({
+      ...PROJECT_METADATA_DEFAULTS,
+      checklist: [{ name: "Tests", command: "pnpm test", timeout: 999_999 }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a checklist timeout below 1000ms", () => {
+    const result = PROJECT_METADATA_SCHEMA.safeParse({
+      ...PROJECT_METADATA_DEFAULTS,
+      checklist: [{ name: "Tests", command: "pnpm test", timeout: 100 }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a non-integer checklist timeout", () => {
+    const result = PROJECT_METADATA_SCHEMA.safeParse({
+      ...PROJECT_METADATA_DEFAULTS,
+      checklist: [{ name: "Tests", command: "pnpm test", timeout: 5000.5 }],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a checklist command exceeding 2000 characters", () => {
+    const result = PROJECT_METADATA_SCHEMA.safeParse({
+      ...PROJECT_METADATA_DEFAULTS,
+      checklist: [{ name: "Tests", command: "x".repeat(2001) }],
+    });
+    expect(result.success).toBe(false);
+  });
 });

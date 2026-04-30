@@ -397,6 +397,7 @@ describe("craft routes", () => {
       const res = await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+        payload: { pilotId: "pilot-1" },
       });
 
       expect(res.statusCode).toBe(200);
@@ -417,6 +418,7 @@ describe("craft routes", () => {
       const res = await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+        payload: { pilotId: "pilot-1" },
       });
 
       expect(res.statusCode).toBe(200);
@@ -439,6 +441,7 @@ describe("craft routes", () => {
       await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+        payload: { pilotId: "pilot-1" },
       });
 
       const craft = craftStore.get(PROJECT, "alpha-1")!;
@@ -463,6 +466,7 @@ describe("craft routes", () => {
       await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+        payload: { pilotId: "pilot-1" },
       });
 
       const craft = craftStore.get(PROJECT, "alpha-1")!;
@@ -488,6 +492,7 @@ describe("craft routes", () => {
       const res = await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+        payload: { pilotId: "pilot-1" },
       });
 
       expect(res.statusCode).toBe(200);
@@ -505,16 +510,56 @@ describe("craft routes", () => {
       const res = await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+        payload: { pilotId: "pilot-1" },
       });
 
       expect(res.statusCode).toBe(409);
       expect(res.json().error).toMatch(/InFlight or GoAround/);
     });
 
+    it("returns 400 when pilotId is missing (RULE-LCHK-1)", async () => {
+      await seedCraftInFlight();
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error).toMatch(/pilotId is required/);
+    });
+
+    it("returns 403 when pilot is not a crew member (RULE-LCHK-1)", async () => {
+      await seedCraftInFlight();
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+        payload: { pilotId: "rogue-agent" },
+      });
+
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error).toMatch(/not a crew member/);
+    });
+
+    it("returns 403 when pilot does not hold controls (RULE-LCHK-1)", async () => {
+      await seedCraftInFlight();
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/checklist`,
+        payload: { pilotId: "pilot-2" },
+      });
+
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error).toMatch(/does not hold controls/);
+    });
+
     it("returns 404 for unknown craft", async () => {
       const res = await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/crafts/ghost/checklist`,
+        payload: { pilotId: "pilot-1" },
       });
       expect(res.statusCode).toBe(404);
     });

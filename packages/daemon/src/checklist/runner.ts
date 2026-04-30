@@ -18,6 +18,45 @@ import type { ChecklistItemConfig } from "../types.js";
 /** Default command timeout in milliseconds (120 seconds). */
 const DEFAULT_TIMEOUT_MS = 120_000;
 
+/** Maximum allowed timeout to prevent unbounded execution (10 minutes). */
+const MAX_TIMEOUT_MS = 600_000;
+
+/**
+ * Allowlisted environment variable names forwarded to checklist child processes.
+ * All other ambient environment variables are stripped to reduce the attack
+ * surface of shell-executed commands.
+ *
+ * @see RULE-LCHK-1
+ */
+const ENV_ALLOWLIST: readonly string[] = [
+  "PATH",
+  "HOME",
+  "USER",
+  "SHELL",
+  "LANG",
+  "LC_ALL",
+  "TERM",
+  "NODE_ENV",
+  "CI",
+  "TMPDIR",
+];
+
+/**
+ * Builds a sanitized environment for checklist child processes.
+ * Only allowlisted variables from the current process environment are
+ * forwarded to prevent leaking secrets or tokens to executed commands.
+ */
+function buildSanitizedEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const key of ENV_ALLOWLIST) {
+    const val = process.env[key];
+    if (val !== undefined) {
+      env[key] = val;
+    }
+  }
+  return env;
+}
+
 /**
  * The result of running a single checklist item.
  */
@@ -59,10 +98,11 @@ export interface ChecklistResult {
  */
 function runItem(item: ChecklistItemConfig, cwd: string): Promise<ChecklistItemResult> {
   return new Promise((resolve) => {
-    const timeoutMs = item.timeout ?? DEFAULT_TIMEOUT_MS;
+    const timeoutMs = Math.min(item.timeout ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
     const start = Date.now();
+    const env = buildSanitizedEnv();
 
-    const child = exec(item.command, { cwd, timeout: timeoutMs }, (err, stdout, stderr) => {
+    const child = exec(item.command, { cwd, timeout: timeoutMs, env }, (err, stdout, stderr) => {
       const durationMs = Date.now() - start;
 
       if (err) {

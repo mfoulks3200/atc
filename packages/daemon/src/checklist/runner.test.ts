@@ -82,4 +82,35 @@ describe("runChecklist", () => {
     expect(result.passed).toBe(true);
     expect(result.items).toHaveLength(0);
   });
+
+  it("does not leak ambient environment variables to child processes", async () => {
+    const cwd = await makeTmpDir();
+    const secretKey = `ATC_SECRET_TEST_${Date.now()}`;
+    process.env[secretKey] = "leaked-secret";
+
+    try {
+      const items: ChecklistItemConfig[] = [
+        { name: "check env", command: `echo "\${${secretKey}:-EMPTY}"` },
+      ];
+
+      const result = await runChecklist(items, cwd);
+
+      expect(result.passed).toBe(true);
+      expect(result.items[0].stdout.trim()).toBe("EMPTY");
+    } finally {
+      delete process.env[secretKey];
+    }
+  });
+
+  it("forwards allowlisted env vars (PATH) to child processes", async () => {
+    const cwd = await makeTmpDir();
+    const items: ChecklistItemConfig[] = [
+      { name: "check path", command: 'echo "${PATH:-MISSING}"' },
+    ];
+
+    const result = await runChecklist(items, cwd);
+
+    expect(result.passed).toBe(true);
+    expect(result.items[0].stdout.trim()).not.toBe("MISSING");
+  });
 });
