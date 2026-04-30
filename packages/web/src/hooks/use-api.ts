@@ -17,6 +17,7 @@ import type {
   ConfigResponse,
   CraftDiffResponse,
   CraftDiffFileResponse,
+  QueueEntry,
 } from "@/types/api";
 
 export function useHealth() {
@@ -171,7 +172,34 @@ export function useAgentUsage(id: string) {
 export function useTowerQueue(project: string) {
   return useQuery({
     queryKey: queryKeys.tower.queue(project),
-    queryFn: () => apiClient.get<string[]>(`/api/v1/projects/${project}/tower`),
+    queryFn: () => apiClient.get<QueueEntry[]>(`/api/v1/projects/${project}/tower`),
+  });
+}
+
+export function useGrantMerge(project: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { callsign: string }) =>
+      apiClient.post<{ outcome: string; status: string }>(
+        `/api/v1/projects/${project}/tower/merge`,
+        body,
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tower.queue(project) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.crafts.list(project) });
+    },
+  });
+}
+
+export function useDenyClearance(project: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (callsign: string) =>
+      apiClient.delete(`/api/v1/projects/${project}/tower/${callsign}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tower.queue(project) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.crafts.list(project) });
+    },
   });
 }
 

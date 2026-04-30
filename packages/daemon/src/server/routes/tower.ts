@@ -283,4 +283,67 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
       return reply.send({ outcome: outcome.kind, status: craft.status });
     },
   );
+
+  // -------------------------------------------------------------------------
+  // DELETE /api/v1/projects/:name/tower/:callsign
+  // -------------------------------------------------------------------------
+
+  /**
+   * Remove a craft from the merge queue without executing a merge.
+   * Transitions the craft back to GoAround so it can re-run its checklist
+   * and request clearance again.
+   */
+  app.delete<{ Params: { name: string; callsign: string } }>(
+    "/api/v1/projects/:name/tower/:callsign",
+    async (request, reply) => {
+      const { name, callsign } = request.params;
+
+      const craft = app.craftStore.get(name, callsign);
+      if (!craft) {
+        return reply.code(404).send({ error: `Craft not found: ${callsign}` });
+      }
+
+      const queue = app.towerStore.getQueue(name);
+      if (!queue.some((e) => e.callsign === callsign)) {
+        return reply.code(409).send({ error: `Craft ${callsign} is not in the merge queue` });
+      }
+
+      app.towerStore.dequeue(name, callsign);
+
+      appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        "system",
+        BlackBoxEntryType.TowerDequeued,
+        `Denied landing clearance — removed from tower queue for project ${name}`,
+      );
+
+      const previousStatus = craft.status;
+      craft.status = CraftStatus.GoAround;
+
+      appendBlackBoxEntry(
+        app,
+        name,
+        craft,
+        "system",
+        BlackBoxEntryType.StateTransition,
+        `${previousStatus} → ${CraftStatus.GoAround}`,
+      );
+
+      app.craftStore.set(name, craft);
+      publishCraftEvent(app, name, craft, "craft.goaround", { reason: "denied" });
+
+      const towerEvent: WsEvent = {
+        type: "event",
+        channel: `tower:${name}`,
+        event: "tower.queue.changed",
+        timestamp: new Date().toISOString(),
+        data: { project: name, queue: app.towerStore.getQueue(name) },
+      };
+      app.channelRegistry.publish(towerEvent.channel, towerEvent);
+
+      return reply.send({ denied: true });
+    },
+  );
 }
