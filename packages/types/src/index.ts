@@ -31,6 +31,7 @@ export { LifecycleEvent } from "./events.js";
 
 export { ChecklistItemSeverity } from "./checklist.js";
 export type {
+  ChecklistErrorCode,
   ShellExecutor,
   McpToolExecutor,
   ChecklistExecutor,
@@ -40,6 +41,7 @@ export type {
   CraftChecklistOverride,
   ChecklistItemResult,
   ChecklistRunResult,
+  MultiChecklistRunResult,
 } from "./checklist.js";
 
 export { TfrScope, TfrMode } from "./tfr.js";

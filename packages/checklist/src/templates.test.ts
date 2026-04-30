@@ -5,6 +5,7 @@ import type { ChecklistItemDef } from "@airtrafficcontrol/types";
 
 const testItem: ChecklistItemDef = {
   name: "Run Tests",
+  title: "Test Suites",
   severity: ChecklistItemSeverity.Required,
   executor: { type: "shell", command: "pnpm run test" },
 };

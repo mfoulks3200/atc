@@ -18,6 +18,7 @@ describe("createOverrideStore", () => {
       addItems: [
         {
           name: "Migration",
+          title: "Database Migration",
           severity: ChecklistItemSeverity.Required,
           executor: { type: "shell", command: "pnpm run migrate" },
         },

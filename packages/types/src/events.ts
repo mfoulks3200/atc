@@ -31,4 +31,16 @@ export enum LifecycleEvent {
   BeforeLanding = "before:landing",
   /** Fires after branch is merged. */
   AfterLanding = "after:landing",
+  /**
+   * Fires when a craft requests landing clearance from the tower.
+   * Not a transition-mapped event — dispatched explicitly during the clearance flow.
+   * @see RULE-CHKL-13
+   */
+  BeforeTowerClearance = "before:tower-clearance",
+  /**
+   * Fires after the tower grants landing clearance.
+   * Not a transition-mapped event — dispatched explicitly during the clearance flow.
+   * @see RULE-CHKL-13
+   */
+  AfterTowerClearance = "after:tower-clearance",
 }

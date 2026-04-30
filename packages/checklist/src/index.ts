@@ -1,11 +1,13 @@
 // Types (re-exported from @airtrafficcontrol/types via local types.ts)
 export type {
+  ChecklistErrorCode,
   ChecklistItemDef,
   ChecklistTemplate,
   ChecklistBinding,
   CraftChecklistOverride,
   ChecklistItemResult,
   ChecklistRunResult,
+  MultiChecklistRunResult,
   ChecklistExecutor,
   ShellExecutor,
   McpToolExecutor,
@@ -14,7 +16,7 @@ export { ChecklistItemSeverity } from "./types.js";
 
 // Runner
 export { runChecklist } from "./runner.js";
-export type { RunChecklistInput } from "./runner.js";
+export type { RunChecklistInput, AgentAssessment } from "./runner.js";
 
 // Defaults
 export { DEFAULT_LANDING_TEMPLATE } from "./defaults.js";

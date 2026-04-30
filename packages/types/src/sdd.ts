@@ -22,13 +22,20 @@ export type SddErrorCode =
 
 /**
  * A milestone in a spec document's flight plan.
- * @see RULE-SDD-2, RULE-SDD-4
+ * @see RULE-SDD-2, RULE-SDD-4, RULE-SDD-18
  */
 export interface SpecVector {
   /** Short, descriptive milestone name. @see RULE-SDD-2 */
   name: string;
   /** One or more acceptance criteria. At least one non-empty string required. @see RULE-SDD-2 */
   criteria: string[];
+  /**
+   * Template IDs of checklists to bind to this vector's `before:vector-complete` event.
+   * Each entry creates a ChecklistBinding with `event: "before:vector-complete"` and
+   * `vectorName` set to this vector's name. Referenced templates must exist.
+   * @see RULE-SDD-18
+   */
+  checklists?: string[];
 }
 
 /**

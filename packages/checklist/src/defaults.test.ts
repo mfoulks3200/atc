@@ -17,9 +17,16 @@ describe("DEFAULT_LANDING_TEMPLATE", () => {
     expect(DEFAULT_LANDING_TEMPLATE.items[3]!.severity).toBe(ChecklistItemSeverity.Required);
   });
 
+  it("all items have a title (RULE-CHKL-1)", () => {
+    for (const item of DEFAULT_LANDING_TEMPLATE.items) {
+      expect(item.title).toBeDefined();
+      expect(item.title.length).toBeGreaterThan(0);
+    }
+  });
+
   it("all items use shell executors", () => {
     for (const item of DEFAULT_LANDING_TEMPLATE.items) {
-      expect(item.executor.type).toBe("shell");
+      expect(item.executor?.type).toBe("shell");
     }
   });
 

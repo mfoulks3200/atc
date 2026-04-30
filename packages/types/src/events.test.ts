@@ -17,18 +17,23 @@ describe("LifecycleEvent", () => {
     expect(LifecycleEvent.AfterLanding).toBe("after:landing");
   });
 
-  it("has exactly 12 values", () => {
+  it("defines tower clearance events", () => {
+    expect(LifecycleEvent.BeforeTowerClearance).toBe("before:tower-clearance");
+    expect(LifecycleEvent.AfterTowerClearance).toBe("after:tower-clearance");
+  });
+
+  it("has exactly 14 values", () => {
     const values = Object.values(LifecycleEvent);
-    expect(values).toHaveLength(12);
+    expect(values).toHaveLength(14);
   });
 
   it("all before events start with 'before:'", () => {
     const beforeEvents = Object.values(LifecycleEvent).filter((v) => v.startsWith("before:"));
-    expect(beforeEvents).toHaveLength(6);
+    expect(beforeEvents).toHaveLength(7);
   });
 
   it("all after events start with 'after:'", () => {
     const afterEvents = Object.values(LifecycleEvent).filter((v) => v.startsWith("after:"));
-    expect(afterEvents).toHaveLength(6);
+    expect(afterEvents).toHaveLength(7);
   });
 });

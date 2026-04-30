@@ -19,6 +19,13 @@ export interface ResolveInput {
   readonly craftCallsign: string;
   readonly craftCategory: string;
   readonly event: LifecycleEvent;
+  /**
+   * For `before:vector-complete` and `after:vector-complete` events: the name of the
+   * vector being completed. Bindings with a matching `vectorName` or no `vectorName`
+   * are included. Bindings with a different `vectorName` are excluded.
+   * @see RULE-CHKL-10
+   */
+  readonly vectorName?: string;
   readonly templates: ReturnType<typeof createTemplateRegistry>;
   readonly bindings: ReturnType<typeof createBindingRegistry>;
   readonly overrides: ReturnType<typeof createOverrideStore>;
@@ -35,9 +42,9 @@ export interface ResolveInput {
  * @see RULE-CHKL-2, RULE-CHKL-3, RULE-CHKL-7
  */
 export function resolveChecklist(input: ResolveInput): readonly ResolvedChecklist[] {
-  const { craftCallsign, craftCategory, event, templates, bindings, overrides } = input;
+  const { craftCallsign, craftCategory, event, vectorName, templates, bindings, overrides } = input;
 
-  const matchedBindings = bindings.findByEventAndCategory(event, craftCategory);
+  const matchedBindings = bindings.findByEventAndCategory(event, craftCategory, vectorName);
   const resolved: ResolvedChecklist[] = [];
 
   for (const binding of matchedBindings) {
