@@ -5,10 +5,7 @@ import { createApp } from "../app.js";
 import type { CraftState } from "../../types.js";
 import type { AgentRecord } from "../../types.js";
 
-function makeCraftState(
-  callsign: string,
-  status: CraftStatus = CraftStatus.InFlight,
-): CraftState {
+function makeCraftState(callsign: string, status: CraftStatus = CraftStatus.InFlight): CraftState {
   return {
     callsign,
     branch: `branch-${callsign}`,
@@ -79,7 +76,7 @@ describe("GET /metrics", () => {
       const response = await app.inject({ method: "GET", url: "/metrics" });
 
       // No queue entries — no project label lines should appear.
-      expect(response.body).not.toContain('atc_merge_queue_depth{');
+      expect(response.body).not.toContain("atc_merge_queue_depth{");
     });
 
     it("reflects correct depth after crafts are enqueued", async () => {
