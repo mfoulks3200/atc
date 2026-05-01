@@ -311,6 +311,51 @@ describe("vector routes", () => {
       }
     });
 
+    it("records 'passed' in the black box when after:vector-complete checklist passes (advisory)", async () => {
+      const registries = makeRegistries();
+      const template = registries.templates.create({
+        name: "Post-vector passing",
+        items: [
+          {
+            name: "ok",
+            title: "Advisory passing check",
+            description: "Always passes",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "echo ok" },
+          },
+        ],
+      });
+      registries.bindings.create({
+        templateId: template.id,
+        event: LifecycleEvent.AfterVectorComplete,
+        craftCategory: "backend",
+        vectorName: "design",
+      });
+
+      const localApp = createApp({
+        craftStore,
+        agentStore: new AgentStore("/tmp/atc-vec-test"),
+        towerStore: new TowerStore("/tmp/atc-vec-test"),
+        projectChecklistRegistries: new Map([[PROJECT, registries]]),
+      });
+
+      try {
+        const res = await localApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+          payload: { evidence: "Design reviewed" },
+        });
+        expect(res.statusCode).toBe(200);
+
+        const craft = craftStore.get(PROJECT, "bravo-1")!;
+        const checklistEntries = craft.blackBox.filter((e) => e.type === "ChecklistRun");
+        expect(checklistEntries).toHaveLength(1);
+        expect(checklistEntries[0].content).toContain("passed");
+      } finally {
+        await localApp.close();
+      }
+    });
+
     it("does not apply bindings for a different vector name (RULE-CHKL-10)", async () => {
       const registries = makeRegistries();
       const template = registries.templates.create({

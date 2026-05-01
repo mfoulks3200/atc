@@ -571,4 +571,22 @@ describe("tower merge route", () => {
 
     vi.restoreAllMocks();
   });
+
+  it("returns 500 with generic message when executeMerge rejects with a non-Error value", async () => {
+    await seedBareRepo("feature line\n");
+    seedCraftAndQueue();
+
+    vi.spyOn(Tower.prototype, "executeMerge").mockRejectedValueOnce("raw string rejection");
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${PROJECT}/tower/merge`,
+      payload: { callsign: CALLSIGN },
+    });
+
+    expect(res.statusCode).toBe(500);
+    expect(res.json<{ error: string }>().error).toBe("Tower merge failed");
+
+    vi.restoreAllMocks();
+  });
 });

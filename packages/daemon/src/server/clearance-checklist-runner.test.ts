@@ -147,4 +147,16 @@ describe("DaemonClearanceChecklistRunner", () => {
     const results = await runner.runClearanceChecklists("CRAFT-1", "Backend Engineering");
     expect(results[0].attempt).toBe(1);
   });
+
+  it("continues running subsequent templates even when the first fails (RULE-CHKL-11)", async () => {
+    const registries = makeRegistries();
+    addFailingTemplate(registries, "Backend Engineering");
+    addPassingTemplate(registries, "Backend Engineering");
+    const runner = new DaemonClearanceChecklistRunner(registries);
+
+    const results = await runner.runClearanceChecklists("CRAFT-1", "Backend Engineering");
+    expect(results).toHaveLength(2);
+    expect(results[0].passed).toBe(false);
+    expect(results[1].passed).toBe(true);
+  });
 });
