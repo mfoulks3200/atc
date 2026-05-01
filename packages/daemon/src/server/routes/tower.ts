@@ -12,6 +12,8 @@ import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import { BlackBoxEntryType, CraftStatus } from "@airtrafficcontrol/types";
 import type { Craft } from "@airtrafficcontrol/types";
+import { transitionCraft } from "@airtrafficcontrol/core";
+import { LifecycleError } from "@airtrafficcontrol/errors";
 import { Tower } from "@airtrafficcontrol/tower";
 import { publishCraftEvent } from "./broadcast.js";
 import { appendBlackBoxEntry } from "./blackbox-helpers.js";
@@ -281,6 +283,81 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
       app.channelRegistry.publish(towerEvent.channel, towerEvent);
 
       return reply.send({ outcome: outcome.kind, status: craft.status });
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // DELETE /api/v1/projects/:name/tower/:callsign
+  // -------------------------------------------------------------------------
+
+  /**
+   * Remove a craft from the merge queue without executing a merge.
+   * Transitions the craft back to GoAround (ClearedToLand → GoAround) so it
+   * can re-run its checklist and request clearance again.
+   *
+   * @see RULE-LIFE-2 — only transitions listed in TRANSITIONS are permitted.
+   */
+  app.delete<{ Params: { name: string; callsign: string } }>(
+    "/api/v1/projects/:name/tower/:callsign",
+    async (request, reply) => {
+      const { name, callsign } = request.params;
+
+      const craft = app.craftStore.get(name, callsign);
+      if (!craft) {
+        return reply.code(404).send({ error: `Craft not found: ${callsign}` });
+      }
+
+      const queue = app.towerStore.getQueue(name);
+      if (!queue.some((e) => e.callsign === callsign)) {
+        return reply.code(409).send({ error: `Craft ${callsign} is not in the merge queue` });
+      }
+
+      // Use transitionCraft so RULE-LIFE-2 is enforced: only ClearedToLand → GoAround
+      // is a valid transition for denial. Any other status yields a 409.
+      let updated: CraftState;
+      try {
+        const next = transitionCraft(craft as unknown as Craft, CraftStatus.GoAround);
+        updated = { ...craft, status: next.status };
+      } catch (err) {
+        if (err instanceof LifecycleError) {
+          return reply.code(409).send({ error: err.message });
+        }
+        throw err;
+      }
+
+      app.towerStore.dequeue(name, callsign);
+
+      appendBlackBoxEntry(
+        app,
+        name,
+        updated,
+        "system",
+        BlackBoxEntryType.TowerDequeued,
+        `Denied landing clearance — removed from tower queue for project ${name}`,
+      );
+
+      appendBlackBoxEntry(
+        app,
+        name,
+        updated,
+        "system",
+        BlackBoxEntryType.StateTransition,
+        `${craft.status} → ${CraftStatus.GoAround}`,
+      );
+
+      app.craftStore.set(name, updated);
+      publishCraftEvent(app, name, updated, "craft.goaround", { reason: "denied" });
+
+      const towerEvent: WsEvent = {
+        type: "event",
+        channel: `tower:${name}`,
+        event: "tower.queue.changed",
+        timestamp: new Date().toISOString(),
+        data: { project: name, queue: app.towerStore.getQueue(name) },
+      };
+      app.channelRegistry.publish(towerEvent.channel, towerEvent);
+
+      return reply.send({ denied: true });
     },
   );
 }

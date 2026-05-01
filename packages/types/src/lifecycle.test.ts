@@ -9,8 +9,15 @@ describe("TERMINAL_STATES", () => {
 });
 
 describe("TRANSITIONS", () => {
-  it("has exactly 9 transitions", () => {
-    expect(TRANSITIONS).toHaveLength(9);
+  it("has exactly 10 transitions", () => {
+    expect(TRANSITIONS).toHaveLength(10);
+  });
+
+  it("includes ClearedToLand -> GoAround (stale/conflict/denial)", () => {
+    const t = TRANSITIONS.find(
+      (t) => t.from === CraftStatus.ClearedToLand && t.to === CraftStatus.GoAround,
+    );
+    expect(t).toBeDefined();
   });
 
   it("every transition has from, to, trigger, and preconditions", () => {

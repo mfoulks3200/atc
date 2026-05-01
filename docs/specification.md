@@ -1,6 +1,6 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.4.0
+**Version:** 0.4.1
 **Status:** Draft
 **Date:** 2026-04-29
 **Brief:** [`docs/overview.md`](overview.md)
@@ -8,6 +8,8 @@
 **Changelog:**
 
 - 0.4.0 (2026-04-29): Add Adversarial Review protocol (§2.8, §4.8), Inspector seat type (RULE-SEAT-5, RULE-SEAT-6), `UnderReview` vector status (RULE-VEC-6 through RULE-VEC-8), Finding entity (RULE-FIND-1 through RULE-FIND-7), adversarial BBOX entry types (RULE-BBOX-5 through RULE-BBOX-7), review protocol rules (RULE-ADVR-1 through RULE-ADVR-6), and notification rules (RULE-NOTIFY-1, RULE-NOTIFY-2). Supersedes earlier VSDD adversarial review rules (RULE-VEC-6–9, RULE-CTRL-3a from AIR-294).
+- 0.3.2 (2026-04-30): Add constraint dry-run API and structured constraint failure response shape — `?dryRun=true` on `reportVector`, `ConstraintCheckResult`, `ConstraintFailure`, `ConstraintCheckFailed` black box entry, captain override with justification (RULE-VRPT-5 through RULE-VRPT-10, §4.1.1, AIR-324).
+- 0.3.1 (2026-04-28): Define integrity bar live-update strategy — triggered poll via `craft.blackbox.appended` (RULE-BBOX-9a, AIR-342).
 - 0.3.0 (2026-04-21): Add UX Review protocol (§4.7, RULE-UXR-1 through RULE-UXR-5).
 - 0.2.0 (2026-04-21): Add Spec-Driven Development protocol (§2.7, §4.6, RULE-SDD-1 through RULE-SDD-17).
 
@@ -52,6 +54,9 @@ This document is the authoritative reference for ATC's domain model, lifecycle, 
 | Spec-Driven Development (SDD)      | The protocol by which ATC automatically creates and optionally launches a craft from a submitted spec document.                                                                                                                       |
 | Selection Count                    | A per-pilot monotonic counter tracking how many times a pilot has been auto-selected as captain or first officer, used for equitable workload distribution in SDD.                                                                    |
 | Adversarial Review Vector          | A vector of type `adversarial_review` in a flight plan. Requires a designated reviewer pilot who is different from the pilot who completed the preceding vector, and mandates an exclusive controls handoff before the review begins. |
+| Under Review                       | A vector status entered when an adversarial review vector is active. The inspector evaluates the deliverables while builders may not modify the evaluated craft state.                                                                |
+| Challenge Finding                  | A structured finding logged by an Inspector during an active adversarial review (see §2.8.1).                                                                                                                                         |
+| Builder Flag                       | A critical issue surfaced by the builder (captain or first officer) during an active adversarial review window, without modifying the evaluated craft state (see §2.8.2).                                                             |
 
 ## 2. Domain Model
 
@@ -126,6 +131,8 @@ The **black box** is an append-only log maintained on every craft throughout its
 | `MergeStale`                     | Tower attempted a merge but the craft's branch was not up to date with main. The craft is sent on a go-around.                                                                                                                       |
 | `MergeConflict`                  | Tower attempted a merge but encountered conflicts. The craft is sent on a go-around to resolve them.                                                                                                                                 |
 | `SpecCreated`                    | The craft was created from a spec document via SDD. Records the submitter identity, submission source, spec title, and whether autoLaunch was requested and executed or suppressed (with reason). The raw spec document is attached. |
+| `KeyRotated`                     | A pilot's cryptographic signing key was rotated. Records pilot ID, old key fingerprint, new key fingerprint, and rotation timestamp. The payload MUST conform to `KeyRotatedPayload`. See RULE-BBOX-8.                               |
+| `ConstraintCheckFailed`          | One or more ADR constraints on a vector failed at report time. Records the vector name, per-constraint results (see `ConstraintCheckResult`), and any captain-provided override justifications. Not recorded for dry-run attempts.   |
 | `AdversarialReviewStarted`       | An inspector has been assigned to review a vector. Records: inspector identifier, vector name, and review start timestamp.                                                                                                           |
 | `AdversarialFindingSubmitted`    | An inspector has submitted a finding against a vector. Records: finding ID, vector name, severity, and description.                                                                                                                  |
 | `AdversarialFindingAcknowledged` | The builder (captain or first officer) has acknowledged a finding. Records: finding ID, acknowledging pilot, and optional initial response.                                                                                          |
@@ -137,11 +144,44 @@ The **black box** is an append-only log maintained on every craft throughout its
 
 - **RULE-BBOX-1:** The black box MUST be created when the craft enters the Taxiing phase and MUST persist for the craft's entire lifecycle.
 - **RULE-BBOX-2:** Black box entries are append-only. No entry may be modified or deleted once recorded.
-- **RULE-BBOX-3:** All pilots (captain, first officers, and jumpseaters) MAY write to the black box.
+- **RULE-BBOX-3:** All crew members (captain, first officers, jumpseaters, and inspectors) MAY write to the black box.
 - **RULE-BBOX-4:** In the event of an emergency declaration, the complete black box MUST be provided to the origin airport as the primary artifact for investigation.
 - **RULE-BBOX-5:** Every adversarial review lifecycle event MUST be recorded in the black box using the corresponding entry type (`AdversarialReviewStarted`, `AdversarialFindingSubmitted`, `AdversarialFindingAcknowledged`, `AdversarialFindingResolved`, `AdversarialReviewPassed`, `AdversarialReviewFailed`).
 - **RULE-BBOX-6:** An `AdversarialFindingSubmitted` entry MUST include the finding ID, target vector name, severity (`critical`, `major`, or `minor`), and a description of the issue.
 - **RULE-BBOX-7:** An `AdversarialReviewPassed` or `AdversarialReviewFailed` entry MUST include the inspector identifier, the vector name, and a summary of finding disposition (count resolved, count unresolved with IDs and severities).
+- **RULE-BBOX-8:** Whenever a pilot's cryptographic signing key is rotated, a `KeyRotated` black box entry MUST be recorded on every craft where that pilot holds or has held a seat. The entry's `content` field MUST be serialized JSON conforming to `KeyRotatedPayload` (see `@airtrafficcontrol/types`), containing:
+
+  | Field                | Type     | Description                                    |
+  | -------------------- | -------- | ---------------------------------------------- |
+  | `pilotIdentifier`    | `string` | The pilot whose key was rotated.               |
+  | `oldKeyFingerprint`  | `string` | Fingerprint of the replaced key (e.g. `SHA256:…`). |
+  | `newKeyFingerprint`  | `string` | Fingerprint of the new active key.             |
+  | `rotatedAt`          | `Date`   | When the rotation took effect.                 |
+
+  This entry enables the historical key indicator tooltip (e.g., "Key rotated {date}") to display an accurate rotation date and allows verifiers to determine which key was authoritative at any point in the audit trail. See also RULE-BBOX-7 (future: signing enforcement).
+
+  > **See also:** [AIR-341] `KeyRotated` entry type; [AIR-337] Q3 open question.
+
+- **RULE-BBOX-9:** `GET /api/v1/projects/:name/crafts/:callsign/blackbox/verify` MUST return an integrity summary object with the following fields:
+
+  | Field      | Type     | Description |
+  | ---------- | -------- | ----------- |
+  | `total`    | `number` | Total number of entries in the black box. |
+  | `verified` | `number` | Entries whose cryptographic signature was present and passed verification against the authoring pilot's public key. |
+  | `unsigned` | `number` | Entries with no signature field (valid for Phase 1 where signing is not yet enforced; see RULE-BBOX-7). |
+  | `failed`   | `number` | Entries whose signature was present but failed verification (tampered or key mismatch). |
+
+  The invariant `total = verified + unsigned + failed` MUST hold. In Phase 1 (before RULE-BBOX-7 is enforced), all entries have no signature, so `unsigned === total` and `verified === failed === 0`. The response MUST be 404 if the craft does not exist.
+
+  > **See also:** [AIR-337] integrity bar UI component; [AIR-339] spec definition.
+
+- **RULE-BBOX-9a:** Integrity bar live updates MUST use a triggered-poll strategy — no dedicated verification-failure WebSocket event is defined. Clients SHOULD call `GET /blackbox/verify` after receiving each `craft.blackbox.appended` event on the craft's WebSocket channel (`craft:<callsign>`). Clients that do not subscribe to WebSocket events SHOULD poll the endpoint at 5-second intervals while the integrity bar is visible.
+
+  **Rationale:** Verification is a derived query over current black box state, not a domain event. Emitting a push event on every append would require synchronous verification on the write path — premature before cryptographic signing is enforced (RULE-BBOX-7). The `craft.blackbox.appended` event is already published by the daemon on every write and provides a free trigger that achieves equivalent UI responsiveness without new event types.
+
+  > **See also:** [AIR-342] decision record for this rule; [AIR-337] integrity bar implementation.
+
+- **RULE-BBOX-10:** Trace context fields (`traceId`, `spanId`, `parentSpanId`) are for export/OTel consumption. Implementations are NOT required to render them in primary feed views. They MAY be rendered in detail/inspector views (e.g., the expandable raw key-value table in the entry inspector UI).
 
 ### 2.2 Pilot
 
@@ -149,16 +189,24 @@ A **pilot** is an autonomous agent that can be assigned to a craft. Each pilot h
 
 #### 2.2.1 Properties
 
-| Property        | Type       | Constraints                                                                                                                                                     |
-| --------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Identifier      | `string`   | Unique across the system.                                                                                                                                       |
-| Certifications  | `string[]` | List of craft categories the pilot is certified to fly.                                                                                                         |
-| Selection Count | `number`   | Monotonic counter; incremented each time this pilot is auto-selected as captain or first officer via SDD. Persisted; used for equitable scheduling. Default: 0. |
+| Property           | Type                                                                   | Constraints                                                                                                                                                     |
+| ------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identifier         | `string`                                                               | Unique across the system.                                                                                                                                       |
+| Certifications     | `string[]`                                                             | List of craft categories the pilot is certified to fly.                                                                                                         |
+| Selection Count    | `number`                                                               | Monotonic counter; incremented each time this pilot is auto-selected as captain or first officer via SDD. Persisted; used for equitable scheduling. Default: 0. |
+| Public Key         | `string \| null`                                                       | Ed25519 public key (base64url-encoded). Optional. When present, used to verify black box entries authored by this pilot. Phase 1: nullable, no enforcement.     |
+| Public Key History | `Array<{ publicKey: string; activeSince: string; rotatedAt: string }>` | Previous public keys retained after rotation, newest first. Retained indefinitely; see RULE-PILOT-3a. Default: `[]`.                                            |
 
 ##### Rules
 
 - **RULE-PILOT-1:** Every pilot MUST have a unique identifier.
 - **RULE-PILOT-2:** A pilot's certifications determine which crafts they may serve as captain or first officer on.
+- **RULE-PILOT-3:** A pilot MAY carry an optional `publicKey` field (Ed25519, base64url-encoded). When present, the daemon MUST use it — along with all entries in `publicKeyHistory` — when verifying that pilot's black box entry signatures via `GET /blackbox/verify`. Phase 1 adds the field as nullable with no enforcement; verification is optional until RULE-BBOX-7 is enforced.
+- **RULE-PILOT-3a:** When a pilot's `publicKey` is rotated, the outgoing key MUST be appended to `publicKeyHistory` as `{ publicKey, activeSince, rotatedAt }` where `activeSince` is when that key was first recorded and `rotatedAt` is the rotation timestamp. `publicKeyHistory` MUST be retained indefinitely — implementations MUST NOT prune archived keys. The verify endpoint MUST search `publicKey` and all `publicKeyHistory` entries when resolving a signature against a black box entry, to preserve verifiability of entries signed before the rotation.
+
+> **Key management path (enterprise v2).** A companion rule RULE-BBOX-7 will make Black Box entries optionally signed at write time. For enterprise deployments, daemon-managed private keys (stored via OS keyring, e.g. `node-keytar`) are the named v1 key management path. The named v2 enterprise path is HSM/KMS delegation: AWS KMS (customer-managed key / CMK), HashiCorp Vault (Transit secrets engine), or Azure Key Vault (managed HSM). In HSM/KMS mode, the daemon holds only a key reference; raw private key material never leaves the provider. This is a named requirement, not an optional consideration, for any implementation of RULE-PILOT-3 targeting enterprise customers.
+>
+> See `docs/agent/operating-manual.md §9` for operator-facing guidance on this integration path.
 
 #### 2.2.2 Craft Categories
 
@@ -435,17 +483,18 @@ A **finding** is a structured record of an issue discovered by an inspector duri
 
 ### 3.2 Transitions
 
-| #   | From               | To                 | Trigger                                                | Preconditions                                |
-| --- | ------------------ | ------------------ | ------------------------------------------------------ | -------------------------------------------- |
-| 1   | `Taxiing`          | `InFlight`         | Pilot begins implementation.                           | Captain, cargo, and flight plan assigned.    |
-| 2   | `InFlight`         | `InFlight`         | Pilot passes a vector and reports to ATC.              | Next vector in flight plan sequence.         |
-| 3   | `InFlight`         | `LandingChecklist` | Pilot begins validation checks.                        | All vectors passed and reported.             |
-| 4   | `LandingChecklist` | `ClearedToLand`    | All required checks pass; tower grants clearance.      | All required checklist items pass.           |
-| 5   | `LandingChecklist` | `GoAround`         | One or more required checks fail.                      | At least one required checklist item failed. |
-| 6   | `GoAround`         | `LandingChecklist` | Pilot re-attempts after addressing failures.           | Pilot has addressed failure(s).              |
-| 7   | `GoAround`         | `Emergency`        | Repeated failures exceed threshold or pilot escalates. | Captain decision.                            |
-| 8   | `ClearedToLand`    | `Landed`           | Tower merges branch into main.                         | Branch up to date with main.                 |
-| 9   | `Emergency`        | `ReturnToOrigin`   | Craft sent back to design stage with black box.        | Emergency declaration recorded in black box. |
+| #  | From               | To                 | Trigger                                                                    | Preconditions                                |
+| -- | ------------------ | ------------------ | -------------------------------------------------------------------------- | -------------------------------------------- |
+| 1  | `Taxiing`          | `InFlight`         | Pilot begins implementation.                                               | Captain, cargo, and flight plan assigned.    |
+| 2  | `InFlight`         | `InFlight`         | Pilot passes a vector and reports to ATC.                                  | Next vector in flight plan sequence.         |
+| 3  | `InFlight`         | `LandingChecklist` | Pilot begins validation checks.                                            | All vectors passed and reported.             |
+| 4  | `LandingChecklist` | `ClearedToLand`    | All required checks pass; tower grants clearance.                          | All required checklist items pass.           |
+| 5  | `LandingChecklist` | `GoAround`         | One or more required checks fail.                                          | At least one required checklist item failed. |
+| 6  | `GoAround`         | `LandingChecklist` | Pilot re-attempts after addressing failures.                               | Pilot has addressed failure(s).              |
+| 7  | `GoAround`         | `Emergency`        | Repeated failures exceed threshold or pilot escalates.                     | Captain decision.                            |
+| 8  | `ClearedToLand`    | `Landed`           | Tower merges branch into main.                                             | Branch up to date with main.                 |
+| 9  | `ClearedToLand`    | `GoAround`         | Tower denies clearance (merge conflict or checklist regression detected).  | Tower denial recorded in black box.          |
+| 10 | `Emergency`        | `ReturnToOrigin`   | Craft sent back to design stage with black box.                            | Emergency declaration recorded in black box. |
 
 ### 3.3 Rules
 
@@ -457,6 +506,7 @@ A **finding** is a structured record of an issue discovered by an inspector duri
 - **RULE-LIFE-6:** `ClearedToLand` → `Landed` requires the tower to verify the branch is up to date with main and execute the merge.
 - **RULE-LIFE-7:** `Emergency` → `ReturnToOrigin` requires an `EmergencyDeclaration` entry in the black box.
 - **RULE-LIFE-8:** `Landed` and `ReturnToOrigin` are terminal states. No transitions out are permitted.
+- **RULE-LIFE-9:** `ClearedToLand` → `GoAround` is triggered by tower denial. This occurs when the tower detects that the craft is no longer safe to land — for example, a merge conflict has appeared since clearance was granted, or a regression was identified in the landing checklist. The tower MUST record a `TowerDequeued` black box entry with the denial reason before the transition completes. The craft re-enters `GoAround` to address the issue before requesting clearance again.
 
 ## 4. Protocols
 
@@ -466,12 +516,13 @@ Each time a craft passes through a vector, the pilot MUST file a vector report w
 
 #### Report Schema
 
-| Field               | Type     | Description                                                       |
-| ------------------- | -------- | ----------------------------------------------------------------- |
-| Craft Callsign      | `string` | The craft that passed the vector.                                 |
-| Vector Name         | `string` | The vector that was passed.                                       |
-| Acceptance Evidence | `string` | Proof that acceptance criteria were met (test output, artifacts). |
-| Timestamp           | `Date`   | When the vector was passed.                                       |
+| Field                | Type                        | Required | Description                                                        |
+| -------------------- | --------------------------- | -------- | ------------------------------------------------------------------ |
+| Craft Callsign       | `string`                    | Yes      | The craft that passed the vector.                                  |
+| Vector Name          | `string`                    | Yes      | The vector that was passed.                                        |
+| Acceptance Evidence  | `string`                    | Yes      | Proof that acceptance criteria were met (test output, artifacts).  |
+| Timestamp            | `Date`                      | Yes      | When the vector was passed.                                        |
+| Constraint Overrides | `ConstraintOverride[]`      | No       | Captain-authored justifications for overriding `error` constraints. Each entry references a `constraintId` and carries a free-text `justification`. Only the captain may supply overrides. See §4.1.1. |
 
 #### Rules
 
@@ -479,6 +530,111 @@ Each time a craft passes through a vector, the pilot MUST file a vector report w
 - **RULE-VRPT-2:** A vector report MUST include the craft callsign, vector name, acceptance evidence, and timestamp.
 - **RULE-VRPT-3:** ATC MUST record the report and update the craft's flight plan status.
 - **RULE-VRPT-4:** A craft missing any vector report MUST be denied landing clearance.
+- **RULE-VRPT-5:** Before recording a vector report, the daemon MUST evaluate all ADR constraints bound to the vector (see §4.1.1). Any `error`-severity constraint that fails and is not covered by a valid captain override (see RULE-VRPT-9) MUST block the report. The response MUST be `422 Unprocessable Entity` with a structured `ConstraintFailure` list (see §4.1.1).
+- **RULE-VRPT-6:** When a real (non-dry-run) report attempt is blocked by constraint failures, the daemon MUST record a `ConstraintCheckFailed` black box entry containing the vector name, the full `ConstraintCheckResult` (per-constraint pass/fail, severity, failure reason), and any override justifications provided.
+- **RULE-VRPT-7:** The `reportVector` endpoint MUST support a `?dryRun=true` query parameter. In dry-run mode, the daemon evaluates all ADR constraints and returns a `ConstraintCheckResult` but does NOT record the report, does NOT write a black box entry, and does NOT mutate any state. The response format is identical to a successful dry-run check even when constraints fail, so pilots can iterate to compliance before committing.
+- **RULE-VRPT-8:** Warning-severity constraints (`severity: "warning"`) MUST NOT block a report. Their results MUST be included in the `ConstraintCheckResult` returned on both real and dry-run calls so pilots are informed, but they do not gate the transition.
+- **RULE-VRPT-9:** Only the captain of the craft MAY supply constraint overrides in the report payload. A non-captain pilot (first officer, jumpseat) who supplies a `constraintOverrides` array MUST receive `403 Forbidden`. Each override MUST include a non-empty `justification`. An `error` constraint covered by a valid captain override is treated as passing for the purpose of RULE-VRPT-5.
+- **RULE-VRPT-10:** The `remediationHint` field in every `ConstraintFailure` MUST carry the ADR rationale — why the constraint exists, not merely how to satisfy it mechanically. Constraint definitions that omit a `remediationHint` MUST fail validation at constraint-creation time.
+
+#### 4.1.1 Constraint Failure Response Shape
+
+This section defines the structured types used to communicate ADR constraint results on both dry-run checks and real report failures.
+
+##### ConstraintCheckResult
+
+Returned by `POST /api/v1/projects/:name/crafts/:callsign/vectors/:vectorName/report?dryRun=true`, and embedded in `ConstraintCheckFailed` black box entries.
+
+| Field             | Type                  | Description                                                          |
+| ----------------- | --------------------- | -------------------------------------------------------------------- |
+| `dryRun`          | `boolean`             | Always `true` when returned from the dry-run path.                   |
+| `vectorName`      | `string`              | The vector that was checked.                                         |
+| `constraintResults` | `ConstraintResult[]` | Per-constraint evaluation results.                                   |
+| `passed`          | `boolean`             | `true` iff no `error`-severity constraints failed (ignoring overrides). |
+| `errorCount`      | `number`              | Number of `error`-severity constraint failures.                      |
+| `warningCount`    | `number`              | Number of `warning`-severity constraint failures.                    |
+
+##### ConstraintResult
+
+One entry per ADR constraint evaluated against the vector.
+
+| Field             | Type                              | Description                                                          |
+| ----------------- | --------------------------------- | -------------------------------------------------------------------- |
+| `constraintId`    | `string`                          | Unique identifier for the ADR constraint (e.g., `"ADR-003"`).        |
+| `name`            | `string`                          | Human-readable constraint name.                                      |
+| `severity`        | `"error"` \| `"warning"`         | Whether failure blocks the report (`error`) or is advisory (`warning`). |
+| `passed`          | `boolean`                         | Whether this constraint passed.                                      |
+| `failureReason`   | `string \| null`                  | Machine-readable description of why the check failed. `null` if passed. |
+| `remediationHint` | `string \| null`                  | ADR rationale plus remediation steps. `null` if passed. See RULE-VRPT-10. |
+| `overridden`      | `boolean`                         | `true` if a captain-supplied justification covered this failure. Only applicable on real (non-dry-run) reports. |
+| `justification`   | `string \| null`                  | The captain's justification when `overridden` is `true`. `null` otherwise. |
+
+##### ConstraintFailure (error response shape)
+
+The HTTP `422` error body when `POST /api/v1/projects/:name/crafts/:callsign/vectors/:vectorName/report` is blocked by constraint violations. This shape is also returned with each individual `ConstraintResult` when iterating failures.
+
+```json
+{
+  "error": "CONSTRAINT_VIOLATIONS",
+  "message": "1 error-severity constraint(s) failed on vector API-auth",
+  "checkResult": {
+    "dryRun": false,
+    "vectorName": "API-auth",
+    "passed": false,
+    "errorCount": 1,
+    "warningCount": 0,
+    "constraintResults": [
+      {
+        "constraintId": "ADR-003",
+        "name": "Zero-Trust Endpoints",
+        "severity": "error",
+        "passed": false,
+        "failureReason": "Route /health missing auth middleware",
+        "remediationHint": "Per ADR-003, all API routes must authenticate. This prevents unauthenticated access to internal health endpoints that may expose service topology. To exempt /health, add it to the project's auth-exempt allowlist with a documented justification.",
+        "overridden": false,
+        "justification": null
+      }
+    ]
+  }
+}
+```
+
+##### Dry-run response example
+
+`POST /api/v1/projects/myproject/crafts/add-oauth2-login-01/vectors/API-auth/report?dryRun=true`
+
+```json
+{
+  "dryRun": true,
+  "vectorName": "API-auth",
+  "passed": false,
+  "errorCount": 1,
+  "warningCount": 0,
+  "constraintResults": [
+    {
+      "constraintId": "ADR-003",
+      "name": "Zero-Trust Endpoints",
+      "severity": "error",
+      "passed": false,
+      "failureReason": "Route /health missing auth middleware",
+      "remediationHint": "Per ADR-003, all API routes must authenticate. This prevents unauthenticated access to internal health endpoints that may expose service topology. To exempt /health, add it to the project's auth-exempt allowlist with a documented justification.",
+      "overridden": false,
+      "justification": null
+    }
+  ]
+}
+```
+
+##### Open Question Resolution Record
+
+The following decisions resolve the open questions from [AIR-324](/AIR/issues/AIR-324):
+
+| Question | Decision | Rationale |
+| -------- | -------- | --------- |
+| Same route or separate `/validate` endpoint? | `?dryRun=true` on the existing report route | Consistent with RULE-SDD-15; avoids surface fragmentation. |
+| Partial per-constraint evidence in dry-run? | No — dry-run accepts the full report payload. | Per-constraint evidence isolation is complex and not needed in v1. Pilots iterate the full dry-run. |
+| Black box entry for dry-run failures? | No black box entry. | Dry-run is side-effect-free (matching SDD's RULE-SDD-15). Speculative failures must not pollute the audit trail. |
+| Does constraint failure block entirely, or allow override? | `error` constraints block by default; captain may override with justification (RULE-VRPT-9). | Models ADR exception processes. Override is recorded in `ConstraintCheckFailed` entry for auditability. |
 
 ### 4.2 Checklists
 
@@ -852,8 +1008,14 @@ Adversarial review is triggered when an inspector is assigned to a craft. Once a
 | RULE-BBOX-5   | Every adversarial review event must use the corresponding entry type.                                 | 2.1.1   |
 | RULE-BBOX-6   | AdversarialFindingSubmitted must include finding ID, vector, severity, description.                   | 2.1.1   |
 | RULE-BBOX-7   | AdversarialReviewPassed/Failed must include inspector, vector, finding summary.                       | 2.1.1   |
+| RULE-BBOX-8   | KeyRotated entry required on every craft when a pilot's signing key is rotated.                       | 2.1.1   |
+| RULE-BBOX-9   | GET /blackbox/verify returns integrity summary: total, verified, unsigned, failed.                    | 2.1.1   |
+| RULE-BBOX-9a  | Integrity bar uses triggered-poll via `craft.blackbox.appended`; poll at 5s if no WS.                 | 2.1.1   |
+| RULE-BBOX-10  | Trace context fields are for export; NOT required in primary feed views; MAY appear in detail/inspector views. | 2.1.1 |
 | RULE-PILOT-1  | Pilot identifier must be unique.                                                                      | 2.2.1   |
 | RULE-PILOT-2  | Certifications determine captain/FO eligibility.                                                      | 2.2.1   |
+| RULE-PILOT-3  | Pilot MAY have optional publicKey (Ed25519); daemon uses it + publicKeyHistory for /blackbox/verify.  | 2.2.1   |
+| RULE-PILOT-3a | On key rotation, outgoing key MUST be appended to publicKeyHistory with activeSince/rotatedAt; retained indefinitely. | 2.2.1 |
 | RULE-SEAT-1   | Craft must have exactly one captain.                                                                  | 2.2.3   |
 | RULE-SEAT-2   | Captain/FO requires certification for craft's category.                                               | 2.2.3   |
 | RULE-SEAT-3   | Uncertified pilots may only board in jumpseat.                                                        | 2.2.3   |
@@ -896,10 +1058,17 @@ Adversarial review is triggered when an inspector is assigned to a craft. Once a
 | RULE-LIFE-6   | ClearedToLand → Landed requires branch up to date + merge.                                            | 3.3     |
 | RULE-LIFE-7   | Emergency → ReturnToOrigin requires EmergencyDeclaration in bbox.                                     | 3.3     |
 | RULE-LIFE-8   | Landed and ReturnToOrigin are terminal; no transitions out.                                           | 3.3     |
+| RULE-LIFE-9   | ClearedToLand → GoAround requires tower denial with TowerDequeued entry in black box.                 | 3.3     |
 | RULE-VRPT-1   | Vector report must be filed on every vector passage.                                                  | 4.1     |
 | RULE-VRPT-2   | Report must include callsign, vector name, evidence, timestamp.                                       | 4.1     |
 | RULE-VRPT-3   | ATC must record report and update flight plan status.                                                 | 4.1     |
 | RULE-VRPT-4   | Missing vector report means landing clearance denied.                                                 | 4.1     |
+| RULE-VRPT-5   | Error-severity ADR constraints block report; unoverridden failures return 422 with ConstraintFailure list. | 4.1 |
+| RULE-VRPT-6   | Real (non-dry-run) constraint failures must record ConstraintCheckFailed black box entry with full results. | 4.1 |
+| RULE-VRPT-7   | reportVector supports ?dryRun=true; evaluates constraints, returns ConstraintCheckResult, no state mutation. | 4.1 |
+| RULE-VRPT-8   | Warning-severity constraints never block; results included in ConstraintCheckResult for pilot visibility. | 4.1 |
+| RULE-VRPT-9   | Only the captain may supply constraintOverrides; non-captain overrides return 403; justification must be non-empty. | 4.1 |
+| RULE-VRPT-10  | remediationHint must carry ADR rationale (why), not just mechanical fix (how); omitting it fails constraint creation. | 4.1.1 |
 | RULE-CHKL-1   | Template is named, ordered list with name, executor, severity, description.                           | 4.2     |
 | RULE-CHKL-2   | Templates bound to lifecycle events and craft categories.                                             | 4.2     |
 | RULE-CHKL-3   | Crafts may override bindings: add, remove, or disable.                                                | 4.2     |
