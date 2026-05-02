@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { buildSystemPrompt, deriveSeat } from "./prompt-builder.js";
-import { CraftStatus } from "@airtrafficcontrol/types";
-import type { CraftState } from "@airtrafficcontrol/daemon";
+import {
+  buildSystemPrompt,
+  deriveSeat,
+  MAX_BLACK_BOX_ENTRIES,
+  MAX_SYSTEM_PROMPT_TOKENS,
+} from "./prompt-builder.js";
+import { BlackBoxEntryType, CraftStatus } from "@airtrafficcontrol/types";
+import type { BlackBoxEntry, CraftState } from "@airtrafficcontrol/daemon";
 
 const baseCraft: CraftState = {
   callsign: "ALPHA-1",
@@ -34,6 +39,18 @@ const baseCraft: CraftState = {
     holder: "pilot-001",
   },
 };
+
+/** Craft with enough black box entries to push the prompt over the token budget. */
+function largeCraft(blackBoxCount: number): CraftState {
+  const entries: BlackBoxEntry[] = Array.from({ length: blackBoxCount }, (_, i) => ({
+    timestamp: `2026-04-01T${String(i % 24).padStart(2, "0")}:00:00.000Z`,
+    author: "pilot-001",
+    type: BlackBoxEntryType.Observation,
+    // Long content to reliably push past the 4-char/token budget.
+    content: `Entry ${i}: ${"x".repeat(500)}`,
+  }));
+  return { ...baseCraft, blackBox: entries };
+}
 
 describe("deriveSeat", () => {
   it("returns 'captain' for the captain pilotId", () => {
@@ -208,5 +225,108 @@ describe("buildSystemPrompt", () => {
     const prompt = buildSystemPrompt(baseCraft, "pilot-001", "demo-project");
     expect(prompt).toContain("black box");
     expect(prompt).toContain("append-only");
+  });
+
+  it("includes a Recent Activity section", () => {
+    const prompt = buildSystemPrompt(baseCraft, "pilot-001", "demo-project");
+    expect(prompt).toContain("Recent Activity");
+  });
+
+  it("shows (no entries) in Recent Activity when blackBox is empty", () => {
+    const prompt = buildSystemPrompt(baseCraft, "pilot-001", "demo-project");
+    expect(prompt).toContain("(no entries)");
+  });
+
+  it("renders black box entries in Recent Activity when present", () => {
+    const withBB: CraftState = {
+      ...baseCraft,
+      blackBox: [
+        {
+          timestamp: "2026-04-01T10:00:00.000Z",
+          author: "pilot-001",
+          type: BlackBoxEntryType.Decision,
+          content: "Chose REST over GraphQL for simplicity",
+        },
+      ],
+    };
+    const prompt = buildSystemPrompt(withBB, "pilot-001", "demo-project");
+    expect(prompt).toContain("Chose REST over GraphQL for simplicity");
+    expect(prompt).toContain("Decision");
+    expect(prompt).toContain("2026-04-01T10:00:00.000Z");
+  });
+
+  it("does not prepend a truncation notice when the prompt is within budget", () => {
+    const prompt = buildSystemPrompt(baseCraft, "pilot-001", "demo-project");
+    expect(prompt).not.toContain("[Context truncated:");
+  });
+});
+
+describe("buildSystemPrompt — truncation", () => {
+  it("prepends a truncation notice when the prompt exceeds MAX_SYSTEM_PROMPT_TOKENS", () => {
+    const craft = largeCraft(30);
+    const prompt = buildSystemPrompt(craft, "pilot-001", "demo-project");
+    expect(prompt).toContain("[Context truncated:");
+    expect(prompt).toContain("call atc_get_context for full state");
+  });
+
+  it("caps black box to the most recent MAX_BLACK_BOX_ENTRIES entries", () => {
+    const craft = largeCraft(30);
+    const prompt = buildSystemPrompt(craft, "pilot-001", "demo-project");
+    // Only the last MAX_BLACK_BOX_ENTRIES entries should appear (Entry 20–29).
+    expect(prompt).toContain("Entry 29:");
+    expect(prompt).toContain("Entry 20:");
+    expect(prompt).not.toContain("Entry 19:");
+    expect(prompt).not.toContain("Entry 0:");
+  });
+
+  it("reports the correct number of omitted black box entries in the notice", () => {
+    const count = 30;
+    const craft = largeCraft(count);
+    const prompt = buildSystemPrompt(craft, "pilot-001", "demo-project");
+    const omitted = count - MAX_BLACK_BOX_ENTRIES;
+    expect(prompt).toContain(`${omitted} black box entries`);
+  });
+
+  it("omits vector acceptance criteria in truncated mode", () => {
+    const craft = largeCraft(30);
+    const prompt = buildSystemPrompt(craft, "pilot-001", "demo-project");
+    expect(prompt).not.toContain("POST /widgets returns 201");
+    expect(prompt).not.toContain("Coverage >= 90%");
+  });
+
+  it("still includes vector names and statuses in truncated mode", () => {
+    const craft = largeCraft(30);
+    const prompt = buildSystemPrompt(craft, "pilot-001", "demo-project");
+    expect(prompt).toContain("Implement widget API");
+    expect(prompt).toContain("Write widget tests");
+    expect(prompt).toContain("PENDING");
+    expect(prompt).toContain("PASSED");
+  });
+
+  it("reports the correct number of omitted vector details in the notice", () => {
+    const craft = largeCraft(30);
+    const prompt = buildSystemPrompt(craft, "pilot-001", "demo-project");
+    expect(prompt).toContain(`${craft.flightPlan.length} vector details omitted`);
+  });
+
+  it("does not truncate when black box is exactly at or below MAX_BLACK_BOX_ENTRIES", () => {
+    // A small craft with MAX_BLACK_BOX_ENTRIES entries of normal size should not trigger truncation.
+    const entries: BlackBoxEntry[] = Array.from({ length: MAX_BLACK_BOX_ENTRIES }, (_, i) => ({
+      timestamp: `2026-04-01T${String(i).padStart(2, "0")}:00:00.000Z`,
+      author: "pilot-001",
+      type: BlackBoxEntryType.Observation,
+      content: `Short entry ${i}`,
+    }));
+    const craft: CraftState = { ...baseCraft, blackBox: entries };
+    const prompt = buildSystemPrompt(craft, "pilot-001", "demo-project");
+    expect(prompt).not.toContain("[Context truncated:");
+  });
+
+  it("exports MAX_SYSTEM_PROMPT_TOKENS as 4000", () => {
+    expect(MAX_SYSTEM_PROMPT_TOKENS).toBe(4000);
+  });
+
+  it("exports MAX_BLACK_BOX_ENTRIES as 10", () => {
+    expect(MAX_BLACK_BOX_ENTRIES).toBe(10);
   });
 });

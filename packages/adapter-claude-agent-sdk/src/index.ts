@@ -13,7 +13,12 @@ export {
   type ClaudeAgentSdkAdapterDeps,
   type QueryFn,
 } from "./adapter.js";
-export { buildSystemPrompt, deriveSeat } from "./prompt-builder.js";
+export {
+  buildSystemPrompt,
+  deriveSeat,
+  MAX_SYSTEM_PROMPT_TOKENS,
+  MAX_BLACK_BOX_ENTRIES,
+} from "./prompt-builder.js";
 export {
   createControlsCanUseTool,
   decideForFileModification,
