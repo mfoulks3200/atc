@@ -284,7 +284,7 @@ describe("broadcast wiring on mutation routes", () => {
   });
 
   it("POST /tower/clearance broadcasts craft and tower events", async () => {
-    const craft = seedCraft(craftStore, CraftStatus.InFlight);
+    const craft = seedCraft(craftStore, CraftStatus.ClearedToLand);
     craft.flightPlan.forEach((v) => {
       v.status = "Passed";
     });

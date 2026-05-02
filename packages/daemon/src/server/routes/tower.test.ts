@@ -18,14 +18,17 @@ describe("tower routes", () => {
 
   const PROJECT = "test-project";
 
-  function seedCraft(allPassed: boolean): void {
+  function seedCraft(opts: {
+    allPassed: boolean;
+    status?: CraftStatus;
+  }): void {
     const craft: CraftState = {
       callsign: "charlie-1",
       createdAt: "2026-04-11T00:00:00.000Z",
       branch: "feat/charlie",
       cargo: "Build charlie",
       category: "backend",
-      status: CraftStatus.InFlight,
+      status: opts.status ?? (opts.allPassed ? CraftStatus.ClearedToLand : CraftStatus.InFlight),
       captain: "pilot-1",
       firstOfficers: [],
       jumpseaters: [],
@@ -33,8 +36,8 @@ describe("tower routes", () => {
         {
           name: "v1",
           acceptanceCriteria: "Done",
-          status: allPassed ? "Passed" : "Pending",
-          ...(allPassed ? { evidence: "done", reportedAt: new Date().toISOString() } : {}),
+          status: opts.allPassed ? "Passed" : "Pending",
+          ...(opts.allPassed ? { evidence: "done", reportedAt: new Date().toISOString() } : {}),
         },
       ],
       blackBox: [],
@@ -72,7 +75,7 @@ describe("tower routes", () => {
 
   describe("POST /api/v1/projects/:name/tower/clearance", () => {
     it("grants clearance when all vectors passed (RULE-TOWER-2)", async () => {
-      seedCraft(true);
+      seedCraft({ allPassed: true });
       const res = await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/tower/clearance`,
@@ -88,7 +91,7 @@ describe("tower routes", () => {
     });
 
     it("rejects clearance when vectors are pending", async () => {
-      seedCraft(false);
+      seedCraft({ allPassed: false });
       const res = await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/tower/clearance`,
@@ -98,7 +101,7 @@ describe("tower routes", () => {
     });
 
     it("appends ClearanceRequested and TowerEnqueued black box entries on success", async () => {
-      seedCraft(true);
+      seedCraft({ allPassed: true });
       await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/tower/clearance`,
@@ -112,7 +115,7 @@ describe("tower routes", () => {
     });
 
     it("still appends ClearanceRequested even when vectors are pending", async () => {
-      seedCraft(false);
+      seedCraft({ allPassed: false });
       await app.inject({
         method: "POST",
         url: `/api/v1/projects/${PROJECT}/tower/clearance`,
@@ -132,6 +135,27 @@ describe("tower routes", () => {
         payload: { callsign: "ghost" },
       });
       expect(res.statusCode).toBe(404);
+    });
+
+    it("rejects clearance when checklist has not passed (RULE-TMRG-5)", async () => {
+      seedCraft({ allPassed: true, status: CraftStatus.InFlight });
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/tower/clearance`,
+        payload: { callsign: "charlie-1" },
+      });
+      expect(res.statusCode).toBe(409);
+      expect(res.json().error).toContain("Landing checklist must pass");
+    });
+
+    it("rejects clearance from LandingChecklist status (RULE-TMRG-5)", async () => {
+      seedCraft({ allPassed: true, status: CraftStatus.LandingChecklist });
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/tower/clearance`,
+        payload: { callsign: "charlie-1" },
+      });
+      expect(res.statusCode).toBe(409);
     });
   });
 });
@@ -345,5 +369,43 @@ describe("tower merge route", () => {
       payload: { callsign: "ghost" },
     });
     expect(res.statusCode).toBe(404);
+  });
+
+  it("rejects merge when craft is not ClearedToLand (RULE-TMRG-5)", async () => {
+    await seedBareRepo("feature line\n");
+    const craft: CraftState = {
+      callsign: CALLSIGN,
+      createdAt: "2026-04-14T00:00:00.000Z",
+      branch: BRANCH,
+      cargo: "Add merge feature",
+      category: "backend",
+      status: CraftStatus.InFlight,
+      captain: "pilot-1",
+      firstOfficers: [],
+      jumpseaters: [],
+      flightPlan: [
+        {
+          name: "v1",
+          acceptanceCriteria: "Done",
+          status: "Passed",
+          evidence: "done",
+          reportedAt: new Date().toISOString(),
+        },
+      ],
+      blackBox: [],
+      intercom: [],
+      controls: { mode: "exclusive", holder: "pilot-1" },
+      holdingPattern: false,
+    };
+    craftStore.set(PROJECT, craft);
+    towerStore.enqueue(PROJECT, CALLSIGN);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${PROJECT}/tower/merge`,
+      payload: { callsign: CALLSIGN },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toContain("ClearedToLand");
   });
 });

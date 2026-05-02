@@ -686,6 +686,7 @@ When a craft passes its landing checklist, the pilot requests landing clearance 
 - **RULE-TMRG-2:** The tower MUST verify the branch is up to date with main before executing a merge.
 - **RULE-TMRG-3:** If a merge conflict arises, the tower MAY send the craft on a go-around to rebase/resolve before re-entering the queue.
 - **RULE-TMRG-4:** Merges MUST be sequenced to avoid conflicts. Default ordering is first-come, first-served.
+- **RULE-TMRG-5:** The tower MUST verify the craft's landing checklist has passed (craft in `ClearedToLand` status) before granting clearance or executing a merge. A craft that has not completed its landing checklist MUST NOT enter the merge queue.
 
 ### 4.5 TFR Protocol
 
@@ -965,6 +966,7 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-TMRG-2    | Tower must verify branch is up to date before merge.                 | 4.4     |
 | RULE-TMRG-3    | Tower may send craft on go-around for merge conflicts.               | 4.4     |
 | RULE-TMRG-4    | Merges sequenced FCFS by default.                                    | 4.4     |
+| RULE-TMRG-5    | Landing checklist must pass before clearance or merge.               | 4.4     |
 | RULE-TFR-1     | TFR must have identifier, scope, mode, reason, and issuer.           | 2.6     |
 | RULE-TFR-2     | Project/craft TFRs require target; global TFRs have null target.     | 2.6     |
 | RULE-TFR-3     | User may issue TFR at any scope.                                     | 2.6     |

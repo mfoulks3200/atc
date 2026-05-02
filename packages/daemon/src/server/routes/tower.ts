@@ -78,6 +78,7 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
    * Request landing clearance for a craft.
    *
    * @see RULE-TOWER-2 — all vectors must be passed before clearance can be granted.
+   * @see RULE-TMRG-5 — landing checklist must have passed (craft in ClearedToLand).
    */
   app.post<{ Params: { name: string }; Body: ClearanceBody }>(
     "/api/v1/projects/:name/tower/clearance",
@@ -100,6 +101,14 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
         BlackBoxEntryType.ClearanceRequested,
         `Landing clearance requested for ${callsign}`,
       );
+
+      // RULE-TMRG-5: landing checklist must have passed before clearance.
+      if (craft.status !== CraftStatus.ClearedToLand) {
+        app.craftStore.set(name, craft);
+        return reply.code(409).send({
+          error: `Landing checklist must pass before requesting clearance. Current status: ${craft.status}`,
+        });
+      }
 
       // RULE-TOWER-2: all vectors must be passed
       const allPassed = craft.flightPlan.every((v) => v.status === "Passed");
@@ -153,6 +162,7 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
    * @see RULE-TOWER-3
    * @see RULE-TMRG-2
    * @see RULE-TMRG-3
+   * @see RULE-TMRG-5
    */
   app.post<{ Params: { name: string }; Body: MergeBody }>(
     "/api/v1/projects/:name/tower/merge",
@@ -163,6 +173,13 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
       const craft = app.craftStore.get(name, callsign);
       if (!craft) {
         return reply.code(404).send({ error: `Craft not found: ${callsign}` });
+      }
+
+      // RULE-TMRG-5: landing checklist must have passed (defense-in-depth).
+      if (craft.status !== CraftStatus.ClearedToLand) {
+        return reply.code(409).send({
+          error: `Craft must be ClearedToLand to merge. Current status: ${craft.status}`,
+        });
       }
 
       const queue = app.towerStore.getQueue(name);

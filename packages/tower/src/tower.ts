@@ -1,5 +1,5 @@
 import type { Craft } from "@airtrafficcontrol/types";
-import { VectorStatus, BlackBoxEntryType } from "@airtrafficcontrol/types";
+import { CraftStatus, VectorStatus, BlackBoxEntryType } from "@airtrafficcontrol/types";
 import { TowerError, EmergencyError } from "@airtrafficcontrol/errors";
 import type {
   QueueEntry,
@@ -32,9 +32,17 @@ export class Tower {
    *
    * @param craft - The craft requesting clearance.
    * @returns A ClearanceResult indicating whether clearance was granted.
-   * @see RULE-TOWER-2, RULE-TMRG-1, RULE-TMRG-4
+   * @see RULE-TOWER-2, RULE-TMRG-1, RULE-TMRG-4, RULE-TMRG-5
    */
   requestClearance(craft: Craft): ClearanceResult {
+    // RULE-TMRG-5: landing checklist must have passed before clearance.
+    if (craft.status !== CraftStatus.ClearedToLand) {
+      return {
+        granted: false,
+        reason: `Landing clearance denied: checklist must pass before requesting clearance (current status: ${craft.status})`,
+      };
+    }
+
     const allPassed = craft.flightPlan.every((v) => v.status === VectorStatus.Passed);
 
     if (!allPassed) {

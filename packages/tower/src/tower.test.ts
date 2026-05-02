@@ -44,12 +44,12 @@ function makeCraft(overrides: Partial<Craft> = {}): Craft {
   };
 }
 
-/** Build a craft where all vectors have passed -- ready for clearance. */
+/** Build a craft where all vectors have passed and checklist passed -- ready for clearance. */
 function makeReadyCraft(callsign = "READY-1"): Craft {
   return makeCraft({
     callsign,
     branch: `feat/${callsign.toLowerCase()}`,
-    status: CraftStatus.LandingChecklist,
+    status: CraftStatus.ClearedToLand,
     flightPlan: [
       {
         name: "Design",
@@ -65,12 +65,12 @@ function makeReadyCraft(callsign = "READY-1"): Craft {
   });
 }
 
-/** Build a craft where a vector has NOT passed. */
+/** Build a craft in ClearedToLand where a vector has NOT passed (tests vector check). */
 function makeUnreadyCraft(callsign = "UNREADY-1"): Craft {
   return makeCraft({
     callsign,
     branch: `feat/${callsign.toLowerCase()}`,
-    status: CraftStatus.InFlight,
+    status: CraftStatus.ClearedToLand,
     flightPlan: [
       {
         name: "Design",
@@ -251,7 +251,7 @@ describe("Tower.requestClearance", () => {
     const craft = makeCraft({
       callsign: "EMPTY-FP",
       flightPlan: [],
-      status: CraftStatus.LandingChecklist,
+      status: CraftStatus.ClearedToLand,
     });
     const result = tower.requestClearance(craft);
     expect(result.granted).toBe(true);
@@ -266,6 +266,55 @@ describe("Tower.requestClearance", () => {
 
   it("does not enqueue the craft when clearance is denied", () => {
     const craft = makeUnreadyCraft("NO-Q");
+    tower.requestClearance(craft);
+    expect(tower.queueSize).toBe(0);
+  });
+
+  it("denies clearance when checklist has not passed (RULE-TMRG-5)", () => {
+    const craft = makeCraft({
+      callsign: "NO-CHECKLIST",
+      status: CraftStatus.InFlight,
+      flightPlan: [
+        {
+          name: "Design",
+          acceptanceCriteria: "Done",
+          status: VectorStatus.Passed,
+        },
+      ],
+    });
+    const result = tower.requestClearance(craft);
+    expect(result.granted).toBe(false);
+    expect(result.reason).toContain("checklist");
+  });
+
+  it("denies clearance from LandingChecklist status (RULE-TMRG-5)", () => {
+    const craft = makeCraft({
+      callsign: "MID-CHECKLIST",
+      status: CraftStatus.LandingChecklist,
+      flightPlan: [
+        {
+          name: "Design",
+          acceptanceCriteria: "Done",
+          status: VectorStatus.Passed,
+        },
+      ],
+    });
+    const result = tower.requestClearance(craft);
+    expect(result.granted).toBe(false);
+  });
+
+  it("does not enqueue the craft when checklist has not passed (RULE-TMRG-5)", () => {
+    const craft = makeCraft({
+      callsign: "SKIP-Q",
+      status: CraftStatus.InFlight,
+      flightPlan: [
+        {
+          name: "Design",
+          acceptanceCriteria: "Done",
+          status: VectorStatus.Passed,
+        },
+      ],
+    });
     tower.requestClearance(craft);
     expect(tower.queueSize).toBe(0);
   });
