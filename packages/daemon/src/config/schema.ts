@@ -72,6 +72,8 @@ export const PROJECT_METADATA_SCHEMA = z
     specInbox: z.string().nullable(),
     /** Monotonic counter for callsign generation. Persisted per-project. @see §4.6.2 */
     callsignCounter: z.number().int().min(1),
+    /** When true, every new black box entry carries a W3C trace context. @see RULE-BBOX-5 */
+    traceContextEnabled: z.boolean().optional(),
   })
   .passthrough();
 
@@ -91,6 +93,7 @@ export const PROJECT_METADATA_DEFAULTS: ProjectMetadataConfig = {
   allowAutoLaunch: false,
   specInbox: null,
   callsignCounter: 1,
+  traceContextEnabled: false,
 };
 
 /**

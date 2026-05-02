@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PilotStore } from "./pilot-store.js";
 
+const BASE = { publicKey: null, keyHistory: [] as import("../types.js").KeyHistoryEntry[] };
+
 describe("PilotStore", () => {
   let stateDir: string;
   let store: PilotStore;
@@ -22,15 +24,15 @@ describe("PilotStore", () => {
   });
 
   it("stores and retrieves a pilot", () => {
-    const record = { identifier: "p1", certifications: ["backend"], mcpServers: {} };
+    const record = { identifier: "p1", certifications: ["backend"], mcpServers: {}, ...BASE };
     store.set("proj", record);
     expect(store.get("proj", "p1")).toEqual(record);
   });
 
   it("lists pilots for a project", () => {
-    store.set("proj", { identifier: "p1", certifications: ["a"], mcpServers: {} });
-    store.set("proj", { identifier: "p2", certifications: ["b"], mcpServers: {} });
-    store.set("other", { identifier: "p3", certifications: ["c"], mcpServers: {} });
+    store.set("proj", { identifier: "p1", certifications: ["a"], mcpServers: {}, ...BASE });
+    store.set("proj", { identifier: "p2", certifications: ["b"], mcpServers: {}, ...BASE });
+    store.set("other", { identifier: "p3", certifications: ["c"], mcpServers: {}, ...BASE });
 
     expect(store.listForProject("proj")).toHaveLength(2);
     expect(store.listForProject("other")).toHaveLength(1);
@@ -38,7 +40,7 @@ describe("PilotStore", () => {
   });
 
   it("removes a pilot and returns true", () => {
-    store.set("proj", { identifier: "p1", certifications: [], mcpServers: {} });
+    store.set("proj", { identifier: "p1", certifications: [], mcpServers: {}, ...BASE });
     expect(store.remove("proj", "p1")).toBe(true);
     expect(store.get("proj", "p1")).toBeUndefined();
   });
@@ -52,8 +54,8 @@ describe("PilotStore", () => {
   });
 
   it("persists and restores across save/load", async () => {
-    store.set("proj-a", { identifier: "p1", certifications: ["x"], mcpServers: {} });
-    store.set("proj-b", { identifier: "p2", certifications: ["y", "z"], mcpServers: {} });
+    store.set("proj-a", { identifier: "p1", certifications: ["x"], mcpServers: {}, ...BASE });
+    store.set("proj-b", { identifier: "p2", certifications: ["y", "z"], mcpServers: {}, ...BASE });
     await store.save();
 
     const store2 = new PilotStore(stateDir);
@@ -71,8 +73,8 @@ describe("PilotStore", () => {
   });
 
   it("overwrites a pilot on re-set", () => {
-    store.set("proj", { identifier: "p1", certifications: ["a"], mcpServers: {} });
-    store.set("proj", { identifier: "p1", certifications: ["b", "c"], mcpServers: {} });
+    store.set("proj", { identifier: "p1", certifications: ["a"], mcpServers: {}, ...BASE });
+    store.set("proj", { identifier: "p1", certifications: ["b", "c"], mcpServers: {}, ...BASE });
     expect(store.get("proj", "p1")?.certifications).toEqual(["b", "c"]);
   });
 });

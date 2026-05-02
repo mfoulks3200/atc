@@ -208,6 +208,8 @@ async function applyTfrToCrafts(
       author: "system",
       type: BlackBoxEntryType.TFRIssued,
       content: `TFR ${tfr.identifier} issued: ${tfr.reason} (scope=${tfr.scope}, mode=${tfr.mode})`,
+      signature: null,
+      traceContext: null,
     };
     craft.blackBox.push(entry);
     app.craftStore.set(proj, craft);
@@ -247,6 +249,8 @@ async function clearTfrFromCrafts(
       author: "system",
       type: BlackBoxEntryType.TFRLifted,
       content: `TFR ${tfr.identifier} lifted`,
+      signature: null,
+      traceContext: null,
     };
     craft.blackBox.push(entry);
 

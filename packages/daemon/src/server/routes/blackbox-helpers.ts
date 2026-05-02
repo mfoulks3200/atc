@@ -3,14 +3,15 @@
  *
  * Wraps the core {@link createBlackBoxEntry} / {@link appendToBlackBox} helpers
  * so route handlers get a single call that (1) records the entry on the
- * persisted craft state and (2) broadcasts it on the same WebSocket channels
- * set up by task #1's `publishCraftEvent`. REST routes call these helpers for
- * every lifecycle event listed in task #2 so subscribers receive a streaming
- * event log without polling.
+ * persisted craft state, (2) optionally signs the entry (RULE-BBOX-7),
+ * (3) optionally attaches OTel trace context (RULE-BBOX-5), and (4) broadcasts
+ * it on the WebSocket channels so subscribers receive a streaming event log.
  *
  * @see RULE-BBOX-1 — black box created at Taxiing, persists for lifecycle.
  * @see RULE-BBOX-2 — entries are append-only.
  * @see RULE-BBOX-3 — all pilots may write to the black box.
+ * @see RULE-BBOX-5 — trace context on entries when project has it enabled.
+ * @see RULE-BBOX-7 — COSE_Sign1 signing for pilots with registered key pairs.
  */
 
 import type { FastifyInstance } from "fastify";
@@ -21,6 +22,19 @@ import {
 import type { BlackBoxEntryType } from "@airtrafficcontrol/types";
 import type { BlackBoxEntry, CraftState, WsEvent } from "../../types.js";
 import type { ChannelRegistry } from "../websocket/channels.js";
+import { signBlackBoxEntry } from "../../signing/sign.js";
+import { generateTraceContext } from "../../signing/trace.js";
+
+/**
+ * Resolves whether trace context is enabled for a project by consulting
+ * the layered project config stores on the Fastify instance.
+ */
+function isTraceContextEnabled(app: FastifyInstance, project: string): boolean {
+  const store = app.projectConfigStores.get(project);
+  if (!store) return false;
+  const config = store.get();
+  return (config as { traceContextEnabled?: boolean }).traceContextEnabled === true;
+}
 
 /**
  * Append a single black box entry to a craft and broadcast it.
@@ -29,12 +43,18 @@ import type { ChannelRegistry } from "../websocket/channels.js";
  *
  * 1. Builds the entry via the core `createBlackBoxEntry` helper so the
  *    author/type/content shape is consistent across packages.
- * 2. Uses the core `appendToBlackBox` helper to honor the append-only
+ * 2. Optionally signs the entry with a COSE_Sign1 envelope if the author pilot
+ *    has a registered Ed25519 key pair. (RULE-BBOX-7)
+ *    NOTE: Full RULE-PILOT-3b compliance (auth-authorship binding) requires an
+ *    authentication layer not yet implemented. Until then, signing fires whenever
+ *    the author has a registered key — document this gap alongside any auth work.
+ * 3. Attaches OTel trace context if enabled for the project. (RULE-BBOX-5)
+ * 4. Uses the core `appendToBlackBox` helper to honor the append-only
  *    invariant (RULE-BBOX-2). The helper returns a new array which is then
  *    assigned back to `craft.blackBox` after normalising timestamps to ISO
  *    strings (daemon state is JSON-persisted, so `Date` objects from core
  *    must be serialized).
- * 3. Publishes a `craft.blackbox.appended` event on the per-craft and
+ * 5. Publishes a `craft.blackbox.appended` event on the per-craft and
  *    per-project WebSocket channels so subscribers see the new entry
  *    immediately. The full craft state is NOT pushed here — callers handle
  *    that via `publishCraftEvent` for the surrounding lifecycle event.
@@ -43,7 +63,7 @@ import type { ChannelRegistry } from "../websocket/channels.js";
  * `app.craftStore.set(project, craft)` after this returns, typically
  * alongside other state updates from the same lifecycle event.
  *
- * @param app - Fastify instance (carries the WS channel registry).
+ * @param app - Fastify instance (carries the WS channel registry, pilot store, and keystore).
  * @param project - Project name for the `project:<name>` channel.
  * @param craft - Craft to append to; `blackBox` is replaced in place.
  * @param author - Pilot ID recording the entry (or `"system"` for daemon events).
@@ -54,6 +74,8 @@ import type { ChannelRegistry } from "../websocket/channels.js";
  * @see RULE-BBOX-1
  * @see RULE-BBOX-2
  * @see RULE-BBOX-3
+ * @see RULE-BBOX-5
+ * @see RULE-BBOX-7
  */
 export function appendBlackBoxEntry(
   app: FastifyInstance,
@@ -63,14 +85,82 @@ export function appendBlackBoxEntry(
   type: BlackBoxEntryType,
   content: string,
 ): BlackBoxEntry {
-  return appendBlackBoxEntryWithRegistry(
-    app.channelRegistry,
-    project,
-    craft,
-    author,
-    type,
-    content,
-  );
+  const coreEntry = createCoreEntry(author, type, content);
+
+  // --- Trace context (RULE-BBOX-5) ---
+  let traceContext: BlackBoxEntry["traceContext"] = null;
+  if (isTraceContextEnabled(app, project)) {
+    const lastEntry = craft.blackBox[craft.blackBox.length - 1];
+    const parentSpanId = lastEntry?.traceContext?.spanId ?? null;
+    traceContext = generateTraceContext(project, craft.callsign, parentSpanId);
+  }
+
+  // --- Signing (RULE-BBOX-7) ---
+  // Build a provisional entry with the timestamp so the signing input is complete.
+  const timestamp = coreEntry.timestamp.toISOString();
+  let signature: string | null = null;
+
+  const keyRecord = app.pilotKeystore.get(project, author);
+  if (keyRecord) {
+    const pilotRecord = app.pilotStore.get(project, author);
+    if (pilotRecord?.publicKey) {
+      signature = signBlackBoxEntry(keyRecord.privateKey, keyRecord.publicKey, {
+        timestamp,
+        author: coreEntry.author,
+        type: coreEntry.type,
+        content: coreEntry.content,
+      });
+    }
+  }
+
+  const entry: BlackBoxEntry = {
+    timestamp,
+    author: coreEntry.author,
+    type: coreEntry.type,
+    content: coreEntry.content,
+    signature,
+    traceContext,
+  };
+
+  // Re-use the core append helper for its invariant, then normalise entries
+  // back to the daemon shape (strings for timestamps, plus new fields).
+  const coreEntries = craft.blackBox.map((e) => ({
+    timestamp: new Date(e.timestamp),
+    author: e.author,
+    type: e.type,
+    content: e.content,
+  }));
+  const next = appendCoreEntry(coreEntries, coreEntry);
+  craft.blackBox = next.map((e, i) => {
+    // For all entries except the newly appended one, keep existing metadata.
+    if (i < next.length - 1) {
+      return craft.blackBox[i]!;
+    }
+    return entry;
+  });
+
+  const eventTimestamp = new Date().toISOString();
+  const data = { project, callsign: craft.callsign, entry };
+
+  const craftPayload: WsEvent = {
+    type: "event",
+    channel: `craft:${craft.callsign}`,
+    event: "craft.blackbox.appended",
+    timestamp: eventTimestamp,
+    data,
+  };
+  const projectPayload: WsEvent = {
+    type: "event",
+    channel: `project:${project}`,
+    event: "craft.blackbox.appended",
+    timestamp: eventTimestamp,
+    data,
+  };
+
+  app.channelRegistry.publish(craftPayload.channel, craftPayload);
+  app.channelRegistry.publish(projectPayload.channel, projectPayload);
+
+  return entry;
 }
 
 /**
@@ -79,9 +169,10 @@ export function appendBlackBoxEntry(
  * that run before the Fastify app is constructed (notably the agent output
  * pipe, which is wired into `AgentManager` at daemon startup).
  *
- * Behaviour is otherwise identical: the entry is appended in place, the
- * timestamps are normalised to ISO-8601 strings, and `craft.blackbox.appended`
- * is published on the per-craft and per-project channels.
+ * This variant does NOT produce signatures or trace context — those require
+ * access to the pilot store, keystore, and project config stores that are
+ * not available at the agent manager level. Entries added via this path will
+ * have `signature: null` and `traceContext: null`.
  *
  * @see RULE-BBOX-1
  * @see RULE-BBOX-2
@@ -101,25 +192,23 @@ export function appendBlackBoxEntryWithRegistry(
     author: coreEntry.author,
     type: coreEntry.type,
     content: coreEntry.content,
+    signature: null,
+    traceContext: null,
   };
 
-  // Re-use the core append helper for its invariant, then normalise timestamps
-  // back to strings for the persisted daemon shape.
-  const next = appendCoreEntry(
-    craft.blackBox.map((e) => ({
-      timestamp: new Date(e.timestamp),
-      author: e.author,
-      type: e.type,
-      content: e.content,
-    })),
-    coreEntry,
-  );
-  craft.blackBox = next.map((e) => ({
-    timestamp: e.timestamp.toISOString(),
+  const coreEntries = craft.blackBox.map((e) => ({
+    timestamp: new Date(e.timestamp),
     author: e.author,
     type: e.type,
     content: e.content,
   }));
+  const next = appendCoreEntry(coreEntries, coreEntry);
+  craft.blackBox = next.map((e, i) => {
+    if (i < next.length - 1) {
+      return craft.blackBox[i]!;
+    }
+    return entry;
+  });
 
   const timestamp = new Date().toISOString();
   const data = { project, callsign: craft.callsign, entry };

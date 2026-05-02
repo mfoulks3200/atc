@@ -79,6 +79,8 @@ describe("appendBlackBoxEntry", () => {
         author: "system",
         type: BlackBoxEntryType.Observation,
         content: "seed",
+        signature: null,
+        traceContext: null,
       },
     ];
 
