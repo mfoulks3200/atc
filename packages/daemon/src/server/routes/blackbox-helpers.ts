@@ -112,6 +112,10 @@ export function appendBlackBoxEntry(
 
   // --- Signing (RULE-BBOX-7 gated by RULE-PILOT-3b) ---
   // RULE-PILOT-3b: sign ONLY when the authenticated requester matches the author.
+  // NOTE: `authenticatedPilotId` is currently sourced from request body parameters,
+  // not a verified auth context. Full RULE-PILOT-3b compliance requires auth
+  // middleware to verify the caller identity before this value is trusted. The
+  // gate is correct in structure; the source must be upgraded when auth lands.
   const timestamp = coreEntry.timestamp.toISOString();
   let signature: string | null = null;
 
