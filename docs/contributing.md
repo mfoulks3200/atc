@@ -226,6 +226,48 @@ Changelog categories: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`.
 pnpm run build
 ```
 
+## CI Gate Enforcement (RULE-TMRG-5)
+
+The tower merge protocol **structurally enforces** that the landing checklist must pass before a craft can enter the merge queue. This is not a guideline — it is a code-level gate that cannot be bypassed:
+
+1. The landing checklist runs Tests, Lint, and Build as **required** items. A craft transitions to `ClearedToLand` only when all required items pass.
+2. The tower clearance endpoint rejects any craft not in `ClearedToLand` status with HTTP 409.
+3. The tower merge endpoint independently verifies `ClearedToLand` status as a defense-in-depth check.
+
+Agents cannot bypass this gate by documenting intent to fix later, manually editing craft status, or requesting clearance before the checklist completes. The enforcement is at the API layer in both the `@airtrafficcontrol/tower` library and the daemon route handlers.
+
+## Requesting QA Review
+
+The 90% coverage threshold is the **implementer's responsibility** to verify before requesting QA review. Delegating coverage verification to QA costs at minimum two extra heartbeat round trips — the review, the fix, the re-review.
+
+### Pre-flight (required before creating the QA subtask)
+
+Run these in order and verify each passes:
+
+```bash
+pnpm run test -- --coverage   # all changed files ≥ 90% statements AND branches
+pnpm run lint                  # zero errors
+pnpm run build                 # zero type errors
+```
+
+Branch coverage is the metric that most frequently trips QA — statement coverage is easier to achieve. Inspect the **Branch %** column in the coverage report explicitly, not just the overall summary.
+
+### QA subtask template
+
+When creating the QA review subtask, paste this block verbatim into the subtask description and fill it in:
+
+```markdown
+**Pre-flight completed by implementer:**
+- [ ] `pnpm run test -- --coverage` — all changed files ≥ 90% statements and branches
+- [ ] `pnpm run lint` — zero errors
+- [ ] `pnpm run build` — zero type errors
+
+**Coverage report (paste relevant lines from `pnpm run test -- --coverage` here):**
+<paste output here>
+```
+
+> **QA rejection policy:** If the QA subtask description does not include a pasted coverage report showing ≥ 90% for all changed files, QA must reject the review request immediately and return the task to the implementer with a comment naming the missing report. The coverage gate is the implementer's gate — not QA's gate to discover.
+
 ## Quick Reference
 
 | Step | Command | Must Pass |
@@ -238,3 +280,4 @@ pnpm run build
 | UX review | UX impact triage; subtask if user-facing | UX Designer sign-off on user-facing changes |
 | Spec compliance | Review against `docs/specification.md` | No discrepancies, or spec updated |
 | TW review | Assign Technical Writer if §7a triggers apply | Technical Writer sign-off before landing |
+| CI gate | Landing checklist must pass | Tower rejects merge without `ClearedToLand` (RULE-TMRG-5) |
