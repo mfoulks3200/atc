@@ -174,6 +174,39 @@ Every change must be checked against the formal specification at `docs/specifica
 
 **When in doubt, ask.** It is always better to flag a potential spec discrepancy than to silently merge a change that contradicts the spec.
 
+#### 7a. Spec-Change Triage (all changes)
+
+- [ ] **Determine whether this change is spec-touching.** A change is spec-touching if it does any of the following:
+  - Adds, removes, or renames a domain entity property (§2.* of the spec).
+  - Adds, removes, or renames a lifecycle state or state transition (§3.*).
+  - Introduces or modifies a validation rule that gates a lifecycle event, vector report, or seat assignment.
+  - Adds, modifies, or removes a protocol step in any §4.* section.
+  - Directly edits `docs/specification.md` or `docs/agent/operating-manual.md`.
+  - Introduces new behavior that cannot be traced to an existing `RULE-*` identifier.
+- [ ] **If not spec-touching:** No Technical Writer review is needed. Proceed to step 8.
+
+#### 7b. Technical Writer Review Gate (spec-touching changes)
+
+If the spec-change triage identifies a spec-touching change, complete the following:
+
+- [ ] **Create a Technical Writer review subtask** assigned to the Technical Writer. The subtask must include:
+  - A description of the changed behavior.
+  - The relevant `RULE-*` identifiers (existing identifiers the change affects, or proposed new ones).
+  - For direct spec edits: a summary or diff of proposed `docs/specification.md` changes.
+  - For operating manual edits: a summary of updated pilot guidance.
+- [ ] **Technical Writer sign-off is required before landing.** The Technical Writer verifies that the change has adequate spec backing and that the spec and operating manual are consistent with the implementation.
+
+Changes that **always** require Technical Writer review:
+
+- New or modified domain entity properties in `packages/types/`.
+- New lifecycle states or transitions in the state machine.
+- New validation rules in `packages/validation/` or `packages/core/`.
+- New or changed protocol steps in the daemon's route handlers.
+- Direct edits to `docs/specification.md`.
+- Direct edits to `docs/agent/operating-manual.md`.
+
+> **See also:** RULE-TWRV-1 through RULE-TWRV-5 in `docs/specification.md` §4.9.
+
 ### 8. Public API Changes
 
 If any change modifies the **public API surface** of a package (exported types, interfaces, functions, enums, or constants), the following additional steps are required:
@@ -218,6 +251,7 @@ pnpm run build
 | Coverage | `pnpm run test -- --coverage` | 90% minimum on changed files |
 | UX review | UX impact triage; subtask if user-facing | UX Designer sign-off on user-facing changes |
 | Spec compliance | Review against `docs/specification.md` | No discrepancies, or spec updated |
+| TW review | Spec-change triage; subtask if spec-touching | Technical Writer sign-off on spec-touching changes |
 
 ## QA Review Handoff
 
