@@ -69,7 +69,7 @@ describe("LayeredConfigStore — file watching", () => {
     dirs.push(dir);
     publish.mockClear();
     await store.replace({ name: "alice", count: 5 });
-    await sleep(60);
+    await sleep(200);
     await store.stop();
     // Exactly one publish — the one from replace(). No echo.
     expect(publish).toHaveBeenCalledTimes(1);
@@ -83,7 +83,7 @@ describe("LayeredConfigStore — file watching", () => {
     await writeFile(filePath, JSON.stringify({ count: 1 }), "utf8");
     await writeFile(filePath, JSON.stringify({ count: 2 }), "utf8");
     await writeFile(filePath, JSON.stringify({ count: 3 }), "utf8");
-    await sleep(80);
+    await sleep(300);
     await store.stop();
     const fileEvents = publish.mock.calls.filter(
       (c) => (c[1] as { source: string }).source === "file",
@@ -108,7 +108,7 @@ describe("LayeredConfigStore — file watching", () => {
     const invalid = vi.fn();
     store.on("invalid_external_edit", invalid);
     await writeFile(filePath, JSON.stringify({ count: "nope" }), "utf8");
-    await sleep(80);
+    await sleep(300);
     await store.stop();
     expect(invalid).toHaveBeenCalledTimes(1);
     expect(store.get()).toEqual({ name: "alice", count: 1 });

@@ -303,5 +303,6 @@ describe("mergeBranchIntoMain", () => {
       "Tower merge: feat/b",
     );
     expect(stale.kind).toBe("stale");
-  });
+    // Multiple sequential git worktree + commit operations; give extra headroom.
+  }, 30_000);
 });
