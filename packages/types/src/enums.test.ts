@@ -87,8 +87,8 @@ describe("CraftCategoryEnum", () => {
 });
 
 describe("BlackBoxEntryType", () => {
-  it("has exactly 22 entry types", () => {
-    expect(Object.values(BlackBoxEntryType)).toHaveLength(22);
+  it("has exactly 23 entry types", () => {
+    expect(Object.values(BlackBoxEntryType)).toHaveLength(23);
   });
 
   it("includes SpecCreated entry type (RULE-SDD-16)", () => {
@@ -123,5 +123,9 @@ describe("BlackBoxEntryType", () => {
 
   it("includes SpecCreated entry type (RULE-SDD-16)", () => {
     expect(BlackBoxEntryType.SpecCreated).toBe("SpecCreated");
+  });
+
+  it("includes KeyRotated entry type (RULE-BBOX-9)", () => {
+    expect(BlackBoxEntryType.KeyRotated).toBe("KeyRotated");
   });
 });

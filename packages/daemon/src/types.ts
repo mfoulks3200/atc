@@ -34,6 +34,8 @@ export interface ProjectMetadata {
   checklist: ChecklistItemConfig[];
   /** Named MCP server configurations available to agents on this project. */
   mcpServers: Record<string, McpServerConfig>;
+  /** When true, every new black box entry carries a W3C trace context. @see RULE-BBOX-5 */
+  traceContextEnabled?: boolean;
 }
 
 /**
@@ -132,9 +134,25 @@ export interface VectorState {
 }
 
 /**
+ * W3C-compatible trace context carried on a black box entry for OTel export.
+ *
+ * @see RULE-BBOX-5
+ */
+export interface TraceContext {
+  /** 32 hex characters. Derived deterministically from craft callsign and project name. */
+  traceId: string;
+  /** 16 hex characters. Unique per entry. */
+  spanId: string;
+  /** 16 hex characters. SpanId of the preceding entry, or null for the first entry. */
+  parentSpanId: string | null;
+}
+
+/**
  * A single entry in a craft's black box event log.
  *
- * @see RULE-BB-1 through RULE-BB-4 for black box rules.
+ * @see RULE-BBOX-1 through RULE-BBOX-4 for black box rules.
+ * @see RULE-BBOX-5 for trace context.
+ * @see RULE-BBOX-7 for signing.
  */
 export interface BlackBoxEntry {
   /** ISO-8601 timestamp of the event. */
@@ -145,6 +163,10 @@ export interface BlackBoxEntry {
   type: BlackBoxEntryType;
   /** Human-readable content of the log entry. */
   content: string;
+  /** Base64url-encoded COSE_Sign1 envelope. Null when author has no registered key pair. @see RULE-BBOX-7 */
+  signature: string | null;
+  /** W3C trace context for OTel export. Null when trace context is not enabled for the project. @see RULE-BBOX-5 */
+  traceContext: TraceContext | null;
 }
 
 /**
@@ -242,9 +264,43 @@ export interface TfrState {
 // ---------------------------------------------------------------------------
 
 /**
+ * A single entry in a pilot's Ed25519 key history.
+ *
+ * Used to verify signatures on entries written before a key rotation.
+ *
+ * @see RULE-BBOX-8
+ * @see RULE-BBOX-9
+ */
+export interface KeyHistoryEntry {
+  /** Ed25519 public key in base64url encoding. */
+  publicKey: string;
+  /** ISO 8601 timestamp when this key became active. */
+  validFrom: string;
+  /** ISO 8601 timestamp when this key was rotated out. Null if currently active. */
+  validUntil: string | null;
+}
+
+/**
+ * Payload carried in a KeyRotated black box entry.
+ *
+ * @see RULE-BBOX-9
+ */
+export interface KeyRotatedPayload {
+  /** Identifier of the pilot whose key was rotated. */
+  pilotIdentifier: string;
+  /** SHA-256 fingerprint of the previous public key: hex(SHA-256(raw_bytes)), lowercase, 64 chars. */
+  oldKeyFingerprint: string;
+  /** SHA-256 fingerprint of the new public key: hex(SHA-256(raw_bytes)), lowercase, 64 chars. */
+  newKeyFingerprint: string;
+  /** ISO 8601 timestamp of the rotation. */
+  rotatedAt: string;
+}
+
+/**
  * A registered pilot within a project.
  *
  * @see RULE-PILOT-1 for pilot identity rules.
+ * @see RULE-PILOT-3 for optional Ed25519 key pair.
  * @see RULE-SEAT-1 through RULE-SEAT-3 for seat assignment rules.
  */
 export interface PilotRecord {
@@ -260,6 +316,10 @@ export interface PilotRecord {
    * patterns, or standing instructions that go beyond the generic briefing.
    */
   systemPrompt?: string;
+  /** Ed25519 public key in base64url encoding. Null when no key pair is registered. @see RULE-PILOT-3 */
+  publicKey: string | null;
+  /** Chronological record of all public keys held by this pilot. Empty when no key pair has ever been registered. @see RULE-BBOX-8 */
+  keyHistory: KeyHistoryEntry[];
 }
 
 // ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import { AgentStore } from "../state/agent-store.js";
 import { CraftStore } from "../state/craft-store.js";
 import { TowerStore } from "../state/tower-store.js";
 import { PilotStore } from "../state/pilot-store.js";
+import { PilotKeystore } from "../state/pilot-keystore.js";
 import { TfrStore } from "../state/tfr-store.js";
 import { AdapterRegistry } from "../adapters/registry.js";
 import { AgentManager } from "../process/agent-manager.js";
@@ -50,6 +51,8 @@ export interface AppOptions {
   towerStore?: TowerStore;
   /** Store for pilot records. */
   pilotStore?: PilotStore;
+  /** Dedicated keystore for Ed25519 private key material. @see RULE-PILOT-3a */
+  pilotKeystore?: PilotKeystore;
   /** Store for Temporary Flight Restrictions. */
   tfrStore?: TfrStore;
   /** Registry of adapter implementations. */
@@ -83,6 +86,7 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
   app.decorate("craftStore", options.craftStore ?? new CraftStore("/tmp/atc-default"));
   app.decorate("towerStore", options.towerStore ?? new TowerStore("/tmp/atc-default"));
   app.decorate("pilotStore", options.pilotStore ?? new PilotStore("/tmp/atc-default"));
+  app.decorate("pilotKeystore", options.pilotKeystore ?? new PilotKeystore("/tmp/atc-default"));
   app.decorate("tfrStore", options.tfrStore ?? new TfrStore("/tmp/atc-default"));
   app.decorate("adapterRegistry", options.adapterRegistry ?? new AdapterRegistry());
   app.decorate("agentManager", options.agentManager ?? null);
@@ -177,6 +181,8 @@ declare module "fastify" {
     towerStore: TowerStore;
     /** Persistent store for pilot records. */
     pilotStore: PilotStore;
+    /** Dedicated keystore for Ed25519 private key material. @see RULE-PILOT-3a */
+    pilotKeystore: PilotKeystore;
     /** Store for Temporary Flight Restrictions. */
     tfrStore: TfrStore;
     /** Registry of adapter implementations. */
