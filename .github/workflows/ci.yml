@@ -90,6 +90,20 @@ jobs:
       - name: Run tests with coverage
         run: pnpm run test:coverage
 
+  ci:
+    name: CI
+    needs: [format, lint, typecheck, test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: All checks passed
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" || "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more required checks failed or were cancelled"
+            exit 1
+          fi
+          echo "All required checks passed"
+
   publish:
     needs: [format, lint, typecheck, test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -98,7 +112,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v4
         with:
