@@ -141,6 +141,7 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
           author,
           BlackBoxEntryType.VectorPassed,
           `Vector "${vectorName}" passed with evidence: ${evidence}`,
+          { authenticatedPilotId: author },
         );
 
         app.craftStore.set(name, craft);

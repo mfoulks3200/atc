@@ -28,6 +28,8 @@ export const DEFAULT_PILOTS: readonly PilotRecord[] = [
     identifier: "pilot-frontend-ts",
     certifications: ["Frontend Engineering"],
     mcpServers: {},
+    publicKey: null,
+    keyHistory: [],
     systemPrompt: `You are a TypeScript frontend engineering specialist.
 
 Your focus areas:
@@ -48,6 +50,8 @@ Standing rules:
     identifier: "pilot-backend-ts",
     certifications: ["Backend Engineering"],
     mcpServers: {},
+    publicKey: null,
+    keyHistory: [],
     systemPrompt: `You are a TypeScript backend engineering specialist.
 
 Your focus areas:
@@ -68,6 +72,8 @@ Standing rules:
     identifier: "pilot-architect-ts",
     certifications: ["Frontend Engineering", "Backend Engineering"],
     mcpServers: {},
+    publicKey: null,
+    keyHistory: [],
     systemPrompt: `You are a full-stack TypeScript architect and technical lead.
 
 Your focus areas:

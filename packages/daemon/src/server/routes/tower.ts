@@ -101,6 +101,7 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
         craft.captain,
         BlackBoxEntryType.ClearanceRequested,
         `Landing clearance requested for ${callsign}`,
+        { authenticatedPilotId: craft.captain },
       );
 
       // RULE-TOWER-2: all vectors must be passed

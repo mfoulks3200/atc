@@ -158,4 +158,6 @@ export enum BlackBoxEntryType {
    * @see RULE-SDD-16
    */
   SpecCreated = "SpecCreated",
+  /** A pilot's Ed25519 key pair was rotated. @see RULE-BBOX-9 */
+  KeyRotated = "KeyRotated",
 }

@@ -48,12 +48,16 @@ const PILOT_CAPTAIN: PilotRecord = {
   identifier: "pilot-captain",
   certifications: ["backend"],
   mcpServers: {},
+  publicKey: null,
+  keyHistory: [],
 };
 
 const PILOT_FO: PilotRecord = {
   identifier: "pilot-fo",
   certifications: ["backend"],
   mcpServers: {},
+  publicKey: null,
+  keyHistory: [],
 };
 
 async function bootApp(
@@ -369,7 +373,13 @@ describe("POST /api/v1/projects/:name/crafts/from-spec", () => {
 
   it("rejects when no certified pilot is available with 422 NO_CERTIFIED_PILOT (RULE-SDD-9)", async () => {
     const boot = await bootApp({ categories: ["frontend"] }, [
-      { identifier: "pilot-1", certifications: ["backend"], mcpServers: {} },
+      {
+        identifier: "pilot-1",
+        certifications: ["backend"],
+        mcpServers: {},
+        publicKey: null,
+        keyHistory: [],
+      },
     ]);
     app = boot.app;
     profileDir = boot.profileDir;
@@ -393,6 +403,8 @@ describe("POST /api/v1/projects/:name/crafts/from-spec", () => {
       identifier: "no-cert-pilot",
       certifications: [],
       mcpServers: {},
+      publicKey: null,
+      keyHistory: [],
     });
 
     const res = await app.inject({

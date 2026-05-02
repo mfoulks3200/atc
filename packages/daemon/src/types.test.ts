@@ -19,12 +19,16 @@ import type {
   CraftState,
   GlobalConfig,
   IntercomMessage,
+  KeyHistoryEntry,
+  KeyRotatedPayload,
   McpServerConfig,
+  PilotRecord,
   ProfileConfig,
   ProjectMetadata,
   SkillUsageEntry,
   TokenUsage,
   ToolUsageEntry,
+  TraceContext,
   VectorState,
   WsClientMessage,
   WsEvent,
@@ -238,18 +242,147 @@ describe("VectorState", () => {
 });
 
 // ---------------------------------------------------------------------------
+// TraceContext
+// ---------------------------------------------------------------------------
+
+describe("TraceContext", () => {
+  it("accepts a shape with parentSpanId", () => {
+    const ctx: TraceContext = {
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      parentSpanId: "c".repeat(16),
+    };
+    expect(ctx.traceId).toHaveLength(32);
+    expect(ctx.spanId).toHaveLength(16);
+    expect(ctx.parentSpanId).toHaveLength(16);
+  });
+
+  it("accepts a shape without parentSpanId (root span)", () => {
+    const ctx: TraceContext = {
+      traceId: "a".repeat(32),
+      spanId: "b".repeat(16),
+      parentSpanId: null,
+    };
+    expect(ctx.parentSpanId).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // BlackBoxEntry
 // ---------------------------------------------------------------------------
 
 describe("BlackBoxEntry", () => {
-  it("accepts a valid shape using BlackBoxEntryType enum", () => {
+  it("accepts a valid shape using BlackBoxEntryType enum with null signature and traceContext", () => {
     const entry: BlackBoxEntry = {
       timestamp: "2026-03-26T00:00:00Z",
       author: "ALPHA-1",
       type: BlackBoxEntryType.Decision,
       content: "Chose vitest over jest",
+      signature: null,
+      traceContext: null,
     };
     expect(entry.type).toBe(BlackBoxEntryType.Decision);
+    expect(entry.signature).toBeNull();
+    expect(entry.traceContext).toBeNull();
+  });
+
+  it("accepts a shape with signature and traceContext set", () => {
+    const entry: BlackBoxEntry = {
+      timestamp: "2026-03-26T00:00:00Z",
+      author: "ALPHA-1",
+      type: BlackBoxEntryType.Decision,
+      content: "Chose vitest over jest",
+      signature: "base64urlEncodedCOSESign1Envelope",
+      traceContext: {
+        traceId: "a".repeat(32),
+        spanId: "b".repeat(16),
+        parentSpanId: null,
+      },
+    };
+    expect(entry.signature).toBeTruthy();
+    expect(entry.traceContext?.traceId).toHaveLength(32);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// KeyHistoryEntry
+// ---------------------------------------------------------------------------
+
+describe("KeyHistoryEntry", () => {
+  it("accepts a shape with validUntil null (current key)", () => {
+    const entry: KeyHistoryEntry = {
+      publicKey: "base64urlPublicKey",
+      validFrom: "2026-04-30T00:00:00Z",
+      validUntil: null,
+    };
+    expect(entry.validUntil).toBeNull();
+  });
+
+  it("accepts a shape with validUntil set (rotated key)", () => {
+    const entry: KeyHistoryEntry = {
+      publicKey: "base64urlPublicKey",
+      validFrom: "2026-04-01T00:00:00Z",
+      validUntil: "2026-04-30T00:00:00Z",
+    };
+    expect(entry.validUntil).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// KeyRotatedPayload
+// ---------------------------------------------------------------------------
+
+describe("KeyRotatedPayload", () => {
+  it("accepts a valid shape", () => {
+    const payload: KeyRotatedPayload = {
+      pilotIdentifier: "pilot-1",
+      oldKeyFingerprint: "a".repeat(64),
+      newKeyFingerprint: "b".repeat(64),
+      rotatedAt: "2026-04-30T00:00:00Z",
+    };
+    expect(payload.oldKeyFingerprint).toHaveLength(64);
+    expect(payload.newKeyFingerprint).toHaveLength(64);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PilotRecord
+// ---------------------------------------------------------------------------
+
+describe("PilotRecord", () => {
+  it("accepts a shape with no registered key pair", () => {
+    const pilot: PilotRecord = {
+      identifier: "pilot-1",
+      certifications: ["captain"],
+      mcpServers: {},
+      publicKey: null,
+      keyHistory: [],
+    };
+    expect(pilot.publicKey).toBeNull();
+    expect(pilot.keyHistory).toHaveLength(0);
+  });
+
+  it("accepts a shape with a registered key pair and history", () => {
+    const pilot: PilotRecord = {
+      identifier: "pilot-2",
+      certifications: ["firstOfficer"],
+      mcpServers: {},
+      publicKey: "base64urlPublicKey",
+      keyHistory: [
+        {
+          publicKey: "oldBase64urlPublicKey",
+          validFrom: "2026-01-01T00:00:00Z",
+          validUntil: "2026-04-30T00:00:00Z",
+        },
+        {
+          publicKey: "base64urlPublicKey",
+          validFrom: "2026-04-30T00:00:00Z",
+          validUntil: null,
+        },
+      ],
+    };
+    expect(pilot.publicKey).toBeTruthy();
+    expect(pilot.keyHistory).toHaveLength(2);
   });
 });
 
@@ -328,6 +461,8 @@ describe("CraftState", () => {
           author: "system",
           type: BlackBoxEntryType.Observation,
           content: "Craft initialized",
+          signature: null,
+          traceContext: null,
         },
       ],
       intercom: [],

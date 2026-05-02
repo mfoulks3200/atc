@@ -199,6 +199,8 @@ export async function seedDemo(options: SeedDemoOptions): Promise<SeedDemoResult
     identifier: DEMO_PILOT_ID,
     certifications: ["captain", "firstOfficer"],
     mcpServers: {},
+    publicKey: null,
+    keyHistory: [],
   };
   pilotStore.set(DEMO_PROJECT_NAME, pilot);
   await pilotStore.save();
