@@ -8,6 +8,38 @@ This document defines the required steps for making and validating changes in th
 pnpm install
 ```
 
+## Pre-Assignment Requirements
+
+Before assigning an implementation ticket to engineering, verify these requirements are met.
+
+### Mutation Button UX Mini-Spec
+
+Any ticket that adds or modifies a button that mutates server state through the ATC state machine (grant clearance, deny clearance, approve, abandon, declare emergency, etc.) must include a UX mini-spec in the issue description **before** being assigned to engineering. The mini-spec is brief — not a full design document.
+
+**Required elements:**
+
+1. **Loading state**: What does the button show while the request is in flight? (e.g., disabled with spinner, label change)
+2. **Success feedback**: Where and how is success communicated? (inline update, toast notification, navigation)
+3. **Failure feedback**: Where does the error appear, what does the user see, what recovery action is available?
+4. **Reflected state**: How does the surrounding UI update after the action completes? (list refresh, status badge change, navigation)
+
+**Copyable template** — paste this into the issue description:
+
+````
+### UX Mini-Spec
+
+**Loading state:** [describe]
+**Success feedback:** [describe]
+**Failure feedback:** [describe]
+**Reflected state:** [describe]
+````
+
+**Enforcement:**
+
+- The issue creator (typically Product Lead or Steering Lead) is responsible for including this section.
+- The UX Designer should flag any mutation button ticket assigned to engineering without this spec.
+- See Section 6 (UX Review) for post-implementation UX review requirements.
+
 ## Checklist
 
 Complete these steps in order after making changes. Every item must pass before requesting landing clearance.
@@ -211,6 +243,7 @@ pnpm run build
 
 | Step | Command | Must Pass |
 |---|---|---|
+| Pre-assignment | UX mini-spec in issue description | Required for mutation button tickets |
 | Format | `pnpm run format` | No diff after running |
 | Lint | `pnpm run lint` | Zero errors, zero warnings |
 | Type check | `pnpm run build` | Zero errors |
