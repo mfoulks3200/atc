@@ -170,6 +170,8 @@ Every change must be checked against the formal specification at `docs/specifica
   - Update `docs/agent/operating-manual.md` if the change affects pilot behavior.
   - Update `packages/types/` if the change affects the domain model.
 
+- [ ] **New daemon HTTP routes require a spec rule before merging.** Any PR that registers a new route in `@airtrafficcontrol/daemon` must either point to an existing `RULE-*` identifier that covers the route's contract, or include a companion spec update (new section + Rule Index entry) in the same PR. Post-merge spec patching (like AIR-607 for the `/metrics` endpoint) creates divergence risk and must not recur.
+
 - [ ] **If the change is minor** (internal refactor, bug fix, implementation detail not visible in the domain model), no spec update is needed.
 
 **When in doubt, ask.** It is always better to flag a potential spec discrepancy than to silently merge a change that contradicts the spec.

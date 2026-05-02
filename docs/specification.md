@@ -1,12 +1,14 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.4.1
+**Version:** 0.4.2
 **Status:** Draft
-**Date:** 2026-04-29
+**Date:** 2026-05-02
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
 
+- 0.4.2 (2026-05-02): Add Operational Metrics section (§4.9, RULE-METR-1 through RULE-METR-5) covering the Prometheus metrics endpoint shipped in AIR-100 (AIR-607).
+- 0.4.1 (2026-04-30): Fix finding rule consistency — authorize `open → closed` inspector transition in RULE-FIND-4; align RULE-FIND-5 wording with RULE-VEC-7 ("resolved **or** closed") (AIR-477).
 - 0.4.0 (2026-04-29): Add Adversarial Review protocol (§2.8, §4.8), Inspector seat type (RULE-SEAT-5, RULE-SEAT-6), `UnderReview` vector status (RULE-VEC-6 through RULE-VEC-8), Finding entity (RULE-FIND-1 through RULE-FIND-7), adversarial BBOX entry types (RULE-BBOX-5 through RULE-BBOX-7), review protocol rules (RULE-ADVR-1 through RULE-ADVR-6), and notification rules (RULE-NOTIFY-1, RULE-NOTIFY-2). Supersedes earlier VSDD adversarial review rules (RULE-VEC-6–9, RULE-CTRL-3a from AIR-294).
 - 0.3.2 (2026-04-30): Add constraint dry-run API and structured constraint failure response shape — `?dryRun=true` on `reportVector`, `ConstraintCheckResult`, `ConstraintFailure`, `ConstraintCheckFailed` black box entry, captain override with justification (RULE-VRPT-5 through RULE-VRPT-10, §4.1.1, AIR-324).
 - 0.3.1 (2026-04-28): Define integrity bar live-update strategy — triggered poll via `craft.blackbox.appended` (RULE-BBOX-9a, AIR-342).
@@ -989,6 +991,23 @@ Adversarial review is triggered when an inspector is assigned to a craft. Once a
 - **RULE-ADVR-5:** If all findings on a vector are `minor` severity and the inspector chooses to approve, the vector MAY transition to `Passed` even if minor findings remain `open`. The inspector MUST record the rationale in the `AdversarialReviewPassed` black box entry.
 - **RULE-ADVR-6:** The adversarial review protocol does not replace the landing checklist (§4.2). A craft with an inspector must still pass its landing checklist after all vectors are approved.
 
+### 4.9 Operational Metrics
+
+The daemon exposes a Prometheus metrics endpoint for operational observability of the ATC system. This endpoint is intended for scraping by Prometheus or compatible time-series backends.
+
+- **RULE-METR-1:** `GET /metrics` MUST return Prometheus text exposition format version 0.0.4, with `Content-Type: text/plain; version=0.0.4; charset=utf-8`. The endpoint is unauthenticated, consistent with `GET /api/v1/health`.
+
+- **RULE-METR-2:** The response MUST include exactly the following three gauge families, each preceded by a `# HELP` line and a `# TYPE gauge` line:
+  - `atc_merge_queue_depth{project="<name>"}` — count of crafts currently in the tower landing queue for the named project; one sample per project registered in the tower store.
+  - `atc_craft_count{status="<CraftStatus>"}` — count of crafts in each lifecycle status; all defined `CraftStatus` values MUST appear in the response, including zero-count statuses.
+  - `atc_agent_count{status="<AgentStatus>"}` — count of agents in each agent status (`running`, `paused`, `suspended`, `terminated`); all four values MUST appear, including zero-count statuses.
+
+- **RULE-METR-3:** The response MUST end with a trailing newline after the last metric sample, as required by the Prometheus text format specification.
+
+- **RULE-METR-4:** All label values MUST be escaped per Prometheus text format rules: backslash (`\`) → `\\`, double quote (`"`) → `\"`, newline → `\n`.
+
+- **RULE-METR-5:** Metrics MUST reflect the real-time state of the daemon's in-memory stores at the time of the request. Response caching is not permitted.
+
 ## 5. Appendices
 
 ### Appendix A: Rule Index
@@ -1136,3 +1155,8 @@ Adversarial review is triggered when an inspector is assigned to a craft. Once a
 | RULE-ADVR-6   | Adversarial review does not replace the landing checklist.                                            | 4.8.5   |
 | RULE-NOTIFY-1 | System must notify captain/FOs on AdversarialFindingSubmitted.                                        | 4.8.4   |
 | RULE-NOTIFY-2 | System must notify captain/FOs on review passed/failed.                                               | 4.8.4   |
+| RULE-METR-1   | GET /metrics returns Prometheus text v0.0.4; unauthenticated; Content-Type text/plain; version=0.0.4. | 4.9     |
+| RULE-METR-2   | Response must include atc_merge_queue_depth, atc_craft_count, atc_agent_count gauge families.         | 4.9     |
+| RULE-METR-3   | Response must end with a trailing newline.                                                            | 4.9     |
+| RULE-METR-4   | Label values must be escaped per Prometheus text format (backslash, quote, newline).                  | 4.9     |
+| RULE-METR-5   | Metrics must reflect real-time daemon state; caching not permitted.                                   | 4.9     |
