@@ -2,11 +2,12 @@
 
 **Version:** 0.4.1
 **Status:** Draft
-**Date:** 2026-04-29
+**Date:** 2026-05-02
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
 
+- 0.4.1 (2026-05-02): Add run-all-templates rule for multi-template events (RULE-CHKL-9, AIR-563).
 - 0.4.0 (2026-04-29): Add Adversarial Review protocol (§2.8, §4.8), Inspector seat type (RULE-SEAT-5, RULE-SEAT-6), `UnderReview` vector status (RULE-VEC-6 through RULE-VEC-8), Finding entity (RULE-FIND-1 through RULE-FIND-7), adversarial BBOX entry types (RULE-BBOX-5 through RULE-BBOX-7), review protocol rules (RULE-ADVR-1 through RULE-ADVR-6), and notification rules (RULE-NOTIFY-1, RULE-NOTIFY-2). Supersedes earlier VSDD adversarial review rules (RULE-VEC-6–9, RULE-CTRL-3a from AIR-294).
 - 0.3.2 (2026-04-30): Add constraint dry-run API and structured constraint failure response shape — `?dryRun=true` on `reportVector`, `ConstraintCheckResult`, `ConstraintFailure`, `ConstraintCheckFailed` black box entry, captain override with justification (RULE-VRPT-5 through RULE-VRPT-10, §4.1.1, AIR-324).
 - 0.3.1 (2026-04-28): Define integrity bar live-update strategy — triggered poll via `craft.blackbox.appended` (RULE-BBOX-9a, AIR-342).
@@ -725,10 +726,11 @@ Output is capped at 500 lines per item to keep black box entries manageable.
 - **RULE-CHKL-6:** On checklist completion, a system-generated notification MUST be posted to the craft's intercom with the outcome and a reference to the black box entry. Agents retrieve full details via tool call.
 - **RULE-CHKL-7:** Checklist items MUST execute sequentially in template order. Override-added items are appended after template items.
 - **RULE-CHKL-8:** The lifecycle event enum is extensible. Adding a new event requires only a new enum value and wiring it to the relevant transition or action.
+- **RULE-CHKL-9:** When multiple templates are bound to the same lifecycle event, ALL bound templates MUST execute to completion before the aggregate result is determined. A failure in one template MUST NOT prevent subsequent templates from running. The aggregate result is `failed` if any required item in any template failed; `passed` only if all required items in all templates passed.
 
 #### Legacy Compatibility
 
-The original RULE-LCHK-1 through RULE-LCHK-4 are superseded by RULE-CHKL-1 through RULE-CHKL-8. The `before:landing-check` event replaces the hardcoded landing checklist phase. The default template (Tests, Lint, Documentation, Build) preserves the original behavior.
+The original RULE-LCHK-1 through RULE-LCHK-4 are superseded by RULE-CHKL-1 through RULE-CHKL-9. The `before:landing-check` event replaces the hardcoded landing checklist phase. The default template (Tests, Lint, Documentation, Build) preserves the original behavior.
 
 ### 4.3 Emergency Declaration
 
@@ -1077,6 +1079,7 @@ Adversarial review is triggered when an inspector is assigned to a craft. Once a
 | RULE-CHKL-6   | System notification posted to intercom on completion.                                                 | 4.2     |
 | RULE-CHKL-7   | Items execute sequentially; override items appended after template.                                   | 4.2     |
 | RULE-CHKL-8   | Lifecycle event enum is extensible.                                                                   | 4.2     |
+| RULE-CHKL-9   | All bound templates for an event must run to completion; aggregate after all finish.                   | 4.2     |
 | RULE-EMER-1   | Only the captain may declare an emergency.                                                            | 4.3     |
 | RULE-EMER-2   | Captain must record EmergencyDeclaration in black box.                                                | 4.3     |
 | RULE-EMER-3   | Craft must return to origin on emergency.                                                             | 4.3     |

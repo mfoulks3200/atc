@@ -7,10 +7,13 @@
  * @see RULE-VEC-1 through RULE-VEC-9 for vector rules.
  * @see RULE-VEC-2 for sequential ordering constraint.
  * @see RULE-CTRL-3a for adversarial review controls handoff enforcement.
+ * @see RULE-CHKL-9 for run-all-templates checklist behavior.
  */
 
 import type { FastifyInstance } from "fastify";
-import { BlackBoxEntryType } from "@airtrafficcontrol/types";
+import { BlackBoxEntryType, LifecycleEvent } from "@airtrafficcontrol/types";
+import { resolveChecklist, runChecklist } from "@airtrafficcontrol/checklist";
+import type { ChecklistRunResult } from "@airtrafficcontrol/checklist";
 import { publishCraftEvent } from "./broadcast.js";
 import { appendBlackBoxEntry } from "./blackbox-helpers.js";
 
@@ -104,6 +107,42 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
           return reply.code(409).send({
             error: `Vector "${vectorName}" is not the next pending vector`,
           });
+        }
+
+        // RULE-CHKL-9: run ALL before:vector-complete templates bound to this
+        // craft's category, even after a failure, then aggregate. Return 422 only
+        // after all templates have executed.
+        const resolved = resolveChecklist({
+          craftCallsign: callsign,
+          craftCategory: craft.category,
+          event: LifecycleEvent.BeforeVectorComplete,
+          templates: app.templateRegistry,
+          bindings: app.bindingRegistry,
+          overrides: app.overrideStore,
+        });
+
+        if (resolved.length > 0) {
+          const checklistResults: ChecklistRunResult[] = [];
+
+          for (const r of resolved) {
+            if (r.items.length === 0) continue;
+            const result = await runChecklist({
+              checklistName: r.templateName,
+              event: LifecycleEvent.BeforeVectorComplete,
+              craftCallsign: callsign,
+              attempt: 1,
+              items: r.items,
+            });
+            checklistResults.push(result);
+          }
+
+          const anyFailed = checklistResults.some((r) => !r.passed);
+          if (anyFailed) {
+            return reply.code(422).send({
+              error: `before:vector-complete checklists failed for vector "${vectorName}"`,
+              checklists: checklistResults,
+            });
+          }
         }
 
         // RULE-CTRL-3a: adversarial_review vectors require the designated reviewer
