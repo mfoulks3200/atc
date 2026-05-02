@@ -21,6 +21,7 @@
     "@airtrafficcontrol/validation": "workspace:*",
     "@fastify/websocket": "^11.2.0",
     "async-mutex": "^0.5.0",
+    "cbor-x": "^1.6.4",
     "fastify": "^5.3.3",
     "js-yaml": "^4.1.1",
     "zod": "^3.25.76"

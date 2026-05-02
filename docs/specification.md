@@ -1,12 +1,13 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.4.1
+**Version:** 0.5.0
 **Status:** Draft
-**Date:** 2026-04-29
+**Date:** 2026-04-30
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
 
+- 0.5.0 (2026-04-30): Add Ed25519 pilot identity (RULE-PILOT-3, RULE-PILOT-3a, RULE-PILOT-3b), Black Box trace context and COSE_Sign1 signing (RULE-BBOX-5 through RULE-BBOX-10), KeyRotated entry type (RULE-BBOX-9), integrity bar triggered-poll (RULE-BBOX-9a), split `failed` aggregate into `tampered` + `unresolvable` (RULE-BBOX-8). Entity model additions: `publicKey` and `keyHistory` on Pilot, `signature` and `traceContext` on BlackBoxEntry. Incorporates AIR-338, AIR-423, AIR-424, AIR-425, AIR-429.
 - 0.4.0 (2026-04-29): Add Adversarial Review protocol (§2.8, §4.8), Inspector seat type (RULE-SEAT-5, RULE-SEAT-6), `UnderReview` vector status (RULE-VEC-6 through RULE-VEC-8), Finding entity (RULE-FIND-1 through RULE-FIND-7), adversarial BBOX entry types (RULE-BBOX-5 through RULE-BBOX-7), review protocol rules (RULE-ADVR-1 through RULE-ADVR-6), and notification rules (RULE-NOTIFY-1, RULE-NOTIFY-2). Supersedes earlier VSDD adversarial review rules (RULE-VEC-6–9, RULE-CTRL-3a from AIR-294).
 - 0.3.2 (2026-04-30): Add constraint dry-run API and structured constraint failure response shape — `?dryRun=true` on `reportVector`, `ConstraintCheckResult`, `ConstraintFailure`, `ConstraintCheckFailed` black box entry, captain override with justification (RULE-VRPT-5 through RULE-VRPT-10, §4.1.1, AIR-324).
 - 0.3.1 (2026-04-28): Define integrity bar live-update strategy — triggered poll via `craft.blackbox.appended` (RULE-BBOX-9a, AIR-342).
@@ -98,12 +99,22 @@ The **black box** is an append-only log maintained on every craft throughout its
 
 ##### Entry Schema
 
-| Field     | Type                | Description                                         |
-| --------- | ------------------- | --------------------------------------------------- |
-| Timestamp | `Date`              | When the entry was recorded.                        |
-| Author    | `string`            | Identifier of the pilot who recorded the entry.     |
-| Type      | `BlackBoxEntryType` | The kind of event.                                  |
-| Content   | `string`            | Description of the decision, event, or observation. |
+| Field         | Type                    | Description                                                       |
+| ------------- | ----------------------- | ----------------------------------------------------------------- |
+| Timestamp     | `Date`                  | When the entry was recorded.                                      |
+| Author        | `string`                | Identifier of the pilot who recorded the entry.                   |
+| Type          | `BlackBoxEntryType`     | The kind of event.                                                |
+| Content       | `string`                | Description of the decision, event, or observation.               |
+| Signature     | `string \| null`        | Base64url-encoded COSE_Sign1 envelope (RFC 9052). Null when the authoring pilot has no registered key pair. See RULE-BBOX-7. |
+| Trace Context | `TraceContext \| null`  | W3C-compatible trace context for OTel export. Null when trace context is not enabled. See RULE-BBOX-5. |
+
+**TraceContext:**
+
+| Field        | Type             | Description                                                                  |
+| ------------ | ---------------- | ---------------------------------------------------------------------------- |
+| traceId      | `string`         | 32 hex characters. W3C trace ID, derived deterministically from the craft's callsign and project identifier. |
+| spanId       | `string`         | 16 hex characters. Unique per entry.                                         |
+| parentSpanId | `string \| null` | 16 hex characters. Null for root spans (e.g., the initial `CraftCreated` entry). |
 
 ##### Entry Types
 
@@ -131,7 +142,7 @@ The **black box** is an append-only log maintained on every craft throughout its
 | `MergeStale`                     | Tower attempted a merge but the craft's branch was not up to date with main. The craft is sent on a go-around.                                                                                                                       |
 | `MergeConflict`                  | Tower attempted a merge but encountered conflicts. The craft is sent on a go-around to resolve them.                                                                                                                                 |
 | `SpecCreated`                    | The craft was created from a spec document via SDD. Records the submitter identity, submission source, spec title, and whether autoLaunch was requested and executed or suppressed (with reason). The raw spec document is attached. |
-| `KeyRotated`                     | A pilot's cryptographic signing key was rotated. Records pilot ID, old key fingerprint, new key fingerprint, and rotation timestamp. The payload MUST conform to `KeyRotatedPayload`. See RULE-BBOX-8.                               |
+| `KeyRotated`                     | A pilot's Ed25519 key pair was rotated. Records the pilot identifier, old and new key fingerprints, and rotation timestamp. The payload MUST conform to `KeyRotatedPayload`. See RULE-BBOX-9.                                        |
 | `ConstraintCheckFailed`          | One or more ADR constraints on a vector failed at report time. Records the vector name, per-constraint results (see `ConstraintCheckResult`), and any captain-provided override justifications. Not recorded for dry-run attempts.   |
 | `AdversarialReviewStarted`       | An inspector has been assigned to review a vector. Records: inspector identifier, vector name, and review start timestamp.                                                                                                           |
 | `AdversarialFindingSubmitted`    | An inspector has submitted a finding against a vector. Records: finding ID, vector name, severity, and description.                                                                                                                  |
@@ -139,6 +150,15 @@ The **black box** is an append-only log maintained on every craft throughout its
 | `AdversarialFindingResolved`     | The builder has marked a finding as addressed. Records: finding ID, resolving pilot, and resolution description.                                                                                                                     |
 | `AdversarialReviewPassed`        | The inspector has closed the review with no open findings. Records: inspector identifier, vector name, and count of findings resolved.                                                                                               |
 | `AdversarialReviewFailed`        | The inspector has closed the review citing unresolved findings. Records: inspector identifier, vector name, and list of unresolved finding IDs with severities.                                                                      |
+
+**KeyRotatedPayload:**
+
+| Field              | Type     | Description                                                        |
+| ------------------ | -------- | ------------------------------------------------------------------ |
+| pilotIdentifier    | `string` | Identifier of the pilot whose key was rotated.                     |
+| oldKeyFingerprint  | `string` | SHA-256 fingerprint of the previous public key.                    |
+| newKeyFingerprint  | `string` | SHA-256 fingerprint of the new public key.                         |
+| rotatedAt          | `string` | ISO 8601 timestamp of when the key rotation occurred.              |
 
 ##### Rules
 
@@ -189,24 +209,29 @@ A **pilot** is an autonomous agent that can be assigned to a craft. Each pilot h
 
 #### 2.2.1 Properties
 
-| Property           | Type                                                                   | Constraints                                                                                                                                                     |
-| ------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Identifier         | `string`                                                               | Unique across the system.                                                                                                                                       |
-| Certifications     | `string[]`                                                             | List of craft categories the pilot is certified to fly.                                                                                                         |
-| Selection Count    | `number`                                                               | Monotonic counter; incremented each time this pilot is auto-selected as captain or first officer via SDD. Persisted; used for equitable scheduling. Default: 0. |
-| Public Key         | `string \| null`                                                       | Ed25519 public key (base64url-encoded). Optional. When present, used to verify black box entries authored by this pilot. Phase 1: nullable, no enforcement.     |
-| Public Key History | `Array<{ publicKey: string; activeSince: string; rotatedAt: string }>` | Previous public keys retained after rotation, newest first. Retained indefinitely; see RULE-PILOT-3a. Default: `[]`.                                            |
+| Property        | Type                 | Constraints                                              |
+| --------------- | -------------------- | -------------------------------------------------------- |
+| Identifier      | `string`             | Unique across the system.                                |
+| Certifications  | `string[]`           | List of craft categories the pilot is certified to fly.  |
+| Selection Count | `number`             | Monotonic counter; incremented each time this pilot is auto-selected as captain or first officer via SDD. Persisted; used for equitable scheduling. Default: 0. |
+| Public Key      | `string \| null`     | Ed25519 public key in base64url encoding. Null when no key pair is registered. |
+| Key History     | `KeyHistoryEntry[]`  | Chronological record of all public keys held by this pilot, used for verifying entries signed before a key rotation. Empty when no key pair has ever been registered. |
+
+**KeyHistoryEntry:**
+
+| Field      | Type             | Description                                                    |
+| ---------- | ---------------- | -------------------------------------------------------------- |
+| publicKey  | `string`         | Ed25519 public key in base64url encoding.                      |
+| validFrom  | `string`         | ISO 8601 timestamp. When this key became active.               |
+| validUntil | `string \| null` | ISO 8601 timestamp. When this key was rotated out. Null for the current key. |
 
 ##### Rules
 
 - **RULE-PILOT-1:** Every pilot MUST have a unique identifier.
 - **RULE-PILOT-2:** A pilot's certifications determine which crafts they may serve as captain or first officer on.
-- **RULE-PILOT-3:** A pilot MAY carry an optional `publicKey` field (Ed25519, base64url-encoded). When present, the daemon MUST use it — along with all entries in `publicKeyHistory` — when verifying that pilot's black box entry signatures via `GET /blackbox/verify`. Phase 1 adds the field as nullable with no enforcement; verification is optional until RULE-BBOX-7 is enforced.
-- **RULE-PILOT-3a:** When a pilot's `publicKey` is rotated, the outgoing key MUST be appended to `publicKeyHistory` as `{ publicKey, activeSince, rotatedAt }` where `activeSince` is when that key was first recorded and `rotatedAt` is the rotation timestamp. `publicKeyHistory` MUST be retained indefinitely — implementations MUST NOT prune archived keys. The verify endpoint MUST search `publicKey` and all `publicKeyHistory` entries when resolving a signature against a black box entry, to preserve verifiability of entries signed before the rotation.
-
-> **Key management path (enterprise v2).** A companion rule RULE-BBOX-7 will make Black Box entries optionally signed at write time. For enterprise deployments, daemon-managed private keys (stored via OS keyring, e.g. `node-keytar`) are the named v1 key management path. The named v2 enterprise path is HSM/KMS delegation: AWS KMS (customer-managed key / CMK), HashiCorp Vault (Transit secrets engine), or Azure Key Vault (managed HSM). In HSM/KMS mode, the daemon holds only a key reference; raw private key material never leaves the provider. This is a named requirement, not an optional consideration, for any implementation of RULE-PILOT-3 targeting enterprise customers.
->
-> See `docs/agent/operating-manual.md §9` for operator-facing guidance on this integration path.
+- **RULE-PILOT-3:** A pilot MAY have a registered Ed25519 public key (`publicKey`). When present, the daemon MUST use the corresponding private key to sign all black box entries authored by that pilot (see RULE-BBOX-7). Pilots without a registered key pair have `publicKey: null`; their entries are unsigned. The daemon MUST use the key — along with all entries in key history — when verifying that pilot's black box entry signatures via `GET /blackbox/verify`.
+- **RULE-PILOT-3a:** Private key material MUST be stored in a dedicated keystore that is separate from the craft and pilot entity persistence files. Key material MUST NOT appear in any JSON state file managed by the daemon's entity stores. When a pilot's key is rotated, the outgoing key MUST be retained in `keyHistory` indefinitely — implementations MUST NOT prune archived keys.
+- **RULE-PILOT-3b:** The daemon MUST NOT sign a black box entry with a pilot's private key unless the API request creating that entry is authenticated as that pilot. This auth-authorship binding is the load-bearing security invariant for daemon-managed keys: without it, any authenticated agent could submit entries attributed to another pilot and receive a cryptographically valid signature.
 
 #### 2.2.2 Craft Categories
 
