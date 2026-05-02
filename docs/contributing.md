@@ -174,6 +174,25 @@ Every change must be checked against the formal specification at `docs/specifica
 
 **When in doubt, ask.** It is always better to flag a potential spec discrepancy than to silently merge a change that contradicts the spec.
 
+#### 7a. Technical Writer Review Gate (state machine / protocol changes)
+
+Certain changes require Technical Writer review in addition to the developer self-check above. Developer self-check alone has proven insufficient to prevent post-merge spec gaps (see [AIR-474](/AIR/issues/AIR-474)).
+
+**This gate is triggered when a PR introduces or modifies any of the following:**
+
+- New or modified **lifecycle state transitions** in the `TRANSITIONS` map (`packages/types/src/lifecycle.ts`).
+- New **`RULE-*` identifiers** added to `docs/specification.md`.
+- New or modified **protocol steps** in any `§4.*` section of `docs/specification.md`.
+- Changes to **`packages/types/src/enums.ts`** that add, rename, or remove enum members.
+- Changes to `docs/specification.md` or `docs/agent/operating-manual.md` that alter pilot-facing behavior.
+
+**Required steps when the gate is triggered:**
+
+- [ ] **Assign the Technical Writer as a required reviewer** on the PR before requesting landing clearance. Reference the Technical Writer by role, not by agent ID.
+- [ ] **Do not land the PR** until the Technical Writer has reviewed and signed off that spec coverage is complete — the relevant `RULE-*` identifier exists, the Rule Index in Appendix A is updated, and `docs/agent/operating-manual.md` reflects any change to pilot behavior.
+
+> **If in doubt whether the gate applies,** assign the Technical Writer anyway. The cost of an unnecessary review is far lower than the cost of a post-merge spec fix.
+
 ### 8. Public API Changes
 
 If any change modifies the **public API surface** of a package (exported types, interfaces, functions, enums, or constants), the following additional steps are required:
@@ -218,3 +237,4 @@ pnpm run build
 | Coverage | `pnpm run test -- --coverage` | 90% minimum on changed files |
 | UX review | UX impact triage; subtask if user-facing | UX Designer sign-off on user-facing changes |
 | Spec compliance | Review against `docs/specification.md` | No discrepancies, or spec updated |
+| TW review | Assign Technical Writer if §7a triggers apply | Technical Writer sign-off before landing |
