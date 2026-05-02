@@ -79,6 +79,9 @@ All packages must compile cleanly with zero errors.
 
 ### 5. Tests
 
+> **TDD Gate — hard requirement:** Tests for new behavior MUST ship in the **same PR** as the feature code. A PR that introduces new exported functions, state transitions, validation rules, or protocol steps without accompanying tests will not receive landing clearance. "We'll add tests in a follow-up PR" is not acceptable. Write the tests first or alongside the implementation — never after the PR is open.
+
+- [ ] **Tests are present in this PR** for every new or changed behavior introduced by the implementation. If no tests were added or updated, explain why (e.g. the change is documentation-only or a pure type rename with no runtime behavior).
 - [ ] Write or update tests for all changed behavior.
 - [ ] Tests must cover both expected behavior and meaningful edge cases.
 - [ ] Achieve a minimum of **90% code coverage** on changed files.
@@ -214,6 +217,7 @@ pnpm run build
 | Format | `pnpm run format` | No diff after running |
 | Lint | `pnpm run lint` | Zero errors, zero warnings |
 | Type check | `pnpm run build` | Zero errors |
+| **TDD gate** | _(manual)_ | Tests for all new behavior ship in this PR — no follow-up exceptions |
 | Tests | `pnpm run test` | All passing |
 | Coverage | `pnpm run test -- --coverage` | 90% minimum on changed files |
 | UX review | UX impact triage; subtask if user-facing | UX Designer sign-off on user-facing changes |
