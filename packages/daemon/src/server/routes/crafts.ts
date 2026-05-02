@@ -130,6 +130,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         captain,
         BlackBoxEntryType.CraftCreated,
         `Craft ${callsign} created on branch ${branch} with cargo: ${cargo}`,
+        { authenticatedPilotId: captain },
       );
       app.craftStore.set(name, craft);
       publishCraftEvent(app, name, craft, "craft.created");
@@ -243,6 +244,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
           craft.captain,
           BlackBoxEntryType.Launched,
           `Launched: ${CraftStatus.Taxiing} -> ${CraftStatus.InFlight}`,
+          { authenticatedPilotId: craft.captain },
         );
         appendBlackBoxEntry(
           app,
@@ -536,6 +538,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
           pilotId,
           BlackBoxEntryType.EmergencyDeclaration,
           reason,
+          { authenticatedPilotId: pilotId },
         );
 
         // Transition 7: GoAround → Emergency

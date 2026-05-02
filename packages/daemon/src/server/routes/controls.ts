@@ -181,6 +181,7 @@ export async function controlsRoutes(app: FastifyInstance): Promise<void> {
             pilotId,
             BlackBoxEntryType.Observation,
             `Controls transferred to exclusive holder ${pilotId} (was ${previousSummary})`,
+            { authenticatedPilotId: pilotId },
           );
           app.craftStore.set(name, craft);
           publishCraftEvent(app, name, craft, "craft.controls.changed", {
@@ -236,13 +237,15 @@ export async function controlsRoutes(app: FastifyInstance): Promise<void> {
           craft.controls = fromCoreControlState(core);
 
           const areaSummary = areas.map((a) => `${a.pilotId}:${a.area}`).join(", ");
+          const shareAuthor = areas[0]?.pilotId ?? "system";
           appendBlackBoxEntry(
             app,
             name,
             craft,
-            areas[0]?.pilotId ?? "system",
+            shareAuthor,
             BlackBoxEntryType.Observation,
             `Controls switched to shared mode [${areaSummary}] (was ${previousSummary})`,
+            shareAuthor !== "system" ? { authenticatedPilotId: shareAuthor } : undefined,
           );
           app.craftStore.set(name, craft);
           publishCraftEvent(app, name, craft, "craft.controls.changed", {

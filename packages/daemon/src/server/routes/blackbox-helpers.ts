@@ -37,6 +37,20 @@ function isTraceContextEnabled(app: FastifyInstance, project: string): boolean {
 }
 
 /**
+ * Options for {@link appendBlackBoxEntry} beyond the positional parameters.
+ */
+export interface AppendBlackBoxOptions {
+  /**
+   * The pilot identity verified by the request's authentication layer.
+   * Signing only proceeds when this matches `author`. Omit for system
+   * entries or unauthenticated paths — the entry will be unsigned.
+   *
+   * @see RULE-PILOT-3b
+   */
+  authenticatedPilotId?: string;
+}
+
+/**
  * Append a single black box entry to a craft and broadcast it.
  *
  * This is the only function routes should call to add lifecycle entries. It:
@@ -44,10 +58,8 @@ function isTraceContextEnabled(app: FastifyInstance, project: string): boolean {
  * 1. Builds the entry via the core `createBlackBoxEntry` helper so the
  *    author/type/content shape is consistent across packages.
  * 2. Optionally signs the entry with a COSE_Sign1 envelope if the author pilot
- *    has a registered Ed25519 key pair. (RULE-BBOX-7)
- *    NOTE: Full RULE-PILOT-3b compliance (auth-authorship binding) requires an
- *    authentication layer not yet implemented. Until then, signing fires whenever
- *    the author has a registered key — document this gap alongside any auth work.
+ *    has a registered Ed25519 key pair AND the request is authenticated as
+ *    that pilot (RULE-BBOX-7, RULE-PILOT-3b).
  * 3. Attaches OTel trace context if enabled for the project. (RULE-BBOX-5)
  * 4. Uses the core `appendToBlackBox` helper to honor the append-only
  *    invariant (RULE-BBOX-2). The helper returns a new array which is then
@@ -69,6 +81,7 @@ function isTraceContextEnabled(app: FastifyInstance, project: string): boolean {
  * @param author - Pilot ID recording the entry (or `"system"` for daemon events).
  * @param type - Entry type from `BlackBoxEntryType`.
  * @param content - Human-readable description of the event.
+ * @param options - Optional parameters including `authenticatedPilotId`.
  * @returns The newly created daemon entry.
  *
  * @see RULE-BBOX-1
@@ -76,6 +89,7 @@ function isTraceContextEnabled(app: FastifyInstance, project: string): boolean {
  * @see RULE-BBOX-3
  * @see RULE-BBOX-5
  * @see RULE-BBOX-7
+ * @see RULE-PILOT-3b
  */
 export function appendBlackBoxEntry(
   app: FastifyInstance,
@@ -84,6 +98,7 @@ export function appendBlackBoxEntry(
   author: string,
   type: BlackBoxEntryType,
   content: string,
+  options?: AppendBlackBoxOptions,
 ): BlackBoxEntry {
   const coreEntry = createCoreEntry(author, type, content);
 
@@ -95,21 +110,24 @@ export function appendBlackBoxEntry(
     traceContext = generateTraceContext(project, craft.callsign, parentSpanId);
   }
 
-  // --- Signing (RULE-BBOX-7) ---
-  // Build a provisional entry with the timestamp so the signing input is complete.
+  // --- Signing (RULE-BBOX-7 gated by RULE-PILOT-3b) ---
+  // RULE-PILOT-3b: sign ONLY when the authenticated requester matches the author.
   const timestamp = coreEntry.timestamp.toISOString();
   let signature: string | null = null;
 
-  const keyRecord = app.pilotKeystore.get(project, author);
-  if (keyRecord) {
-    const pilotRecord = app.pilotStore.get(project, author);
-    if (pilotRecord?.publicKey) {
-      signature = signBlackBoxEntry(keyRecord.privateKey, keyRecord.publicKey, {
-        timestamp,
-        author: coreEntry.author,
-        type: coreEntry.type,
-        content: coreEntry.content,
-      });
+  const authenticatedPilotId = options?.authenticatedPilotId;
+  if (authenticatedPilotId !== undefined && authenticatedPilotId === author) {
+    const keyRecord = app.pilotKeystore.get(project, author);
+    if (keyRecord) {
+      const pilotRecord = app.pilotStore.get(project, author);
+      if (pilotRecord?.publicKey) {
+        signature = signBlackBoxEntry(keyRecord.privateKey, keyRecord.publicKey, {
+          timestamp,
+          author: coreEntry.author,
+          type: coreEntry.type,
+          content: coreEntry.content,
+        });
+      }
     }
   }
 
