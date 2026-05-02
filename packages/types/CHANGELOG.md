@@ -4,6 +4,9 @@
 
 ### Added
 
+- `VectorType` enum (`standard`, `adversarial_review`) — designates the type of a vector milestone. @see RULE-VEC-6
+- `Vector.type?: VectorType` — optional field on the `Vector` interface. Omitted or `standard` means an ordinary milestone; `adversarial_review` designates a mandatory peer-review checkpoint. @see RULE-VEC-6
+
 - `Craft.createdAt: Date` — immutable timestamp recorded when a craft enters the Taxiing phase. Required field. @see RULE-CRAFT-6
 - `TfrScope` enum (`Global`, `Project`, `Craft`) — scope levels for a Temporary Flight Restriction. @see RULE-TFR-2
 - `TfrMode` enum (`Graceful`, `Immediate`) — enforcement mode for a TFR. @see RULE-TFRP-1, RULE-TFRP-2

@@ -5,6 +5,7 @@ export {
   claimExclusiveControls,
   shareControls,
   isHoldingControls,
+  validateControlsReleasedForAdversarialReview,
 } from "./controls.js";
 
 export { createCraft } from "./craft.js";

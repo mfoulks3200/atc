@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { ControlMode, SeatType } from "@airtrafficcontrol/types";
 import type { SharedControlArea } from "@airtrafficcontrol/types";
+import { ControlsError } from "@airtrafficcontrol/errors";
 import {
   createInitialControls,
   claimExclusiveControls,
   shareControls,
   isHoldingControls,
+  validateControlsReleasedForAdversarialReview,
 } from "./controls.js";
 
 describe("createInitialControls", () => {
@@ -113,6 +115,48 @@ describe("shareControls", () => {
     // Should not throw even though we don't know seat types
     const controls = shareControls(areas);
     expect(controls.mode).toBe(ControlMode.Shared);
+  });
+});
+
+describe("validateControlsReleasedForAdversarialReview", () => {
+  it("passes when builder no longer holds exclusive controls (RULE-CTRL-3a)", () => {
+    const controls = createInitialControls("captain-1");
+    // FO has claimed controls from the builder — builder released
+    const transferred = claimExclusiveControls(controls, "fo-1", SeatType.FirstOfficer);
+
+    expect(() =>
+      validateControlsReleasedForAdversarialReview(transferred, "captain-1"),
+    ).not.toThrow();
+  });
+
+  it("throws ControlsError when builder still holds exclusive controls (RULE-CTRL-3a)", () => {
+    const controls = createInitialControls("builder-1");
+
+    expect(() =>
+      validateControlsReleasedForAdversarialReview(controls, "builder-1"),
+    ).toThrow(ControlsError);
+  });
+
+  it("includes RULE-CTRL-3a in the thrown error ruleId", () => {
+    const controls = createInitialControls("builder-1");
+
+    try {
+      validateControlsReleasedForAdversarialReview(controls, "builder-1");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ControlsError);
+      expect((err as ControlsError).ruleId).toBe("RULE-CTRL-3a");
+    }
+  });
+
+  it("passes when controls are in Shared mode (builder implicitly released exclusive hold)", () => {
+    const areas: SharedControlArea[] = [
+      { pilotIdentifier: "fo-1", area: "src/api/" },
+    ];
+    const controls = shareControls(areas);
+
+    expect(() =>
+      validateControlsReleasedForAdversarialReview(controls, "builder-1"),
+    ).not.toThrow();
   });
 });
 
