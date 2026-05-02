@@ -356,6 +356,84 @@ describe("vector routes", () => {
       }
     });
 
+    it("runs all bound templates to completion even when one fails (RULE-CHKL-11)", async () => {
+      const registries = makeRegistries();
+      const failTemplate = registries.templates.create({
+        name: "Security scan",
+        items: [
+          {
+            name: "vuln-check",
+            title: "Vulnerability check",
+            description: "Always fails",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "exit 1" },
+          },
+        ],
+      });
+      const passTemplate = registries.templates.create({
+        name: "Lint check",
+        items: [
+          {
+            name: "lint",
+            title: "Lint",
+            description: "Always passes",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "echo ok" },
+          },
+        ],
+      });
+      registries.bindings.create({
+        templateId: failTemplate.id,
+        event: LifecycleEvent.BeforeVectorComplete,
+        craftCategory: "backend",
+        vectorName: "design",
+      });
+      registries.bindings.create({
+        templateId: passTemplate.id,
+        event: LifecycleEvent.BeforeVectorComplete,
+        craftCategory: "backend",
+        vectorName: "design",
+      });
+
+      const localApp = createApp({
+        craftStore,
+        agentStore: new AgentStore("/tmp/atc-vec-test"),
+        towerStore: new TowerStore("/tmp/atc-vec-test"),
+        projectChecklistRegistries: new Map([[PROJECT, registries]]),
+      });
+
+      try {
+        const res = await localApp.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+          payload: { evidence: "Attempted report" },
+        });
+        expect(res.statusCode).toBe(422);
+        const body = res.json<{
+          code: string;
+          checklistResults: Array<{ checklistName: string; passed: boolean }>;
+        }>();
+        expect(body.code).toBe("VECTOR_CHECKLIST_FAILED");
+
+        // Both templates must have run — results include both.
+        expect(body.checklistResults).toHaveLength(2);
+        expect(body.checklistResults[0].checklistName).toBe("Security scan");
+        expect(body.checklistResults[0].passed).toBe(false);
+        expect(body.checklistResults[1].checklistName).toBe("Lint check");
+        expect(body.checklistResults[1].passed).toBe(true);
+
+        // Vector must not have been marked as Passed.
+        const craft = craftStore.get(PROJECT, "bravo-1")!;
+        expect(craft.flightPlan[0].status).toBe("Pending");
+
+        // Both checklist runs should be recorded in the black box.
+        const checklistEntries = craft.blackBox.filter((e) => e.type === "ChecklistRun");
+        expect(checklistEntries).toHaveLength(2);
+      } finally {
+        await localApp.close();
+      }
+    });
+
     it("does not apply bindings for a different vector name (RULE-CHKL-10)", async () => {
       const registries = makeRegistries();
       const template = registries.templates.create({

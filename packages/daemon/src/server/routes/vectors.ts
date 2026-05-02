@@ -11,6 +11,7 @@
 
 import type { FastifyInstance } from "fastify";
 import { BlackBoxEntryType, LifecycleEvent } from "@airtrafficcontrol/types";
+import type { ChecklistRunResult } from "@airtrafficcontrol/types";
 import { runChecklist, resolveChecklist } from "@airtrafficcontrol/checklist";
 import { publishCraftEvent } from "./broadcast.js";
 import { appendBlackBoxEntry } from "./blackbox-helpers.js";
@@ -121,6 +122,8 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
         overrides: registries.overrides,
       });
 
+      // RULE-CHKL-11: all bound templates run to completion regardless of individual failures.
+      const beforeResults: ChecklistRunResult[] = [];
       for (const checklist of beforeResolved) {
         const checkResult = await runChecklist({
           checklistName: checklist.templateName,
@@ -130,6 +133,8 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
           items: checklist.items,
         });
 
+        beforeResults.push(checkResult);
+
         appendBlackBoxEntry(
           app,
           name,
@@ -138,16 +143,17 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
           BlackBoxEntryType.ChecklistRun,
           `Vector checklist "${checklist.templateName}" for "${vectorName}" ${checkResult.passed ? "passed" : "failed"}`,
         );
+      }
 
-        if (!checkResult.passed) {
-          app.craftStore.set(name, craft);
-          return reply.code(422).send({
-            error: `Vector checklist "${checklist.templateName}" failed`,
-            code: "VECTOR_CHECKLIST_FAILED",
-            vectorName,
-            checklistResults: [checkResult],
-          });
-        }
+      const anyRequiredFailure = beforeResults.some((r) => !r.passed);
+      if (anyRequiredFailure) {
+        app.craftStore.set(name, craft);
+        return reply.code(422).send({
+          error: "One or more vector checklists failed",
+          code: "VECTOR_CHECKLIST_FAILED",
+          vectorName,
+          checklistResults: beforeResults,
+        });
       }
 
       vector.status = "Passed";
