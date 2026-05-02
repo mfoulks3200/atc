@@ -154,6 +154,12 @@ The UX Designer evaluates the following during review:
 
 > **See also:** RULE-UXR-1 through RULE-UXR-5 in `docs/specification.md`.
 
+#### 6c. UX-Originated Tickets
+
+Tickets created by the UX Designer as UX deliverables (e.g., feature tickets with inline UX specs from existence-gap audits) **always** require UX sign-off before reaching `done`. The UX Designer must set an execution policy on these tickets at creation time that includes themselves as a required reviewer. Implementing agents must not mark such tickets done without the execution policy review stage completing.
+
+- [ ] **If the ticket was created by the UX Designer with inline UX requirements:** Verify that the execution policy includes a UX review stage. If no execution policy is set, request one from the UX Designer before closing.
+
 ### 7. Spec Compliance
 
 Every change must be checked against the formal specification at `docs/specification.md`. The implementation and the spec must agree — one or the other must be updated before merging.
@@ -217,6 +223,7 @@ pnpm run build
 | Tests | `pnpm run test` | All passing |
 | Coverage | `pnpm run test -- --coverage` | 90% minimum on changed files |
 | UX review | UX impact triage; subtask if user-facing | UX Designer sign-off on user-facing changes |
+| UX-originated gate | Verify execution policy on UX-created tickets | Execution policy review stage complete |
 | Spec compliance | Review against `docs/specification.md` | No discrepancies, or spec updated |
 
 ## QA Review Handoff
