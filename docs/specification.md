@@ -2,11 +2,12 @@
 
 **Version:** 0.4.1
 **Status:** Draft
-**Date:** 2026-04-29
+**Date:** 2026-05-02
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
 
+- 0.4.1 (2026-05-02): Add Technical Writer review protocol §4.9 (RULE-TWRV-1 through RULE-TWRV-5) — establishes TW sign-off as a blocking pre-merge gate for spec-touching changes (AIR-597).
 - 0.4.0 (2026-04-29): Add Adversarial Review protocol (§2.8, §4.8), Inspector seat type (RULE-SEAT-5, RULE-SEAT-6), `UnderReview` vector status (RULE-VEC-6 through RULE-VEC-8), Finding entity (RULE-FIND-1 through RULE-FIND-7), adversarial BBOX entry types (RULE-BBOX-5 through RULE-BBOX-7), review protocol rules (RULE-ADVR-1 through RULE-ADVR-6), and notification rules (RULE-NOTIFY-1, RULE-NOTIFY-2). Supersedes earlier VSDD adversarial review rules (RULE-VEC-6–9, RULE-CTRL-3a from AIR-294).
 - 0.3.2 (2026-04-30): Add constraint dry-run API and structured constraint failure response shape — `?dryRun=true` on `reportVector`, `ConstraintCheckResult`, `ConstraintFailure`, `ConstraintCheckFailed` black box entry, captain override with justification (RULE-VRPT-5 through RULE-VRPT-10, §4.1.1, AIR-324).
 - 0.3.1 (2026-04-28): Define integrity bar live-update strategy — triggered poll via `craft.blackbox.appended` (RULE-BBOX-9a, AIR-342).
@@ -989,6 +990,38 @@ Adversarial review is triggered when an inspector is assigned to a craft. Once a
 - **RULE-ADVR-5:** If all findings on a vector are `minor` severity and the inspector chooses to approve, the vector MAY transition to `Passed` even if minor findings remain `open`. The inspector MUST record the rationale in the `AdversarialReviewPassed` black box entry.
 - **RULE-ADVR-6:** The adversarial review protocol does not replace the landing checklist (§4.2). A craft with an inspector must still pass its landing checklist after all vectors are approved.
 
+### 4.9 Technical Writer Review Protocol
+
+Changes that introduce or modify domain behavior require Technical Writer review before landing. This protocol ensures that every spec-touching change — new entities, state transitions, validation rules, protocol steps, or direct edits to `docs/specification.md` — is reviewed and formally spec-backed before it merges. The Technical Writer acts as an upstream gate, not a post-merge cleanup function.
+
+#### 4.9.1 Applicability
+
+A Technical Writer review is required when a change does any of the following:
+
+- Adds, removes, or renames a domain entity property (§2.*).
+- Adds, removes, or renames a craft lifecycle state or state transition (§3.*).
+- Introduces or modifies a validation rule that gates a lifecycle event, vector report, or seat assignment.
+- Adds, modifies, or removes a protocol step in any §4.* section.
+- Directly edits `docs/specification.md` or `docs/agent/operating-manual.md`.
+- Introduces a new behavior that cannot be traced to an existing `RULE-*` identifier.
+
+Changes that are purely internal (refactors, bug fixes, test-only changes, performance improvements with no behavioral effect) are exempt, provided no `RULE-*` identifier needs updating.
+
+#### 4.9.2 Review Procedure
+
+1. The implementing pilot performs a **spec-change triage** as part of the contribution checklist (§7a in `docs/contributing.md`). If the change is spec-touching, a Technical Writer review subtask is created.
+2. The subtask is assigned to the designated Technical Writer. It MUST include: a description of what changed, the relevant `RULE-*` identifiers (existing or proposed), and for direct spec edits, a summary or diff of the proposed changes.
+3. The Technical Writer evaluates whether the change has adequate spec backing (§4.9.3) and whether the spec and operating manual are consistent with the implementation.
+4. The Technical Writer either signs off or requests changes. **Technical Writer sign-off is a blocking gate — the craft cannot proceed to landing clearance without it.**
+
+#### 4.9.3 Review Criteria
+
+- **RULE-TWRV-1:** Any change that introduces or modifies a domain entity, lifecycle state, state transition, validation rule, or protocol step MUST receive Technical Writer sign-off before landing clearance is granted.
+- **RULE-TWRV-2:** The implementing pilot MUST create a Technical Writer review subtask when the spec-change triage identifies a spec-touching change. The subtask MUST include the changed behavior, the relevant `RULE-*` identifiers, and a summary of any proposed spec edits.
+- **RULE-TWRV-3:** A spec-change triage MUST be performed for every change. A change is spec-touching if it satisfies any criterion in §4.9.1.
+- **RULE-TWRV-4:** When a new behavior has no existing `RULE-*` identifier, the Technical Writer review MUST produce either a pointer to an existing rule that covers it, or a companion spec update adding the new rule. A PR that introduces untraced behavior MUST NOT land without one of these two resolutions.
+- **RULE-TWRV-5:** Operating manual updates (`docs/agent/operating-manual.md`) are a required deliverable in the same commit as any spec rule that changes how pilots should act. The Technical Writer review MUST verify this co-delivery. Deferring the operating manual update to a follow-up PR fails the review.
+
 ## 5. Appendices
 
 ### Appendix A: Rule Index
@@ -1136,3 +1169,8 @@ Adversarial review is triggered when an inspector is assigned to a craft. Once a
 | RULE-ADVR-6   | Adversarial review does not replace the landing checklist.                                            | 4.8.5   |
 | RULE-NOTIFY-1 | System must notify captain/FOs on AdversarialFindingSubmitted.                                        | 4.8.4   |
 | RULE-NOTIFY-2 | System must notify captain/FOs on review passed/failed.                                               | 4.8.4   |
+| RULE-TWRV-1   | Spec-touching changes must receive Technical Writer sign-off before landing clearance.                | 4.9.3   |
+| RULE-TWRV-2   | Implementing pilot must create a TW review subtask for spec-touching changes, with changed behavior, RULE-* ids, and spec edit summary. | 4.9.3 |
+| RULE-TWRV-3   | Spec-change triage must be performed for every change.                                                | 4.9.3   |
+| RULE-TWRV-4   | New untraced behavior must be resolved to an existing rule or a new spec rule before landing.         | 4.9.3   |
+| RULE-TWRV-5   | Operating manual updates must ship in the same commit as any spec rule that changes pilot behavior.   | 4.9.3   |
