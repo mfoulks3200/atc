@@ -207,6 +207,43 @@ Changelog categories: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`.
 pnpm run build
 ```
 
+## Post-Merge: Spec Rule-Count Validation
+
+After merging any PR that touches `docs/specification.md`, verify that the merge did not silently drop rules from the spec. This catches regressions introduced by merge conflict resolution (e.g., AIR-423, AIR-424).
+
+### Manual check
+
+- [ ] **Compare rule counts before and after merge.** Run the following against the merged `main`:
+
+```bash
+grep -oE 'RULE-[A-Z]+-[0-9]+[a-z]?' docs/specification.md | sort -u | wc -l
+```
+
+Compare the count to the pre-merge value. If the count decreased, diff the rule lists to identify which rules were lost:
+
+```bash
+# Before merge (on the base commit):
+git show HEAD~1:docs/specification.md | grep -oE 'RULE-[A-Z]+-[0-9]+[a-z]?' | sort -u > /tmp/rules-before.txt
+
+# After merge:
+grep -oE 'RULE-[A-Z]+-[0-9]+[a-z]?' docs/specification.md | sort -u > /tmp/rules-after.txt
+
+# Show dropped rules:
+comm -23 /tmp/rules-before.txt /tmp/rules-after.txt
+```
+
+- [ ] **If rules were dropped:** Determine whether the deletion was intentional. If intentional, the PR description must include an explicit deletion note naming each removed rule. If unintentional, restore the lost rules before proceeding.
+
+- [ ] **Cross-check Appendix A.** Verify that every `RULE-*` identifier defined in the spec body appears in the Appendix A Rule Index, and vice versa. Orphaned index entries or missing index rows indicate a merge conflict artifact.
+
+### CI automation
+
+The `scripts/check-rule-count.sh` script automates rule-count validation. It runs on PRs that modify `docs/specification.md` and fails if the unique rule count on the PR branch is lower than on the base branch without an explicit `[rule-removal]` marker in the PR description.
+
+```bash
+./scripts/check-rule-count.sh
+```
+
 ## Quick Reference
 
 | Step | Command | Must Pass |
@@ -218,6 +255,7 @@ pnpm run build
 | Coverage | `pnpm run test -- --coverage` | 90% minimum on changed files |
 | UX review | UX impact triage; subtask if user-facing | UX Designer sign-off on user-facing changes |
 | Spec compliance | Review against `docs/specification.md` | No discrepancies, or spec updated |
+| Rule-count check | `./scripts/check-rule-count.sh` | Rule count not decreased (post-merge, spec PRs only) |
 
 ## QA Review Handoff
 
