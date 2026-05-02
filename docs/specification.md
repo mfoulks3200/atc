@@ -261,7 +261,7 @@ A craft has a single set of **controls** that govern which pilot(s) are actively
 
 - **RULE-CTRL-1:** At craft creation, the captain holds exclusive controls by default.
 - **RULE-CTRL-2:** Only the captain or a first officer MAY claim controls. Jumpseaters and inspectors MUST NOT hold controls.
-- **RULE-CTRL-3:** A pilot MUST NOT modify code on the craft's branch unless they currently hold controls (exclusively or within their shared area).
+- **RULE-CTRL-3:** A pilot MUST NOT modify code on the craft's branch unless they currently hold controls (exclusively or within their shared area). Enforcement is at the daemon layer: adapters and tools MUST call `POST /api/v1/projects/:name/crafts/:callsign/controls/verify` with `{ pilotId, filePath? }` before executing any file-modifying operation. The daemon returns HTTP 200 `{ allowed: true }` on success or HTTP 403 `{ allowed: false, message, ruleId: "RULE-CTRL-3" }` on denial.
 - **RULE-CTRL-3a:** During adversarial review (while an `adversarial_review` vector is the active vector), the designated reviewer MUST hold exclusive controls. The builder MUST release controls and the reviewer MUST acknowledge the handoff before the vector can be entered. All control transfers for adversarial review MUST be recorded in the black box per RULE-CTRL-7.
 - **RULE-CTRL-4:** Pilots SHOULD claim exclusive controls for changes that risk conflicts if done concurrently.
 - **RULE-CTRL-5:** Pilots MAY use shared controls when working on clearly separable concerns.
@@ -1024,7 +1024,7 @@ Adversarial review is triggered when an inspector is assigned to a craft. Once a
 | RULE-SEAT-6   | Inspector must not also hold implementation seat on same craft.                                       | 2.2.3   |
 | RULE-CTRL-1   | Captain holds exclusive controls at craft creation.                                                   | 2.2.4   |
 | RULE-CTRL-2   | Only captain/FO may hold controls; jumpseaters and inspectors never.                                  | 2.2.4   |
-| RULE-CTRL-3   | Must hold controls to modify code.                                                                    | 2.2.4   |
+| RULE-CTRL-3   | Must hold controls to modify code; enforced by daemon /controls/verify route.                        | 2.2.4   |
 | RULE-CTRL-3a  | Adversarial reviewer holds exclusive controls; builder must release before vector entry.              | 2.2.4   |
 | RULE-CTRL-4   | Should use exclusive controls for conflict-prone changes.                                             | 2.2.4   |
 | RULE-CTRL-5   | May use shared controls for separable concerns.                                                       | 2.2.4   |

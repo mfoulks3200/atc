@@ -4,17 +4,17 @@
  * their shared area).
  *
  * This module plugs into the Claude Agent SDK's `canUseTool` hook. On every
- * file-modification tool call (Edit, Write, MultiEdit, NotebookEdit), we:
- *   1. Fetch the craft's current `ControlState` from the daemon.
- *   2. Check whether the pilot holds controls for the target file path.
- *   3. Allow the call, or deny it with a clear error message the agent can
- *      read and (e.g.) request controls before retrying.
+ * file-modification tool call (Edit, Write, MultiEdit, NotebookEdit), it
+ * delegates to the daemon's `POST /controls/verify` endpoint, which is the
+ * authoritative enforcement point for RULE-CTRL-3. The adapter no longer
+ * makes the allow/deny decision locally.
  *
  * Bash is partially enforced: it's allowed if the pilot has ANY controls on
  * the craft (exclusive holder or has any shared area). This is a coarse
  * check — the shell can still touch files outside declared areas — but
  * prevents jumpseaters and pilots with no controls at all from running
- * arbitrary file mutations.
+ * arbitrary file mutations. The daemon applies the same coarse gate via
+ * `POST /controls/verify` with no `filePath`.
  *
  * Read-only tools (Read, Glob, Grep, LS) are always allowed — the spec
  * only restricts MODIFICATION, not observation.
@@ -82,6 +82,9 @@ export type EnforcementDecision =
  * - Absolute paths outside the worktree are returned as-is (treated as a
  *   scope-violation — no shared area can ever cover them).
  * - Relative paths are normalised (e.g. `./src/foo` → `src/foo`).
+ *
+ * @deprecated Enforcement is now delegated to the daemon's POST /controls/verify
+ * endpoint. This function is retained for backward compatibility only.
  */
 export function normalizeFilePath(filePath: string, worktreePath: string): string {
   if (isAbsolute(filePath)) {
@@ -98,6 +101,9 @@ export function normalizeFilePath(filePath: string, worktreePath: string): strin
  * Check whether a normalised file path falls within any shared area assigned
  * to `pilotId`. An area is treated as a path prefix — `src/api` matches
  * `src/api/foo.ts` but not `src/api-v2`.
+ *
+ * @deprecated Enforcement is now delegated to the daemon's POST /controls/verify
+ * endpoint. This function is retained for backward compatibility only.
  */
 export function isFileInPilotArea(
   normalizedPath: string,
@@ -117,6 +123,9 @@ export function isFileInPilotArea(
 
 /**
  * Evaluate RULE-CTRL-3 for a specific file-modifying tool invocation.
+ *
+ * @deprecated Enforcement is now delegated to the daemon's POST /controls/verify
+ * endpoint. This function is retained for backward compatibility only.
  */
 export function decideForFileModification(
   controls: ControlsSnapshot,
@@ -160,6 +169,9 @@ export function decideForFileModification(
  * Bash is a special case. We can't reliably inspect what files the shell
  * command will touch, so we use a coarse gate: if the pilot has ANY
  * controls authority on the craft, we allow; otherwise we deny.
+ *
+ * @deprecated Enforcement is now delegated to the daemon's POST /controls/verify
+ * endpoint. This function is retained for backward compatibility only.
  */
 export function decideForBash(controls: ControlsSnapshot, pilotId: string): EnforcementDecision {
   const exclusiveHolder = controls.mode === "exclusive" && controls.holder === pilotId;
@@ -177,25 +189,44 @@ export function decideForBash(controls: ControlsSnapshot, pilotId: string): Enfo
 }
 
 /**
- * Fetch the current controls snapshot from the daemon.
+ * Call the daemon's RULE-CTRL-3 verification endpoint.
+ *
+ * Returns `{ behavior: "allow" }` when the daemon permits the action, or
+ * `{ behavior: "deny", message }` otherwise. Network errors propagate so the
+ * caller can decide whether to fail open or closed.
  */
-async function fetchControls(ctx: ControlsEnforcerContext): Promise<ControlsSnapshot> {
-  const url = `${ctx.daemonUrl}/api/v1/projects/${ctx.projectName}/crafts/${ctx.callsign}/controls`;
+async function callVerifyEndpoint(
+  ctx: ControlsEnforcerContext,
+  body: { pilotId: string; filePath?: string },
+): Promise<EnforcementDecision> {
+  const url = `${ctx.daemonUrl}/api/v1/projects/${ctx.projectName}/crafts/${ctx.callsign}/controls/verify`;
   const fetchFn = ctx.fetch ?? globalThis.fetch;
-  const response = await fetchFn(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch controls: HTTP ${response.status}`);
+  const response = await fetchFn(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (response.ok) {
+    return { behavior: "allow" };
   }
-  return (await response.json()) as ControlsSnapshot;
+  const json = (await response.json()) as { allowed: boolean; message?: string };
+  return {
+    behavior: "deny",
+    message: json.message ?? `RULE-CTRL-3: access denied by daemon (HTTP ${response.status})`,
+  };
 }
 
 /**
  * Build a `canUseTool` callback suitable for
  * `Options.canUseTool` in the Claude Agent SDK.
  *
- * The returned function is async because it fetches the latest controls
- * state from the daemon on every call — so transfers take effect without
- * needing to restart the agent.
+ * The returned function is async because it delegates to the daemon's
+ * `POST /controls/verify` endpoint on every file-modifying call — so
+ * controls transfers take effect immediately without restarting the agent,
+ * and enforcement is authoritative regardless of which adapter framework
+ * is in use.
+ *
+ * @see RULE-CTRL-3
  */
 export function createControlsCanUseTool(
   ctx: ControlsEnforcerContext,
@@ -212,8 +243,6 @@ export function createControlsCanUseTool(
     // MCP bridge (e.g. `mcp__atc-intercom__intercom_send`).
     if (toolName.startsWith("mcp__")) return allow(input);
 
-    const controls = await fetchControls(ctx);
-
     if (FILE_MODIFYING_TOOLS.has(toolName)) {
       const filePath =
         typeof input.file_path === "string"
@@ -227,12 +256,12 @@ export function createControlsCanUseTool(
           message: `Cannot evaluate controls for ${toolName}: no file_path/notebook_path in input.`,
         };
       }
-      const decision = decideForFileModification(controls, ctx.pilotId, ctx.worktreePath, filePath);
+      const decision = await callVerifyEndpoint(ctx, { pilotId: ctx.pilotId, filePath });
       return decision.behavior === "allow" ? allow(input) : decision;
     }
 
     if (toolName === "Bash" || toolName === "BashOutput") {
-      const decision = decideForBash(controls, ctx.pilotId);
+      const decision = await callVerifyEndpoint(ctx, { pilotId: ctx.pilotId });
       return decision.behavior === "allow" ? allow(input) : decision;
     }
 

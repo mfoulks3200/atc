@@ -8,10 +8,13 @@
  *
  * @see RULE-CTRL-1 — captain holds exclusive controls at creation.
  * @see RULE-CTRL-2 — only captains and first officers may hold controls.
+ * @see RULE-CTRL-3 — pilot must hold controls to modify code (enforced by /verify).
  * @see RULE-CTRL-6 — captain has final authority on disputes.
  * @see RULE-CTRL-7 — every transfer / mode change is recorded in the black box.
  */
 
+import { join } from "node:path";
+import { relative, isAbsolute, normalize } from "node:path";
 import type { FastifyInstance } from "fastify";
 import { BlackBoxEntryType, ControlMode, SeatType } from "@airtrafficcontrol/types";
 import type { ControlState as CoreControlState } from "@airtrafficcontrol/types";
@@ -76,6 +79,56 @@ interface ShareControlsBody {
   areas: Array<{ pilotId: string; area: string }>;
 }
 
+interface VerifyBody {
+  /** Pilot identifier requesting permission to modify code. */
+  pilotId: string;
+  /**
+   * File path to verify access for. May be absolute (resolved relative to
+   * the craft's worktree) or relative to the worktree root.
+   *
+   * When omitted, a coarse bash-level check is performed: the pilot must hold
+   * any controls (exclusive holder or has any shared area).
+   */
+  filePath?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalise a file path for area-prefix comparison. Absolute paths inside the
+ * worktree are made relative; paths outside the worktree are kept absolute so
+ * they never match a shared area.
+ */
+function normalizePathForArea(filePath: string, worktreePath: string): string {
+  if (isAbsolute(filePath)) {
+    const rel = relative(worktreePath, filePath);
+    if (rel.startsWith("..") || isAbsolute(rel)) return filePath;
+    return rel.replace(/^\.\//, "");
+  }
+  return normalize(filePath).replace(/^\.\//, "");
+}
+
+/**
+ * Check whether a normalised file path falls within any shared area assigned
+ * to `pilotId`. An area is treated as a path prefix — `src/api` matches
+ * `src/api/foo.ts` but not `src/api-v2`.
+ */
+function isFileInPilotSharedArea(
+  normalizedPath: string,
+  pilotId: string,
+  controls: ControlState,
+): boolean {
+  if (controls.mode !== "shared" || !controls.sharedAreas) return false;
+  for (const { pilotId: owner, area } of controls.sharedAreas) {
+    if (owner !== pilotId) continue;
+    const prefix = area.endsWith("/") ? area : `${area}/`;
+    if (normalizedPath === area || normalizedPath.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -138,6 +191,105 @@ export async function controlsRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(404).send({ error: `Craft not found: ${callsign}` });
       }
       return reply.send(craft.controls);
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // POST /controls/verify — RULE-CTRL-3 enforcement gate
+  // -------------------------------------------------------------------------
+
+  /**
+   * Verify whether a pilot may modify code on this craft right now.
+   *
+   * Adapters and tools call this before allowing a file-modifying operation.
+   * When `filePath` is provided the daemon checks the specific file against
+   * the pilot's shared area; otherwise a coarse bash-level check is applied
+   * (the pilot must hold any controls at all).
+   *
+   * Returns HTTP 200 `{ allowed: true }` on success.
+   * Returns HTTP 403 `{ allowed: false, message, ruleId }` on denial.
+   *
+   * @see RULE-CTRL-3
+   */
+  app.post<{ Params: ControlsParams; Body: VerifyBody }>(
+    "/api/v1/projects/:name/crafts/:callsign/controls/verify",
+    async (request, reply) => {
+      const { name, callsign } = request.params;
+      const { pilotId, filePath } = request.body;
+
+      const craft = app.craftStore.get(name, callsign);
+      if (!craft) {
+        return reply.code(404).send({ error: `Craft not found: ${callsign}` });
+      }
+
+      const controls = craft.controls;
+
+      if (filePath !== undefined) {
+        // File-specific RULE-CTRL-3 check.
+        const worktreePath = join(
+          app.profileDir,
+          "projects",
+          name,
+          "crafts",
+          callsign,
+          "worktree",
+        );
+        const normalized = normalizePathForArea(filePath, worktreePath);
+
+        if (controls.mode === "exclusive") {
+          if (controls.holder === pilotId) {
+            return reply.send({ allowed: true });
+          }
+          return reply.code(403).send({
+            allowed: false,
+            ruleId: "RULE-CTRL-3",
+            message: [
+              `RULE-CTRL-3: exclusive controls are held by`,
+              `${controls.holder ?? "(nobody)"}, not ${pilotId}.`,
+              `Request a handoff via intercom then call POST /controls/claim`,
+              `or /controls/share to obtain controls before modifying files.`,
+            ].join(" "),
+          });
+        }
+
+        // Shared mode: check whether the file falls inside the pilot's area.
+        if (isFileInPilotSharedArea(normalized, pilotId, controls)) {
+          return reply.send({ allowed: true });
+        }
+        const myAreas = (controls.sharedAreas ?? [])
+          .filter((a) => a.pilotId === pilotId)
+          .map((a) => a.area);
+        const myAreasDesc = myAreas.length > 0 ? myAreas.join(", ") : "(no areas assigned)";
+        return reply.code(403).send({
+          allowed: false,
+          ruleId: "RULE-CTRL-3",
+          message: [
+            `RULE-CTRL-3: ${normalized} is outside your shared control area.`,
+            `Your areas: ${myAreasDesc}.`,
+            `Restrict edits to an assigned area, or update shared areas via`,
+            `POST /controls/share (requires captain coordination).`,
+          ].join(" "),
+        });
+      }
+
+      // No filePath — coarse bash-level check: pilot must hold any controls.
+      const hasControls =
+        (controls.mode === "exclusive" && controls.holder === pilotId) ||
+        (controls.mode === "shared" &&
+          (controls.sharedAreas ?? []).some((a) => a.pilotId === pilotId));
+
+      if (hasControls) {
+        return reply.send({ allowed: true });
+      }
+      return reply.code(403).send({
+        allowed: false,
+        ruleId: "RULE-CTRL-3",
+        message: [
+          `RULE-CTRL-3: ${pilotId} does not currently hold any controls on this craft`,
+          `and cannot run shell commands that might modify code.`,
+          `Read-only inspection (Read / Glob / Grep) is still permitted.`,
+        ].join(" "),
+      });
     },
   );
 

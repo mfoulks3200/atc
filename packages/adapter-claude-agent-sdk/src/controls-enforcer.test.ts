@@ -155,20 +155,28 @@ describe("decideForBash", () => {
 });
 
 describe("createControlsCanUseTool", () => {
-  function mockFetch(snapshot: ControlsSnapshot): typeof fetch {
-    // Each call yields a fresh Response — Response bodies can only be
-    // consumed once, so reusing a single instance across calls throws.
-    return vi.fn().mockImplementation(
-      async () =>
-        new Response(JSON.stringify(snapshot), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
+  /** Mock fetch that returns a daemon /controls/verify allow response. */
+  function mockAllow(): typeof fetch {
+    return vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ allowed: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
     ) as unknown as typeof fetch;
   }
 
-  it("fetches controls from the daemon and returns an allow for holders", async () => {
-    const fetchSpy = mockFetch({ mode: "exclusive", holder: "captain-1" });
+  /** Mock fetch that returns a daemon /controls/verify deny response. */
+  function mockDeny(message: string): typeof fetch {
+    return vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ allowed: false, ruleId: "RULE-CTRL-3", message }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      }),
+    ) as unknown as typeof fetch;
+  }
+
+  it("calls POST /controls/verify and returns allow for the holder", async () => {
+    const fetchSpy = mockAllow();
     const canUse = createControlsCanUseTool({
       daemonUrl: "http://localhost:7700",
       projectName: "proj",
@@ -182,15 +190,18 @@ describe("createControlsCanUseTool", () => {
     const result = await canUse("Edit", input);
     expect(result.behavior).toBe("allow");
     if (result.behavior === "allow") {
-      // The SDK passes updatedInput through to the tool — echo the original.
       expect(result.updatedInput).toEqual(input);
     }
     expect(fetchSpy).toHaveBeenCalledWith(
-      "http://localhost:7700/api/v1/projects/proj/crafts/ALPHA/controls",
+      "http://localhost:7700/api/v1/projects/proj/crafts/ALPHA/controls/verify",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ pilotId: "captain-1", filePath: "src/api/foo.ts" }),
+      }),
     );
   });
 
-  it("denies non-holders trying to Edit", async () => {
+  it("denies non-holders trying to Edit (daemon returns 403)", async () => {
     const canUse = createControlsCanUseTool({
       daemonUrl: "http://localhost:7700",
       projectName: "proj",
@@ -198,13 +209,17 @@ describe("createControlsCanUseTool", () => {
       pilotId: "fo-1",
       seat: "firstOfficer",
       worktreePath: WORKTREE,
-      fetch: mockFetch({ mode: "exclusive", holder: "captain-1" }),
+      fetch: mockDeny("RULE-CTRL-3: exclusive controls held by captain-1"),
     });
     const result = await canUse("Edit", { file_path: "src/api/foo.ts" });
     expect(result.behavior).toBe("deny");
+    if (result.behavior === "deny") {
+      expect(result.message).toContain("RULE-CTRL-3");
+    }
   });
 
-  it("always allows MCP tools (they have their own auth)", async () => {
+  it("always allows MCP tools without calling verify", async () => {
+    const fetchSpy = mockAllow();
     const canUse = createControlsCanUseTool({
       daemonUrl: "http://localhost:7700",
       projectName: "proj",
@@ -212,13 +227,15 @@ describe("createControlsCanUseTool", () => {
       pilotId: "fo-1",
       seat: "firstOfficer",
       worktreePath: WORKTREE,
-      fetch: mockFetch({ mode: "exclusive", holder: "captain-1" }),
+      fetch: fetchSpy,
     });
     const result = await canUse("mcp__atc-intercom__intercom_send", { content: "hi" });
     expect(result.behavior).toBe("allow");
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("always allows read-only tools (Read, Glob, Grep)", async () => {
+  it("always allows read-only tools without calling verify", async () => {
+    const fetchSpy = mockAllow();
     const canUse = createControlsCanUseTool({
       daemonUrl: "http://localhost:7700",
       projectName: "proj",
@@ -226,15 +243,17 @@ describe("createControlsCanUseTool", () => {
       pilotId: "fo-1",
       seat: "firstOfficer",
       worktreePath: WORKTREE,
-      fetch: mockFetch({ mode: "exclusive", holder: "captain-1" }),
+      fetch: fetchSpy,
     });
     for (const toolName of ["Read", "Glob", "Grep", "LS"]) {
       const result = await canUse(toolName, { file_path: "/anywhere" });
       expect(result.behavior).toBe("allow");
     }
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("gates Bash on the pilot holding any controls", async () => {
+  it("gates Bash via POST /controls/verify with no filePath", async () => {
+    const fetchSpy = mockDeny("RULE-CTRL-3: fo-1 does not hold any controls");
     const canUse = createControlsCanUseTool({
       daemonUrl: "http://localhost:7700",
       projectName: "proj",
@@ -242,13 +261,21 @@ describe("createControlsCanUseTool", () => {
       pilotId: "fo-1",
       seat: "firstOfficer",
       worktreePath: WORKTREE,
-      fetch: mockFetch({ mode: "exclusive", holder: "captain-1" }),
+      fetch: fetchSpy,
     });
     const result = await canUse("Bash", { command: "ls" });
     expect(result.behavior).toBe("deny");
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "http://localhost:7700/api/v1/projects/proj/crafts/ALPHA/controls/verify",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ pilotId: "fo-1" }),
+      }),
+    );
   });
 
-  it("denies file-modifying tools without a file_path", async () => {
+  it("denies file-modifying tools without a file_path (no network call)", async () => {
+    const fetchSpy = mockAllow();
     const canUse = createControlsCanUseTool({
       daemonUrl: "http://localhost:7700",
       projectName: "proj",
@@ -256,12 +283,13 @@ describe("createControlsCanUseTool", () => {
       pilotId: "captain-1",
       seat: "captain",
       worktreePath: WORKTREE,
-      fetch: mockFetch({ mode: "exclusive", holder: "captain-1" }),
+      fetch: fetchSpy,
     });
     const result = await canUse("Write", {});
     expect(result.behavior).toBe("deny");
     if (result.behavior === "deny") {
       expect(result.message).toContain("no file_path");
     }
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
