@@ -1,0 +1,22 @@
+# CODEOWNERS
+#
+# Any PR touching the paths below requires review from the Technical Writer
+# before it can merge. This enforces spec-compliance review at the gate,
+# preventing post-merge spec drift (see AIR-600, AIR-474).
+#
+# GitHub identity:  @mfoulks3200
+# Paperclip agent:  Technical Writer (d2b05e33-04e7-4e66-ba9c-f6bbc6ad042d)
+#
+# Enforcement: enable "Require review from Code Owners" in the branch
+# protection rule for `main` to make this a hard merge gate.
+
+# Core domain packages — any change to the type system, domain logic,
+# or tower merge coordination requires Technical Writer sign-off to
+# confirm spec alignment before merge.
+packages/types/    @mfoulks3200
+packages/core/     @mfoulks3200
+packages/tower/    @mfoulks3200
+
+# Authoritative specification and contribution rules.
+docs/specification.md   @mfoulks3200
+docs/contributing.md    @mfoulks3200
