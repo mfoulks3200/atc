@@ -1,11 +1,13 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 **Status:** Draft
-**Date:** 2026-04-30
+**Date:** 2026-05-03
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
+- 0.5.0 (2026-05-03): Add Pilot Session Token entity §2.9, MCP authentication protocol §4.10 (RULE-MCPAUTH-1 through RULE-MCPAUTH-8), session-token issuance endpoint, seat authority matrix, structured auth error codes, and open question resolution record (AIR-700).
+- 0.4.1 (2026-05-03): Add structured MCP tool error contract §4.9 (RULE-MCP-1 through RULE-MCP-3, AIR-692).
 - 0.4.0 (2026-04-30): Add Inspector seat type (RULE-SEAT-5/6), UnderReview lifecycle state (RULE-LIFE-9/10), adversarial review protocol §4.8 (RULE-ARVW-1 through RULE-ARVW-5), challenge finding and builder flag schemas §2.8, and five new black box entry types (AIR-265).
 - 0.3.2 (2026-04-30): Add constraint dry-run API and structured constraint failure response shape — `?dryRun=true` on `reportVector`, `ConstraintCheckResult`, `ConstraintFailure`, `ConstraintCheckFailed` black box entry, captain override with justification (RULE-VRPT-5 through RULE-VRPT-10, §4.1.1, AIR-324).
 - 0.3.1 (2026-04-28): Define integrity bar live-update strategy — triggered poll via `craft.blackbox.appended` (RULE-BBOX-5a, AIR-342).
@@ -54,6 +56,7 @@ This document is the authoritative reference for ATC's domain model, lifecycle, 
 | Adversarial Review | A structured inspection of a specific vector by an Inspector, gating vector progression before the vector may be reported as passed. |
 | Challenge Finding | A structured finding logged by an Inspector during an adversarial review (see §2.8.1). |
 | Builder Flag     | A critical issue surfaced by the builder (captain or first officer) during an active adversarial review window, without modifying the evaluated craft state (see §2.8.2). |
+| Pilot Session Token (PST) | A signed, short-lived credential issued by the daemon that binds a pilot's identity (`pilotId`, `callsign`, `projectName`, `seat`) to a standalone MCP server connection. See §2.9. |
 
 ## 2. Domain Model
 
@@ -393,6 +396,55 @@ A **spec document** is a structured YAML or JSON document submitted to ATC to au
 - **RULE-SDD-5:** If an explicit callsign override is provided, it MUST be unique across all crafts in the project. A collision MUST be rejected with `CALLSIGN_CONFLICT`.
 - **RULE-SDD-6:** If an explicit `pilots.captain` is provided, that pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
 - **RULE-SDD-7:** If explicit `pilots.firstOfficers` are provided, each listed pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
+
+### 2.9 Pilot Session Token
+
+A **Pilot Session Token** (PST) is a signed credential that binds a pilot's identity to a specific craft and seat. The daemon issues tokens at agent launch time; the standalone MCP server validates them on every request to establish the caller's identity without trusting tool call arguments.
+
+#### Properties
+
+| Property    | Type               | Constraints                                                                 |
+| ----------- | ------------------ | --------------------------------------------------------------------------- |
+| pilotId     | `string`           | Required. The unique identifier of the pilot (see RULE-PILOT-1).            |
+| callsign    | `string`           | Required. The craft callsign this token is scoped to (see RULE-CRAFT-1).    |
+| projectName | `string`           | Required. The project containing the craft.                                 |
+| seat        | `SeatType`         | Required. One of `captain`, `firstOfficer`, `jumpseat`, or `inspector`.     |
+| issuedAt    | `number`           | Required. Unix timestamp of token issuance.                                 |
+| expiresAt   | `number`           | Required. Unix timestamp after which the token is invalid.                  |
+
+Tokens are signed with HMAC-SHA256 (or JWT with symmetric signing) using a daemon-local secret shared with the standalone MCP server via the `ATC_TOKEN_SECRET` environment variable. The MCP server validates tokens locally — it never calls back to the daemon for verification.
+
+#### Issuance Endpoint
+
+`POST /api/v1/projects/:name/crafts/:callsign/pilots/:pilotId/session-token`
+
+Returns `{ token: string, expiresAt: number }`. The daemon verifies that the pilot is on the craft's manifest and encodes the current seat type into the token. The token is injected into the agent's environment as `ATC_PILOT_TOKEN` before the agent process starts.
+
+#### Rules
+
+- **RULE-MCPAUTH-1:** A standalone MCP server MUST require a valid Pilot Session Token on every connection. Requests without a token MUST be rejected with error code `TOKEN_MISSING`.
+- **RULE-MCPAUTH-2:** Tokens MUST be issued by the daemon and MUST encode `{ pilotId, callsign, projectName, seat, issuedAt, expiresAt }`. The daemon MUST verify the pilot is on the craft's manifest before issuing a token.
+- **RULE-MCPAUTH-3:** The standalone MCP server MUST NOT accept pilot identity from tool call arguments. All identity MUST be extracted from the validated token. Tool schemas MUST NOT include `pilotId`, `callsign`, or `seat` parameters.
+- **RULE-MCPAUTH-4:** The `AgentAdapter.resume()` path MUST re-issue the token via the issuance endpoint and re-inject the new `ATC_PILOT_TOKEN` into the agent's environment before resuming execution.
+- **RULE-MCPAUTH-5:** Token transport MUST use the `ATC_PILOT_TOKEN` environment variable. For HTTP-transport MCP connections, the client MUST also send the token as `Authorization: Bearer <token>` on every request. For stdio-transport MCP connections, the server reads the token from the environment at process start.
+- **RULE-MCPAUTH-6:** Token signing MUST use a shared secret distributed via the `ATC_TOKEN_SECRET` environment variable. Both the daemon and the standalone MCP server MUST have access to this secret. Asymmetric signing (JWKS) is reserved for future distributed deployments and is out of scope for the initial implementation.
+- **RULE-MCPAUTH-7:** The standalone MCP server MUST enforce seat-based tool authorization structurally. When a pilot's seat type is insufficient for the requested tool (e.g., a jumpseat pilot calling a captain-only tool), the server MUST reject the request with error code `SEAT_INSUFFICIENT_AUTHORITY`. Advisory system-prompt enforcement alone is insufficient.
+- **RULE-MCPAUTH-8:** All authentication and authorization errors from the standalone MCP server MUST include three fields: `code` (machine-readable error code), `message` (human-readable description), and `fixHint` (actionable next step for the caller).
+
+#### Error Codes
+
+| Code                         | Trigger                                          | fixHint                                                                |
+| ---------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
+| `TOKEN_MISSING`              | No `Authorization` header or `ATC_PILOT_TOKEN`   | Include `Authorization: Bearer <token>` or set `ATC_PILOT_TOKEN`       |
+| `TOKEN_INVALID`              | Signature verification failed                    | Re-authenticate; the token may have been tampered with                 |
+| `TOKEN_EXPIRED`              | `expiresAt` < current time                       | Request a new token from the daemon via the session-token endpoint     |
+| `PILOT_NOT_ON_MANIFEST`      | `pilotId` not found in the craft's current crew  | Verify the craft callsign in your token matches the active craft       |
+| `SEAT_INSUFFICIENT_AUTHORITY`| Seat type lacks permission for the requested tool| Only the captain (or captain/FO) may call this tool                    |
+| `CRAFT_NOT_FOUND`            | Callsign in the token references a missing craft | The craft may have landed or been abandoned; check craft status         |
+
+#### Token Lifetime
+
+Tokens default to a 24-hour TTL. The `AgentAdapter` is responsible for refresh: when `resume()` is called, the adapter re-issues the token via the issuance endpoint and re-injects it into the agent environment (RULE-MCPAUTH-4). No separate refresh protocol is defined — the resume path is the refresh mechanism.
 
 ## 3. Craft Lifecycle
 
@@ -879,6 +931,144 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 - **RULE-UXR-4:** Changes to the web package MUST maintain or improve accessibility: sufficient color contrast (WCAG AA), keyboard navigability, and screen-reader-compatible markup.
 - **RULE-UXR-5:** Destructive or irreversible actions MUST require explicit user confirmation before execution. Users MUST be able to recover from errors without losing in-progress work.
 
+### 4.9 MCP Tool Error Contract
+
+The three in-process MCP tool servers (`atc-intercom`, `atc-controls`, `atc-tower`) expose ATC domain actions directly to autonomous pilot agents and Claude Code users. This section specifies the structured error format that all ATC MCP tools MUST use when an operation fails, ensuring machine-parseable rule references alongside human-readable guidance.
+
+#### 4.9.1 Error Format
+
+**RULE-MCP-2:** All ATC MCP tool error responses MUST use the following single-line format for the `content[].text` field:
+
+```
+{ruleId}: {description}. {fixHint}.
+```
+
+Where:
+
+- `{ruleId}` is a `RULE-*` identifier from Appendix A, or the sentinel `RULE-MCP-1` for daemon connectivity failures.
+- `{description}` is a concise domain-readable statement of what constraint was violated or what failed. MUST NOT end with a period.
+- `{fixHint}` is a concise actionable instruction for resolving the issue. MUST NOT end with a period (the format appends the trailing period).
+
+**Example:** `RULE-CTRL-2: Target pilot is in a jumpseat seat and cannot hold exclusive controls. Assign a captain or first officer as the transfer target.`
+
+#### 4.9.2 Per-Tool Error Mapping
+
+When the daemon returns a structured error body containing a `ruleId` field, the MCP tool MUST use that `ruleId` in the error text (RULE-MCP-3). When no `ruleId` is present in the response body, the tool maps the HTTP status to the appropriate rule using the tables below.
+
+**`atc-controls` — `controls_transfer`**
+
+| HTTP Status | `ruleId` | `fixHint` |
+|---|---|---|
+| 404 | `RULE-CRAFT-1` | Verify the callsign and project name are correct |
+| 400 | `RULE-CRAFT-5` | Only pilots assigned to this craft's manifest may claim controls; verify the target pilot is on the crew |
+| 403 (body includes `ruleId`) | use body `ruleId`; see §4.9.3 | see §4.9.3 |
+| other | `RULE-CTRL-3` | Check the daemon logs and verify the craft is active |
+
+**`atc-controls` — `controls_read`**
+
+| HTTP Status | `ruleId` | `fixHint` |
+|---|---|---|
+| 404 | `RULE-CRAFT-1` | Verify the callsign and project name are correct |
+| other | `RULE-CTRL-3` | Check the daemon logs and verify the craft is active |
+
+**`atc-intercom` — `intercom_send`**
+
+| HTTP Status | `ruleId` | `fixHint` |
+|---|---|---|
+| 404 | `RULE-CRAFT-1` | Verify the callsign and project name are correct before transmitting |
+| other | `RULE-ICOM-1` | Check the daemon logs and verify the craft is active |
+
+**`atc-tower` — `tower_request_clearance`**
+
+| HTTP Status | `ruleId` | `fixHint` |
+|---|---|---|
+| 404 | `RULE-CRAFT-1` | Verify the callsign and project name are correct |
+| 409 | `RULE-TOWER-2` | Report all remaining vectors before requesting clearance |
+| other | `RULE-TOWER-1` | Check the daemon logs and the craft's flight plan status |
+
+**`atc-tower` — `tower_execute_merge`**
+
+| HTTP Status | `ruleId` | `fixHint` |
+|---|---|---|
+| 404 | `RULE-CRAFT-1` | Verify the callsign and project name are correct |
+| 409 | `RULE-TMRG-1` | Request landing clearance with `tower_request_clearance` before executing a merge |
+| 500 | `RULE-TOWER-3` | Review the craft black box for the failure reason and consider going around |
+| other | `RULE-TOWER-3` | Check the daemon logs and the craft's current state |
+
+#### 4.9.3 Daemon-Supplied ruleId Fix Hints
+
+When a 403 response from the daemon includes a `ruleId` field, the MCP tool MUST use that rule as the `ruleId` and apply the following fix hint:
+
+| `ruleId` | `fixHint` |
+|---|---|
+| `RULE-CTRL-2` | Only a captain or first officer may hold exclusive controls; assign a captain or first officer as the transfer target |
+| `RULE-CTRL-3` | You must hold controls before modifying files; request a controls transfer first |
+| `RULE-CTRL-6` | The captain has final authority over controls disputes; contact the captain to resolve |
+| (unknown) | Check the ATC specification for the named rule |
+
+#### 4.9.4 Connectivity Failures
+
+**RULE-MCP-1:** When the MCP tool cannot reach the ATC daemon at all (network error, DNS failure, connection refused), the error text MUST use `RULE-MCP-1` as the `ruleId`, include the underlying error message as the description, and instruct the pilot to verify the daemon URL.
+
+**Example:** `RULE-MCP-1: ATC daemon is unreachable: connection refused. Verify the daemon is running at http://localhost:7700.`
+
+#### 4.9.5 Applicability
+
+This contract applies to all three existing MCP tool servers and MUST be applied to any future ATC MCP tools. The UX review protocol (§4.7) governs changes to fix hint text — any modification to a fix hint is a user-facing change and requires UX review.
+
+### 4.10 MCP Authentication Protocol
+
+When ATC tools are served by a standalone MCP server process (rather than per-pilot in-process closures), the server must authenticate every caller and enforce authorization based on the pilot's seat type. This protocol defines the authentication flow using Pilot Session Tokens (§2.9).
+
+#### 4.10.1 Authentication Flow
+
+1. **Token issuance.** At agent launch, the daemon calls `POST /api/v1/projects/:name/crafts/:callsign/pilots/:pilotId/session-token`. The daemon verifies the pilot is on the craft's manifest and returns a signed token encoding `{ pilotId, callsign, projectName, seat, issuedAt, expiresAt }`.
+2. **Token injection.** The daemon sets `ATC_PILOT_TOKEN=<token>` in the agent's environment before starting the agent process. For HTTP-transport MCP, the agent's MCP client sends `Authorization: Bearer <token>` on every request. For stdio-transport MCP, the server reads `ATC_PILOT_TOKEN` from the environment at process start.
+3. **Token validation.** On every tool call, the standalone MCP server validates the token's signature using the shared `ATC_TOKEN_SECRET`, checks `expiresAt`, and extracts the `PilotSessionClaims` (`{ pilotId, callsign, projectName, seat }`). Failed validation returns one of the structured error codes defined in §2.9.
+4. **Identity binding.** The validated claims are passed to tool handlers as context. Tool handlers use these claims for all authorization decisions. Tool schemas MUST NOT include identity parameters (RULE-MCPAUTH-3).
+5. **Seat authorization.** Before executing a tool, the server checks whether the caller's `seat` type is sufficient. Tools that require captain authority (e.g., `tower_execute_merge`, `controls_transfer`) MUST reject jumpseat and inspector callers with `SEAT_INSUFFICIENT_AUTHORITY`.
+6. **Token refresh.** When `AgentAdapter.resume()` is called, the adapter re-issues the token via the issuance endpoint and re-injects the new `ATC_PILOT_TOKEN` before resuming execution. No mid-session refresh protocol is defined; the 24-hour default TTL exceeds typical agent session lengths.
+
+#### 4.10.2 Multi-Pilot Scenario
+
+The standalone MCP server handles N concurrent connections, each identity-scoped by its own token. Two pilots on different crafts connect with distinct tokens; tool handlers route all operations through the validated claims — no cross-craft leakage is possible because the token's `callsign` field constrains the scope.
+
+If a token references a `pilotId` that is no longer on the craft's manifest (e.g., the pilot was removed mid-flight), the daemon's action endpoints return 403 with `PILOT_NOT_ON_MANIFEST`. The MCP server does not cache manifest state — it relies on the daemon for crew verification at action time.
+
+#### 4.10.3 Seat Authority Matrix
+
+Tools exposed by the standalone MCP server declare a minimum authority level. The server enforces this structurally per RULE-MCPAUTH-7:
+
+| Authority Level | Seats Permitted                           | Example Tools                      |
+| --------------- | ----------------------------------------- | ---------------------------------- |
+| `captain`       | Captain only                              | `tower_execute_merge`, `declare_emergency` |
+| `crew`          | Captain, First Officer                    | `controls_transfer`, `intercom_send` |
+| `any`           | Captain, First Officer, Jumpseat, Inspector | `controls_read`, `blackbox_read`   |
+
+If a tool requires `captain` authority and the token's `seat` is anything other than `captain`, the server rejects the call with `SEAT_INSUFFICIENT_AUTHORITY`. Inspector seats follow the same constraint as Jumpseat for write operations — they may only call `any`-authority tools.
+
+#### 4.10.4 Open Question Resolution Record
+
+The following design decisions were made during spec authoring (AIR-699) and are now normative:
+
+| Question | Decision | Rationale |
+| --- | --- | --- |
+| Token transport (stdio vs HTTP) | `ATC_PILOT_TOKEN` env var for all transports (RULE-MCPAUTH-5) | Env vars work universally; MCP `initialize` extra params are non-standard. |
+| Token secret distribution | Shared secret via `ATC_TOKEN_SECRET` env var (RULE-MCPAUTH-6) | Simplest for single-machine deployments; JWKS deferred to future distributed mode. |
+| Token lifetime policy | 24h default TTL, re-issued on `resume()` (RULE-MCPAUTH-4) | Avoids mid-session expiry; resume path serves as refresh mechanism. |
+| Seat authority enforcement | Structural enforcement at MCP server (RULE-MCPAUTH-7) | Advisory system-prompt is insufficient per structural-enforcement principle. |
+
+#### Rules
+
+- **RULE-MCPAUTH-1:** A standalone MCP server MUST require a valid Pilot Session Token on every connection (§2.9).
+- **RULE-MCPAUTH-2:** Tokens MUST be issued by the daemon and encode `{ pilotId, callsign, projectName, seat, issuedAt, expiresAt }` (§2.9).
+- **RULE-MCPAUTH-3:** The standalone MCP server MUST NOT accept pilot identity from tool call arguments (§2.9).
+- **RULE-MCPAUTH-4:** `AgentAdapter.resume()` MUST re-issue the token and re-inject it into the agent environment (§2.9).
+- **RULE-MCPAUTH-5:** Token transport MUST use `ATC_PILOT_TOKEN` env var; HTTP clients MUST also send `Authorization: Bearer` (§2.9).
+- **RULE-MCPAUTH-6:** Token signing MUST use a shared secret via `ATC_TOKEN_SECRET` env var (§2.9).
+- **RULE-MCPAUTH-7:** The MCP server MUST enforce seat-based authorization structurally; `SEAT_INSUFFICIENT_AUTHORITY` for unauthorized calls (§2.9).
+- **RULE-MCPAUTH-8:** All auth errors MUST include `code`, `message`, and `fixHint` fields (§2.9).
+
 ## 5. Appendices
 
 ### Appendix A: Rule Index
@@ -1001,3 +1191,14 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-UXR-3     | All user-visible states covered: success, error, loading, empty.     | 4.7.3   |
 | RULE-UXR-4     | Web changes must maintain/improve accessibility (WCAG AA).           | 4.7.3   |
 | RULE-UXR-5     | Destructive actions require confirmation; errors must be recoverable.| 4.7.3   |
+| RULE-MCP-1     | Sentinel ruleId for MCP tool connectivity failures (daemon unreachable). | 4.9.4 |
+| RULE-MCP-2     | All MCP tool errors MUST use format `{ruleId}: {description}. {fixHint}.` | 4.9.1 |
+| RULE-MCP-3     | When daemon response includes `ruleId` field, MCP tool MUST use it.  | 4.9.2   |
+| RULE-MCPAUTH-1 | Standalone MCP server MUST require a valid PST on every connection.   | 2.9     |
+| RULE-MCPAUTH-2 | Tokens MUST be daemon-issued, encoding pilotId, callsign, projectName, seat, issuedAt, expiresAt. | 2.9 |
+| RULE-MCPAUTH-3 | Standalone MCP server MUST NOT accept pilot identity from tool arguments. | 2.9  |
+| RULE-MCPAUTH-4 | `AgentAdapter.resume()` MUST re-issue token and re-inject into agent env. | 2.9  |
+| RULE-MCPAUTH-5 | Token transport via `ATC_PILOT_TOKEN` env var; HTTP also sends Bearer header. | 2.9 |
+| RULE-MCPAUTH-6 | Token signing via shared secret in `ATC_TOKEN_SECRET` env var.       | 2.9     |
+| RULE-MCPAUTH-7 | MCP server MUST enforce seat-based authorization structurally.       | 2.9     |
+| RULE-MCPAUTH-8 | All auth errors MUST include `code`, `message`, and `fixHint`.       | 2.9     |
