@@ -139,7 +139,10 @@ describe("tower routes", () => {
     it("removes craft from queue and transitions ClearedToLand → GoAround (RULE-LIFE-2)", async () => {
       seedCraft(true);
       // Promote to ClearedToLand so the transition is valid per RULE-LIFE-2.
-      craftStore.set(PROJECT, { ...craftStore.get(PROJECT, "charlie-1")!, status: CraftStatus.ClearedToLand });
+      craftStore.set(PROJECT, {
+        ...craftStore.get(PROJECT, "charlie-1")!,
+        status: CraftStatus.ClearedToLand,
+      });
       towerStore.enqueue(PROJECT, "charlie-1");
 
       const res = await app.inject({

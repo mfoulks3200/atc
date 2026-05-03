@@ -15,6 +15,8 @@ export const queryKeys = {
     detail: (project: string, callsign: string) => ["crafts", project, callsign] as const,
     blackBox: (project: string, callsign: string) =>
       ["crafts", project, callsign, "blackbox"] as const,
+    verify: (project: string, callsign: string) =>
+      ["crafts", project, callsign, "blackbox", "verify"] as const,
     intercom: (project: string, callsign: string) =>
       ["crafts", project, callsign, "intercom"] as const,
     vectors: (project: string, callsign: string) =>

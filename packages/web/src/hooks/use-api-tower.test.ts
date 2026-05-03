@@ -52,10 +52,9 @@ describe("useGrantMerge", () => {
       await result.current.mutateAsync({ callsign: "ALPHA-1" });
     });
 
-    expect(apiClient.post).toHaveBeenCalledWith(
-      "/api/v1/projects/proj-x/tower/merge",
-      { callsign: "ALPHA-1" },
-    );
+    expect(apiClient.post).toHaveBeenCalledWith("/api/v1/projects/proj-x/tower/merge", {
+      callsign: "ALPHA-1",
+    });
   });
 
   it("surfaces errors from the daemon", async () => {
@@ -99,9 +98,7 @@ describe("useDenyClearance", () => {
       await result.current.mutateAsync("ALPHA-1");
     });
 
-    expect(apiClient.delete).toHaveBeenCalledWith(
-      "/api/v1/projects/proj-x/tower/ALPHA-1",
-    );
+    expect(apiClient.delete).toHaveBeenCalledWith("/api/v1/projects/proj-x/tower/ALPHA-1");
   });
 
   it("surfaces errors from the daemon", async () => {

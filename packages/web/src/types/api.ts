@@ -79,6 +79,30 @@ export interface BlackBoxEntry {
   content: string;
 }
 
+/** Cryptographic verification state for a single black box entry. @see RULE-BBOX-8 */
+export type VerificationState = "signed-valid" | "signed-invalid" | "unsigned" | "author-not-found";
+
+/** A black box entry annotated with its verification state. @see RULE-BBOX-8 */
+export interface VerifiedBlackBoxEntry extends BlackBoxEntry {
+  verificationState: VerificationState;
+}
+
+/**
+ * Response from GET /api/v1/projects/:name/crafts/:callsign/blackbox/verify.
+ *
+ * Invariant: total === verified + unsigned + tampered + unresolvable.
+ *
+ * @see RULE-BBOX-8
+ */
+export interface BlackBoxVerifyResponse {
+  total: number;
+  verified: number;
+  unsigned: number;
+  tampered: number;
+  unresolvable: number;
+  entries: VerifiedBlackBoxEntry[];
+}
+
 export interface ControlState {
   mode: "exclusive" | "shared";
   holder?: string;
@@ -136,6 +160,8 @@ export interface PilotRecord {
   identifier: string;
   certifications: string[];
   mcpServers: Record<string, { command: string; args: string[]; env?: Record<string, string> }>;
+  /** Ed25519 public key in base64url encoding. Null when the pilot has no registered key. @see RULE-PILOT-3 */
+  publicKey?: string | null;
 }
 
 export interface HealthResponse {

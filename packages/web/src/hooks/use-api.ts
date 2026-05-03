@@ -10,6 +10,7 @@ import type {
   AgentRecord,
   AgentUsageReport,
   BlackBoxEntry,
+  BlackBoxVerifyResponse,
   IntercomMessage,
   VectorState,
   GlobalConfig,
@@ -79,6 +80,20 @@ export function useCraftBlackBox(project: string, callsign: string) {
     queryKey: queryKeys.crafts.blackBox(project, callsign),
     queryFn: () =>
       apiClient.get<BlackBoxEntry[]>(`/api/v1/projects/${project}/crafts/${callsign}/blackbox`),
+  });
+}
+
+/**
+ * Fetches per-entry verification states and aggregate integrity counts for a craft's black box.
+ * Phase 1: all entries are unsigned (no signing implemented yet). @see RULE-BBOX-8
+ */
+export function useCraftBlackBoxVerify(project: string, callsign: string) {
+  return useQuery({
+    queryKey: queryKeys.crafts.verify(project, callsign),
+    queryFn: () =>
+      apiClient.get<BlackBoxVerifyResponse>(
+        `/api/v1/projects/${project}/crafts/${callsign}/blackbox/verify`,
+      ),
   });
 }
 
