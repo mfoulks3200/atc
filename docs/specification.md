@@ -6,7 +6,7 @@
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
-- 0.5.0 (2026-05-03): Add Pilot Session Token entity §2.9, MCP authentication protocol §4.10 (RULE-MCPAUTH-1 through RULE-MCPAUTH-8), session-token issuance endpoint, seat authority matrix, structured auth error codes, and open question resolution record (AIR-700).
+- 0.5.0 (2026-05-03): Add Pilot Session Token entity §2.9, MCP authentication protocol §4.10 (RULE-MCPAUTH-1 through RULE-MCPAUTH-8), session-token issuance endpoint, seat authority matrix, structured auth error codes, and open question resolution record (AIR-699).
 - 0.4.1 (2026-05-03): Add structured MCP tool error contract §4.9 (RULE-MCP-1 through RULE-MCP-3, AIR-692).
 - 0.4.0 (2026-04-30): Add Inspector seat type (RULE-SEAT-5/6), UnderReview lifecycle state (RULE-LIFE-9/10), adversarial review protocol §4.8 (RULE-ARVW-1 through RULE-ARVW-5), challenge finding and builder flag schemas §2.8, and five new black box entry types (AIR-265).
 - 0.3.2 (2026-04-30): Add constraint dry-run API and structured constraint failure response shape — `?dryRun=true` on `reportVector`, `ConstraintCheckResult`, `ConstraintFailure`, `ConstraintCheckFailed` black box entry, captain override with justification (RULE-VRPT-5 through RULE-VRPT-10, §4.1.1, AIR-324).
