@@ -18,6 +18,7 @@
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { McpSdkServerConfigWithInstance } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
+import { mcpError, parseDaemonBody, fixHintForDaemonRule } from "./mcp-error.js";
 
 /**
  * Context a pilot needs to transfer controls on its craft.
@@ -78,16 +79,30 @@ export function createControlsMcpServer(ctx: ControlsToolContext): McpSdkServerC
               body: JSON.stringify({ pilotId: args.targetPilotId }),
             });
             if (!response.ok) {
-              const body = await response.text().catch(() => "");
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: `Controls transfer failed (HTTP ${response.status}): ${body}`,
-                  },
-                ],
-                isError: true,
-              };
+              const body = await parseDaemonBody(response);
+              let text: string;
+              if (response.status === 404) {
+                text = mcpError(
+                  "RULE-CRAFT-1",
+                  `Craft ${ctx.callsign} not found in project ${ctx.projectName}`,
+                  "Verify the callsign and project name are correct",
+                );
+              } else if (response.status === 400) {
+                text = mcpError(
+                  "RULE-CRAFT-5",
+                  body.error || `Pilot ${args.targetPilotId} is not on the flight manifest for craft ${ctx.callsign}`,
+                  "Only pilots assigned to this craft's manifest may claim controls; verify the target pilot is on the crew",
+                );
+              } else if (response.status === 403 && body.ruleId) {
+                text = mcpError(body.ruleId, body.error, fixHintForDaemonRule(body.ruleId));
+              } else {
+                text = mcpError(
+                  "RULE-CTRL-3",
+                  body.error || `Controls transfer failed (HTTP ${response.status})`,
+                  "Check the daemon logs and verify the craft is active",
+                );
+              }
+              return { content: [{ type: "text", text }], isError: true };
             }
             return {
               content: [
@@ -100,7 +115,16 @@ export function createControlsMcpServer(ctx: ControlsToolContext): McpSdkServerC
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             return {
-              content: [{ type: "text", text: `Transfer threw: ${msg}` }],
+              content: [
+                {
+                  type: "text",
+                  text: mcpError(
+                    "RULE-MCP-1",
+                    `ATC daemon is unreachable: ${msg}`,
+                    `Verify the daemon is running at ${ctx.daemonUrl}`,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
@@ -114,15 +138,20 @@ export function createControlsMcpServer(ctx: ControlsToolContext): McpSdkServerC
           try {
             const response = await fetch(readUrl);
             if (!response.ok) {
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: `Failed to read controls: HTTP ${response.status}`,
-                  },
-                ],
-                isError: true,
-              };
+              const body = await parseDaemonBody(response);
+              const text =
+                response.status === 404
+                  ? mcpError(
+                      "RULE-CRAFT-1",
+                      `Craft ${ctx.callsign} not found in project ${ctx.projectName}`,
+                      "Verify the callsign and project name are correct",
+                    )
+                  : mcpError(
+                      "RULE-CTRL-3",
+                      body.error || `Failed to read controls (HTTP ${response.status})`,
+                      "Check the daemon logs and verify the craft is active",
+                    );
+              return { content: [{ type: "text", text }], isError: true };
             }
             const state = (await response.json()) as unknown;
             return {
@@ -131,7 +160,16 @@ export function createControlsMcpServer(ctx: ControlsToolContext): McpSdkServerC
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             return {
-              content: [{ type: "text", text: `Read threw: ${msg}` }],
+              content: [
+                {
+                  type: "text",
+                  text: mcpError(
+                    "RULE-MCP-1",
+                    `ATC daemon is unreachable: ${msg}`,
+                    `Verify the daemon is running at ${ctx.daemonUrl}`,
+                  ),
+                },
+              ],
               isError: true,
             };
           }

@@ -67,8 +67,10 @@ describe("createIntercomMcpServer", () => {
     expect(result.content[0].text).toContain("broadcast successfully");
   });
 
-  it("reports an error when the daemon returns non-ok", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response("craft not found", { status: 404 }));
+  it("reports RULE-CRAFT-1 when the daemon returns 404", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "Craft not found: GHOST" }), { status: 404 }),
+    );
     const cfg = createIntercomMcpServer({
       daemonUrl: "http://localhost:7700",
       projectName: "demo",
@@ -86,10 +88,10 @@ describe("createIntercomMcpServer", () => {
       isError?: boolean;
     };
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain("404");
+    expect(result.content[0].text).toMatch(/^RULE-CRAFT-1: .+\. .+\.$/);
   });
 
-  it("catches thrown fetch errors and reports them", async () => {
+  it("catches thrown fetch errors and reports them as RULE-MCP-1", async () => {
     fetchSpy.mockRejectedValueOnce(new Error("network down"));
     const cfg = createIntercomMcpServer({
       daemonUrl: "http://localhost:7700",
@@ -108,6 +110,7 @@ describe("createIntercomMcpServer", () => {
       isError?: boolean;
     };
     expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/^RULE-MCP-1: .+\. .+\.$/);
     expect(result.content[0].text).toContain("network down");
   });
 });

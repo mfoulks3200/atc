@@ -21,6 +21,7 @@
 
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { McpSdkServerConfigWithInstance } from "@anthropic-ai/claude-agent-sdk";
+import { mcpError, parseDaemonBody } from "./mcp-error.js";
 
 /**
  * Context a pilot agent needs in order to drive tower landing operations
@@ -70,22 +71,47 @@ export function createTowerMcpServer(ctx: TowerToolContext): McpSdkServerConfigW
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ callsign: ctx.callsign }),
             });
-            const body = await response.text();
             if (!response.ok) {
-              return {
-                content: [
-                  { type: "text", text: `Clearance refused (HTTP ${response.status}): ${body}` },
-                ],
-                isError: true,
-              };
+              const body = await parseDaemonBody(response);
+              let text: string;
+              if (response.status === 404) {
+                text = mcpError(
+                  "RULE-CRAFT-1",
+                  `Craft ${ctx.callsign} not found in project ${ctx.projectName}`,
+                  "Verify the callsign and project name are correct",
+                );
+              } else if (response.status === 409) {
+                text = mcpError(
+                  "RULE-TOWER-2",
+                  body.error || "Not all vectors in the flight plan have passed",
+                  "Report all remaining vectors before requesting clearance",
+                );
+              } else {
+                text = mcpError(
+                  "RULE-TOWER-1",
+                  body.error || `Clearance refused (HTTP ${response.status})`,
+                  "Check the daemon logs and the craft's flight plan status",
+                );
+              }
+              return { content: [{ type: "text", text }], isError: true };
             }
+            const body = await response.text();
             return {
               content: [{ type: "text", text: `Clearance granted: ${body}` }],
             };
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             return {
-              content: [{ type: "text", text: `Clearance request threw: ${msg}` }],
+              content: [
+                {
+                  type: "text",
+                  text: mcpError(
+                    "RULE-MCP-1",
+                    `ATC daemon is unreachable: ${msg}`,
+                    `Verify the daemon is running at ${ctx.daemonUrl}`,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
@@ -113,22 +139,53 @@ export function createTowerMcpServer(ctx: TowerToolContext): McpSdkServerConfigW
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ callsign: ctx.callsign }),
             });
-            const body = await response.text();
             if (!response.ok) {
-              return {
-                content: [
-                  { type: "text", text: `Merge failed (HTTP ${response.status}): ${body}` },
-                ],
-                isError: true,
-              };
+              const body = await parseDaemonBody(response);
+              let text: string;
+              if (response.status === 404) {
+                text = mcpError(
+                  "RULE-CRAFT-1",
+                  `Craft ${ctx.callsign} not found in project ${ctx.projectName}`,
+                  "Verify the callsign and project name are correct",
+                );
+              } else if (response.status === 409) {
+                text = mcpError(
+                  "RULE-TMRG-1",
+                  body.error || `Craft ${ctx.callsign} is not in the merge queue`,
+                  "Request landing clearance with tower_request_clearance before executing a merge",
+                );
+              } else if (response.status === 500) {
+                text = mcpError(
+                  "RULE-TOWER-3",
+                  body.error || "Tower merge execution failed",
+                  "Review the craft black box for the failure reason and consider going around",
+                );
+              } else {
+                text = mcpError(
+                  "RULE-TOWER-3",
+                  body.error || `Merge failed (HTTP ${response.status})`,
+                  "Check the daemon logs and the craft's current state",
+                );
+              }
+              return { content: [{ type: "text", text }], isError: true };
             }
+            const body = await response.text();
             return {
               content: [{ type: "text", text: `Merge result: ${body}` }],
             };
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             return {
-              content: [{ type: "text", text: `Merge request threw: ${msg}` }],
+              content: [
+                {
+                  type: "text",
+                  text: mcpError(
+                    "RULE-MCP-1",
+                    `ATC daemon is unreachable: ${msg}`,
+                    `Verify the daemon is running at ${ctx.daemonUrl}`,
+                  ),
+                },
+              ],
               isError: true,
             };
           }

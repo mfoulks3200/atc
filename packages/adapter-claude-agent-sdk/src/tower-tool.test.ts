@@ -74,7 +74,7 @@ describe("createTowerMcpServer", () => {
     expect(result.content[0].text).toContain("landed");
   });
 
-  it("reports errors when clearance is refused (e.g. vectors not all passed)", async () => {
+  it("reports RULE-TOWER-2 when clearance refused because vectors not all passed", async () => {
     fetchSpy.mockResolvedValueOnce(
       new Response(JSON.stringify({ error: "Not all vectors have passed" }), { status: 409 }),
     );
@@ -88,6 +88,28 @@ describe("createTowerMcpServer", () => {
       isError?: boolean;
     };
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain("409");
+    expect(result.content[0].text).toMatch(/^RULE-TOWER-2: .+\. .+\.$/);
+    expect(result.content[0].text).toContain("vectors");
+  });
+
+  it("reports RULE-TMRG-1 when merge attempted without clearance (409)", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ error: "Craft ALPHA is not in the merge queue" }),
+        { status: 409 },
+      ),
+    );
+    const cfg = createTowerMcpServer({
+      daemonUrl: "http://localhost:7700",
+      projectName: "demo",
+      callsign: "ALPHA",
+    });
+    const result = (await getTools(cfg).tower_execute_merge.handler({})) as {
+      content: Array<{ text: string }>;
+      isError?: boolean;
+    };
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/^RULE-TMRG-1: .+\. .+\.$/);
+    expect(result.content[0].text).toContain("tower_request_clearance");
   });
 });

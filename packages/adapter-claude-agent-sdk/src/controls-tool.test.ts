@@ -60,8 +60,16 @@ describe("createControlsMcpServer", () => {
     expect(result.content[0].text).toContain("transferred to fo-bravo");
   });
 
-  it("controls_transfer returns isError when the daemon returns non-ok", async () => {
-    fetchSpy.mockResolvedValueOnce(new Response("jumpseat not allowed", { status: 403 }));
+  it("controls_transfer returns isError with structured RULE-CTRL-2 format for 403 jumpseat violation", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "Target pilot is in jumpseat seat and cannot hold exclusive controls",
+          ruleId: "RULE-CTRL-2",
+        }),
+        { status: 403 },
+      ),
+    );
     const cfg = createControlsMcpServer({
       daemonUrl: "http://localhost:7700",
       projectName: "demo",
@@ -72,7 +80,25 @@ describe("createControlsMcpServer", () => {
       targetPilotId: "jump-1",
     })) as { content: Array<{ text: string }>; isError?: boolean };
     expect(result.isError).toBe(true);
-    expect(result.content[0].text).toContain("403");
+    expect(result.content[0].text).toMatch(/^RULE-CTRL-2: .+\. .+\.$/);
+    expect(result.content[0].text).toContain("captain or first officer");
+  });
+
+  it("controls_transfer returns RULE-CRAFT-1 for 404", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "Craft not found: BRAVO" }), { status: 404 }),
+    );
+    const cfg = createControlsMcpServer({
+      daemonUrl: "http://localhost:7700",
+      projectName: "demo",
+      callsign: "BRAVO",
+      pilotId: "captain-1",
+    });
+    const result = (await getTools(cfg).controls_transfer.handler({
+      targetPilotId: "fo-1",
+    })) as { content: Array<{ text: string }>; isError?: boolean };
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/^RULE-CRAFT-1: .+\. .+\.$/);
   });
 
   it("controls_read GETs the controls endpoint and returns the state", async () => {

@@ -16,6 +16,7 @@
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { McpSdkServerConfigWithInstance } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
+import { mcpError, parseDaemonBody } from "./mcp-error.js";
 
 /**
  * Context a pilot agent needs in order to send intercom messages that are
@@ -87,18 +88,20 @@ export function createIntercomMcpServer(ctx: IntercomToolContext): McpSdkServerC
               }),
             });
             if (!response.ok) {
-              const body = await response.text().catch(() => "");
-              return {
-                content: [
-                  {
-                    type: "text",
-                    text: `Intercom POST failed with status ${response.status}${
-                      body ? `: ${body}` : ""
-                    }`,
-                  },
-                ],
-                isError: true,
-              };
+              const body = await parseDaemonBody(response);
+              const text =
+                response.status === 404
+                  ? mcpError(
+                      "RULE-CRAFT-1",
+                      `Craft ${ctx.callsign} not found in project ${ctx.projectName}`,
+                      "Verify the callsign and project name are correct before transmitting",
+                    )
+                  : mcpError(
+                      "RULE-ICOM-1",
+                      body.error || `Intercom POST failed (HTTP ${response.status})`,
+                      "Check the daemon logs and verify the craft is active",
+                    );
+              return { content: [{ type: "text", text }], isError: true };
             }
             return {
               content: [
@@ -111,7 +114,16 @@ export function createIntercomMcpServer(ctx: IntercomToolContext): McpSdkServerC
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             return {
-              content: [{ type: "text", text: `Intercom POST threw: ${msg}` }],
+              content: [
+                {
+                  type: "text",
+                  text: mcpError(
+                    "RULE-MCP-1",
+                    `ATC daemon is unreachable: ${msg}`,
+                    `Verify the daemon is running at ${ctx.daemonUrl}`,
+                  ),
+                },
+              ],
               isError: true,
             };
           }
