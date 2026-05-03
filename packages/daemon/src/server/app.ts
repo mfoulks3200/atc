@@ -33,6 +33,11 @@ import { metricsRoutes } from "./routes/metrics.js";
 import type { LayeredConfigStore } from "../config/layered-store.js";
 import type { GlobalConfig, ProjectMetadataConfig } from "../config/schema.js";
 import { PilotConfigStore } from "../config/pilot-config-store.js";
+import {
+  createTemplateRegistry,
+  createBindingRegistry,
+  createOverrideStore,
+} from "@airtrafficcontrol/checklist";
 
 /**
  * Options passed to {@link createApp}.
@@ -64,6 +69,12 @@ export interface AppOptions {
   projectConfigStores?: Map<string, LayeredConfigStore<ProjectMetadataConfig>>;
   /** Store for per-pilot configuration (in-memory). */
   pilotConfigStore?: PilotConfigStore;
+  /** Registry of checklist templates. @see RULE-CHKL-1 */
+  templateRegistry?: ReturnType<typeof createTemplateRegistry>;
+  /** Registry of checklist bindings (template → event + category). @see RULE-CHKL-2 */
+  bindingRegistry?: ReturnType<typeof createBindingRegistry>;
+  /** Per-craft checklist override store. @see RULE-CHKL-3 */
+  overrideStore?: ReturnType<typeof createOverrideStore>;
 }
 
 /**
@@ -101,6 +112,9 @@ export function createApp(options: AppOptions = {}): FastifyInstance {
         ),
       ),
   );
+  app.decorate("templateRegistry", options.templateRegistry ?? createTemplateRegistry());
+  app.decorate("bindingRegistry", options.bindingRegistry ?? createBindingRegistry());
+  app.decorate("overrideStore", options.overrideStore ?? createOverrideStore());
 
   void app.register(websocket);
 
@@ -191,5 +205,11 @@ declare module "fastify" {
     projectConfigStores: Map<string, LayeredConfigStore<ProjectMetadataConfig>>;
     /** In-memory store for per-pilot config. */
     pilotConfigStore: PilotConfigStore;
+    /** Registry of checklist templates. @see RULE-CHKL-1 */
+    templateRegistry: ReturnType<typeof createTemplateRegistry>;
+    /** Registry of checklist bindings (template → event + category). @see RULE-CHKL-2 */
+    bindingRegistry: ReturnType<typeof createBindingRegistry>;
+    /** Per-craft checklist override store. @see RULE-CHKL-3 */
+    overrideStore: ReturnType<typeof createOverrideStore>;
   }
 }

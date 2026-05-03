@@ -4,7 +4,13 @@ import { createApp } from "../app.js";
 import { CraftStore } from "../../state/craft-store.js";
 import { AgentStore } from "../../state/agent-store.js";
 import { TowerStore } from "../../state/tower-store.js";
-import { CraftStatus } from "@airtrafficcontrol/types";
+import { CraftStatus, LifecycleEvent } from "@airtrafficcontrol/types";
+import {
+  createTemplateRegistry,
+  createBindingRegistry,
+  createOverrideStore,
+  ChecklistItemSeverity,
+} from "@airtrafficcontrol/checklist";
 import type { CraftState } from "../../types.js";
 
 describe("vector routes", () => {
@@ -150,6 +156,209 @@ describe("vector routes", () => {
         payload: { evidence: "nope" },
       });
       expect(res.statusCode).toBe(404);
+    });
+
+    it("returns 404 for unknown craft callsign", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/ghost-99/vectors/design/report`,
+        payload: { evidence: "nonexistent craft" },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // before:vector-complete checklist enforcement (RULE-CHKL-9)
+  // -------------------------------------------------------------------------
+
+  describe("before:vector-complete checklists", () => {
+    let templateRegistry: ReturnType<typeof createTemplateRegistry>;
+    let bindingRegistry: ReturnType<typeof createBindingRegistry>;
+    let overrideStore: ReturnType<typeof createOverrideStore>;
+
+    beforeEach(() => {
+      templateRegistry = createTemplateRegistry();
+      bindingRegistry = createBindingRegistry();
+      overrideStore = createOverrideStore();
+
+      craftStore = new CraftStore("/tmp/atc-vec-chkl-test");
+      app = createApp({
+        craftStore,
+        agentStore: new AgentStore("/tmp/atc-vec-chkl-test"),
+        towerStore: new TowerStore("/tmp/atc-vec-chkl-test"),
+        templateRegistry,
+        bindingRegistry,
+        overrideStore,
+      });
+      seedCraft();
+    });
+
+    it("allows vector report when all required checklist items pass", async () => {
+      const template = templateRegistry.create({
+        name: "always-pass",
+        items: [
+          {
+            name: "pass step",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "echo ok" },
+          },
+        ],
+      });
+      bindingRegistry.create({
+        templateId: template.id,
+        event: LifecycleEvent.BeforeVectorComplete,
+        craftCategory: "*",
+      });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+        payload: { evidence: "Checked and passed" },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const plan = res.json<Array<{ name: string; status: string }>>();
+      expect(plan[0].status).toBe("Passed");
+    });
+
+    it("returns 422 when a required checklist item fails (RULE-CHKL-9)", async () => {
+      const template = templateRegistry.create({
+        name: "always-fail",
+        items: [
+          {
+            name: "fail step",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "exit 1" },
+          },
+        ],
+      });
+      bindingRegistry.create({
+        templateId: template.id,
+        event: LifecycleEvent.BeforeVectorComplete,
+        craftCategory: "*",
+      });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+        payload: { evidence: "Will fail" },
+      });
+
+      expect(res.statusCode).toBe(422);
+      const body = res.json<{ error: string; checklists: unknown[] }>();
+      expect(body.error).toContain("design");
+      expect(body.checklists).toHaveLength(1);
+    });
+
+    it("does not block vector report when only advisory items fail (RULE-CHKL-4)", async () => {
+      const template = templateRegistry.create({
+        name: "advisory-fail",
+        items: [
+          {
+            name: "advisory fail step",
+            severity: ChecklistItemSeverity.Advisory,
+            executor: { type: "shell", command: "exit 1" },
+          },
+        ],
+      });
+      bindingRegistry.create({
+        templateId: template.id,
+        event: LifecycleEvent.BeforeVectorComplete,
+        craftCategory: "*",
+      });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+        payload: { evidence: "Advisory failure ok" },
+      });
+
+      expect(res.statusCode).toBe(200);
+    });
+
+    it("continues running subsequent templates even when the first fails (RULE-CHKL-9)", async () => {
+      const failing = templateRegistry.create({
+        name: "fail-template",
+        items: [
+          {
+            name: "always fails",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "exit 1" },
+          },
+        ],
+      });
+      const passing = templateRegistry.create({
+        name: "pass-template",
+        items: [
+          {
+            name: "always passes",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "echo ok" },
+          },
+        ],
+      });
+      bindingRegistry.create({
+        templateId: failing.id,
+        event: LifecycleEvent.BeforeVectorComplete,
+        craftCategory: "*",
+      });
+      bindingRegistry.create({
+        templateId: passing.id,
+        event: LifecycleEvent.BeforeVectorComplete,
+        craftCategory: "*",
+      });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+        payload: { evidence: "Will fail first template" },
+      });
+
+      expect(res.statusCode).toBe(422);
+      const body = res.json<{ checklists: Array<{ checklistName: string; passed: boolean }> }>();
+      // Both templates ran — RULE-CHKL-9 enforces run-to-completion
+      expect(body.checklists).toHaveLength(2);
+      expect(body.checklists.find((c) => c.checklistName === "fail-template")?.passed).toBe(false);
+      expect(body.checklists.find((c) => c.checklistName === "pass-template")?.passed).toBe(true);
+    });
+
+    it("vector is not marked Passed when checklist blocks the report", async () => {
+      const template = templateRegistry.create({
+        name: "blocker",
+        items: [
+          {
+            name: "fail step",
+            severity: ChecklistItemSeverity.Required,
+            executor: { type: "shell", command: "exit 1" },
+          },
+        ],
+      });
+      bindingRegistry.create({
+        templateId: template.id,
+        event: LifecycleEvent.BeforeVectorComplete,
+        craftCategory: "*",
+      });
+
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+        payload: { evidence: "Blocked" },
+      });
+
+      const craft = craftStore.get(PROJECT, "bravo-1")!;
+      expect(craft.flightPlan[0].status).toBe("Pending");
+    });
+
+    it("no-op when no bindings exist for before:vector-complete", async () => {
+      // No templates bound — existing behavior unchanged
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+        payload: { evidence: "No checklist configured" },
+      });
+
+      expect(res.statusCode).toBe(200);
     });
   });
 
