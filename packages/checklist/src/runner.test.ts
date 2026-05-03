@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { runChecklist } from "./runner.js";
-import { ChecklistItemSeverity, ControlMode, LifecycleEvent, SeatType } from "@airtrafficcontrol/types";
+import {
+  ChecklistItemSeverity,
+  ControlMode,
+  LifecycleEvent,
+  SeatType,
+} from "@airtrafficcontrol/types";
 import type { ChecklistItemDef, ControlState } from "@airtrafficcontrol/types";
 import { InsufficientControlsError } from "@airtrafficcontrol/errors";
 import type { McpToolHandler } from "./executor/mcp-tool.js";
@@ -430,10 +435,7 @@ describe("runChecklist", () => {
         event: LifecycleEvent.BeforeLandingCheck,
         craftCallsign: "ATC-1",
         attempt: 1,
-        items: [
-          shellItem("Build", "echo ok"),
-          agentItem("Code Review"),
-        ],
+        items: [shellItem("Build", "echo ok"), agentItem("Code Review")],
         agentAssessments: {
           "Code Review": { passed: true, message: "LGTM" },
         },

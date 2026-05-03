@@ -19,7 +19,7 @@
  * @see RULE-TFR-5 through RULE-TFRP-4 for TFR rules.
  */
 
-import type { CraftState } from "@airtrafficcontrol/daemon";
+import type { CraftState, VectorState } from "@airtrafficcontrol/daemon";
 
 /** URL of the ATC daemon. Agents call this from their worktree shell. */
 const DAEMON_URL = "http://localhost:7700";
@@ -68,20 +68,21 @@ export function buildSystemPrompt(craft: CraftState, pilotId: string, projectNam
   }
 
   // --- Flight plan section ---
-  const vectorLines = craft.flightPlan.map((v, i) => {
+  const vectorLines = craft.flightPlan.map((v: VectorState, i: number) => {
     const tag =
       v.status === "Passed" ? "✓ PASSED" : v.status === "Failed" ? "✗ FAILED" : "○ PENDING";
     return `  ${i + 1}. [${tag}] ${v.name}\n     Criteria: ${v.acceptanceCriteria}`;
   });
-  const nextVector = craft.flightPlan.find((v) => v.status === "Pending");
+  const nextVector = craft.flightPlan.find((v: VectorState) => v.status === "Pending");
 
   // --- Controls section ---
   const controlsDesc =
     craft.controls.mode === "exclusive"
       ? `Exclusive — held by ${craft.controls.holder ?? "nobody"}`
       : `Shared — areas: ${
-          (craft.controls.sharedAreas ?? []).map((a) => `${a.pilotId} → ${a.area}`).join(", ") ||
-          "none declared"
+          (craft.controls.sharedAreas ?? [])
+            .map((a: { pilotId: string; area: string }) => `${a.pilotId} → ${a.area}`)
+            .join(", ") || "none declared"
         }`;
 
   // --- Seat-specific authority section ---
@@ -148,7 +149,7 @@ export function buildSystemPrompt(craft: CraftState, pilotId: string, projectNam
     "",
     nextVector
       ? `**Next action:** Work on vector "${nextVector.name}".`
-      : craft.flightPlan.every((v) => v.status === "Passed")
+      : craft.flightPlan.every((v: VectorState) => v.status === "Passed")
         ? "**All vectors passed.** Run the landing checklist."
         : "No pending vectors — check craft status.",
     "",

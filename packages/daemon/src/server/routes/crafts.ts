@@ -382,7 +382,10 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
               attempt: 1,
               items: checklistItems,
             })
-          : { passed: true, items: [] as Array<{ name: string; passed: boolean; durationMs: number }> };
+          : {
+              passed: true,
+              items: [] as Array<{ name: string; passed: boolean; durationMs: number }>,
+            };
 
       // RULE-CHKL-5: per-item granularity in the black box.
       for (const item of result.items) {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildSystemPrompt, deriveSeat } from "./prompt-builder.js";
 import { CraftStatus } from "@airtrafficcontrol/types";
-import type { CraftState } from "@airtrafficcontrol/daemon";
+import type { CraftState, VectorState } from "@airtrafficcontrol/daemon";
 
 const baseCraft: CraftState = {
   callsign: "ALPHA-1",
@@ -121,7 +121,10 @@ describe("buildSystemPrompt", () => {
   it("notes when all vectors are passed", () => {
     const allPassed: CraftState = {
       ...baseCraft,
-      flightPlan: baseCraft.flightPlan.map((v) => ({ ...v, status: "Passed" as const })),
+      flightPlan: baseCraft.flightPlan.map((v: VectorState) => ({
+        ...v,
+        status: "Passed" as const,
+      })),
     };
     const prompt = buildSystemPrompt(allPassed, "pilot-001", "demo-project");
     expect(prompt).toContain("All vectors passed");

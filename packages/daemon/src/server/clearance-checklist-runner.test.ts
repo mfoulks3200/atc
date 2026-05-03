@@ -20,10 +20,7 @@ function makeRegistries(): ProjectChecklistRegistries {
   };
 }
 
-function addPassingTemplate(
-  registries: ProjectChecklistRegistries,
-  craftCategory: string,
-): void {
+function addPassingTemplate(registries: ProjectChecklistRegistries, craftCategory: string): void {
   const template = registries.templates.create({
     name: "CI checks",
     items: [
@@ -43,10 +40,7 @@ function addPassingTemplate(
   });
 }
 
-function addFailingTemplate(
-  registries: ProjectChecklistRegistries,
-  craftCategory: string,
-): void {
+function addFailingTemplate(registries: ProjectChecklistRegistries, craftCategory: string): void {
   const template = registries.templates.create({
     name: "Always fail",
     items: [

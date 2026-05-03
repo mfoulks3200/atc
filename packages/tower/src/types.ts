@@ -1,4 +1,9 @@
-import type { Craft, FlightPlan, BlackBoxEntry, ChecklistRunResult } from "@airtrafficcontrol/types";
+import type {
+  Craft,
+  FlightPlan,
+  BlackBoxEntry,
+  ChecklistRunResult,
+} from "@airtrafficcontrol/types";
 
 /**
  * A craft waiting in the merge queue.
