@@ -4,7 +4,7 @@ Distilled findings from Hacker News and AI industry research, maintained for ref
 
 **Freshness policy:** Prune entries older than 6 months that are no longer in active discussion, or sooner if a technology has clearly been superseded. Refresh on each AIR-149 heartbeat.
 
-**Last updated:** 2026-04-22
+**Last updated:** 2026-05-03
 
 ---
 
@@ -90,7 +90,7 @@ Key insights from the discussion:
 
 ---
 
-### 7. Agent Memory and Context Handover Are Unsolved at Scale
+### 7. Agent Memory: Fragmented Tooling Landscape (Evolving from Unsolved)
 
 Agent memory has fragmented into distinct specializations in 2026:
 
@@ -104,7 +104,11 @@ State persistence strategies (from [Indium Tech survey](https://www.indium.tech/
 
 LinkedIn's Cognitive Memory Agent and Mem0's "State of AI Agent Memory 2026" both document that statelessness is the root cause of agents duplicating work or losing context mid-task.
 
-**ATC implication:** The current `buildSystemPrompt` in the Claude adapter seeds the agent with craft state, but there is no structured context handover for multi-session work. When a craft enters a TFR holding pattern and resumes, the agent's context is likely lost. A structured context snapshot as part of the graceful-mode wind-down (roadmap item) is the right approach.
+**Update (May 2026):** Concrete MCP-native memory tools are now shipping. [MemPalace](https://mem0.ai/openmemory) went viral in April 2026 with strong LongMemEval benchmark results. [Stash](https://toolhunter.cc/tools/stash) (open-source) implements an 8-stage consolidation pipeline: raw observations → facts → relationships → causal links → goal tracking → failure patterns → hypothesis verification → confidence decay. The problem has shifted from "unsolved" to "fragmented tooling with no winner."
+
+**ATC implication:** The current `buildSystemPrompt` in the Claude adapter seeds the agent with craft state, but there is no structured context handover for multi-session work. When a craft enters a TFR holding pattern and resumes, the agent's context is likely lost. Stash's consolidation pipeline is a model for what a structured context snapshot could look like in the graceful-mode wind-down (roadmap item). The MCP-native pattern in these tools also points toward ATC exposing craft state via an MCP server as the standard handover mechanism.
+
+**Confidence:** High — multiple independent tools shipping in same 30-day window confirms the segment is active. Low on MemPalace benchmark claims specifically (verify before citing numbers).
 
 ---
 
@@ -128,13 +132,36 @@ The bottleneck is no longer writing code — it's task decomposition, agent spec
 
 ---
 
+### 10. MCP and A2A Are Becoming Infrastructure Standards
+
+**Promoted from Signals to Watch — April 2026 crossing event.**
+
+The Model Context Protocol (MCP), originally released by Anthropic in late 2024, crossed into mainstream infrastructure in Q1–Q2 2026:
+
+- **Linux Foundation backing:** Anthropic donated MCP to the Agentic AI Foundation (AAIF), a directed fund co-founded by Anthropic, Block, and OpenAI.
+- **Industry-wide adoption:** Claude, Cursor, Gemini, and major cloud providers (AWS, Azure) all support MCP.
+- **Scale signal:** MCP Dev Summit North America (April 2026, New York City) drew ~1,200 attendees — a size that signals infrastructure-level adoption, not early-adopter hype.
+- **Ecosystem explosion:** 200+ community-built MCP servers exist for GitHub, Slack, PostgreSQL, Stripe, Figma, Docker, Kubernetes, and more.
+
+**Competing protocol:** Google's Agent-to-Agent (A2A) protocol is a parallel effort focused on agent-to-agent communication (vs. MCP's tool/context focus). The two are complementary but competing for mindshare as the "USB-C for AI agents." No clear winner as of May 2026.
+
+**New extension — MCP Apps (SEP-1865):** An official extension to MCP (formalized early 2026) allows agents to render interactive UIs directly inside host environments — embedded web UIs, buttons, toggles — so users express intent through interaction rather than explanation. Still early-stage but notable for dashboard-heavy orchestration tools.
+
+**Promotion trigger:** AAIF governance structure confirmed + 1,200-person MCP Dev Summit attendance crossed the threshold from "Anthropic thing" to "industry standard." Revisit A2A vs. MCP winner assessment by: 2026-08-01.
+
+**ATC implication (design gap):** ATC's intercom model is architecturally aligned with MCP's tool-access pattern — crafts expose state, agents consume it via structured protocol. But ATC has no MCP server today. Exposing craft state, vector status, and tower queue via MCP would let any MCP-compatible agent (Claude Code, Cursor, Gemini) work within ATC without requiring a custom adapter. This is a meaningful positioning opportunity — opening a steering committee ticket for this.
+
+**Confidence:** High for MCP as infrastructure standard. Medium for A2A adoption trajectory (depends on Google ecosystem traction). Medium for MCP Apps maturity timeline.
+
+---
+
 ## Signals to Watch
 
 These items are not yet strong trends but have appeared enough to warrant monitoring:
 
 - **PR review effort prediction** — MSR 2026 research on forecasting high-effort AI-generated PRs before they land; could inform Tower clearance criteria weighting
 - **Agent identity and signing** — emerging discussion about cryptographically-signed agent commits for accountability; relates to ATC's pilot certification model
-- **Standardized agent communication protocols** — no winner yet, but the space is active; ATC's intercom model could be positioned as an implementation
+- **Konductor / multi-session context amnesia tooling** — tools like Konductor are specifically addressing multi-session context loss with "project architecture memory." If this pattern generalizes, it may define the next memory abstraction standard rather than MCP-native layers.
 
 ---
 
