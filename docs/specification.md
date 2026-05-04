@@ -6,7 +6,7 @@
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
-- 0.5.2 (2026-05-04): Add repo-resident configuration (.atc/ directory) entity (§2.9, RULE-RCFG-1 through RULE-RCFG-11) and configuration validation protocol (§4.9, RULE-CVAL-1 through RULE-CVAL-5). Defines four-layer config precedence hierarchy, conflict detection, web UI source indicators, CLI validation command, and conflicts REST API (AIR-761).
+- 0.5.2 (2026-05-04): Add repo-resident configuration (.atc/ directory) entity (§2.9, RULE-RCFG-1 through RULE-RCFG-11) and configuration validation protocol (§4.9, RULE-CVAL-1 through RULE-CVAL-6). Defines four-layer config precedence hierarchy, conflict detection and UI, config source indicator API (§4.9.4), CLI validation command, and conflicts REST API (AIR-763).
 - 0.5.1 (2026-05-04): Require machine-parseable vector name prefix in `VectorPassed` and `VectorFailed` black box entry `content` fields (RULE-VRPT-11, AIR-770).
 - 0.5.0 (2026-05-04): Add CraftLandedMetrics entity (§2.10, RULE-METR-1 through RULE-METR-8) and Dashboard Quality Panel protocol (§4.8, RULE-DASH-1 through RULE-DASH-8). Defines per-craft metrics captured at landing and project-level aggregation for the "From PRs to Production" quality narrative (AIR-764).
 - 0.4.0 (2026-04-30): Add Inspector seat type (RULE-SEAT-5/6), UnderReview lifecycle state (RULE-LIFE-9/10), adversarial review protocol §4.8 (RULE-ARVW-1 through RULE-ARVW-5), challenge finding and builder flag schemas §2.8, and five new black box entry types (AIR-265).
@@ -1471,8 +1471,25 @@ Both sources MUST be named in every conflict message. The resolved effective val
 | RULE-RCFG-9    | Fields sourced from `.atc/` or daemon global must show source indicator in web UI. | 2.9.6 |
 | RULE-RCFG-10   | Web UI rejects edits to fields controlled by higher-precedence config layers. | 2.9.6 |
 | RULE-RCFG-11   | Fields with active config conflicts display both values and conflict indicator. | 2.9.6 |
+| RULE-METR-1    | Daemon must compute and persist CraftLandedMetrics at Landed transition; no record for ReturnToOrigin. | 2.10 |
+| RULE-METR-2    | Duration fields derived from StateTransition black box entries; multi-visit states summed. | 2.10 |
+| RULE-METR-3    | Event count fields derived from black box entry counts, inclusive of all entries through landing. | 2.10 |
+| RULE-METR-4    | Metrics records are immutable after creation; no modification, recalculation, or deletion. | 2.10 |
+| RULE-METR-5    | Metrics computation must be deterministic: same black box → same metrics. | 2.10 |
+| RULE-METR-6    | Metrics queryable via REST API by project, category, and time range; individual and batch retrieval. | 2.10 |
+| RULE-METR-7    | vectorFailedCount uses RULE-VRPT-11 prefix format; unparseable entries counted but flagged. | 2.10 |
+| RULE-METR-8    | goAroundCount is the headline quality metric; zero indicates first-pass landing. | 2.10 |
+| RULE-DASH-1    | Quality panel must display all metrics as time-series trend lines, not point-in-time snapshots. | 4.8 |
+| RULE-DASH-2    | Quality panel must not display total crafts landed as a headline metric. | 4.8 |
+| RULE-DASH-3    | Go-around rate is the headline metric; must be most visually prominent. | 4.8 |
+| RULE-DASH-4    | Panel must display leading and lagging indicators simultaneously. | 4.8 |
+| RULE-DASH-5    | Panel must support time window selection from preset list; uniform across all metrics. | 4.8.3 |
+| RULE-DASH-6    | Panel must support optional category filtering; recomputes all metrics for selected category. | 4.8.4 |
+| RULE-DASH-7    | Projects with no landed crafts must show informative empty state, not blank panel. | 4.8 |
+| RULE-DASH-8    | Metrics API must return weekly trend buckets; zero-craft buckets included with null rates. | 4.8.5 |
 | RULE-CVAL-1    | Config conflicts detected eagerly at daemon startup and file reload, not lazily at request time. | 4.9.1 |
 | RULE-CVAL-2    | Conflict warnings name both source paths, both values, resolved value, and resolving layer. | 4.9.1 |
 | RULE-CVAL-3    | `atc config validate` CLI validates without daemon; exits 0/1/2/3/4 for valid/parse/schema/conflict/missing. | 4.9.2 |
 | RULE-CVAL-4    | `atc config validate --format json` provides machine-readable output for CI/CD. | 4.9.2 |
 | RULE-CVAL-5    | `GET /config/conflicts` returns conflict list, repo config presence/validity, and last load timestamp. | 4.9.3 |
+| RULE-CVAL-6    | `GET /config` includes per-field `sources` map with layer and conflict metadata when `.atc/` is loaded. | 4.9.4 |
