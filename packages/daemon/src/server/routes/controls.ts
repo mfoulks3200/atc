@@ -226,14 +226,7 @@ export async function controlsRoutes(app: FastifyInstance): Promise<void> {
 
       if (filePath !== undefined) {
         // File-specific RULE-CTRL-3 check.
-        const worktreePath = join(
-          app.profileDir,
-          "projects",
-          name,
-          "crafts",
-          callsign,
-          "worktree",
-        );
+        const worktreePath = join(app.profileDir, "projects", name, "crafts", callsign, "worktree");
         const normalized = normalizePathForArea(filePath, worktreePath);
 
         if (controls.mode === "exclusive") {
