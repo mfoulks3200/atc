@@ -1,11 +1,14 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.4.0
+**Version:** 0.5.2
 **Status:** Draft
-**Date:** 2026-04-30
+**Date:** 2026-05-04
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
+- 0.5.2 (2026-05-04): Add repo-resident configuration (.atc/ directory) entity (§2.9, RULE-RCFG-1 through RULE-RCFG-11) and configuration validation protocol (§4.9, RULE-CVAL-1 through RULE-CVAL-4). Defines four-layer config precedence hierarchy, conflict detection and UI, config source indicators, CLI validation command, and conflicts REST API (AIR-763).
+- 0.5.1 (2026-05-04): Require machine-parseable vector name prefix in `VectorPassed` and `VectorFailed` black box entry `content` fields (RULE-VRPT-11, AIR-770).
+- 0.5.0 (2026-05-04): Add CraftLandedMetrics entity (§2.10, RULE-METR-1 through RULE-METR-8) and Dashboard Quality Panel protocol (§4.8, RULE-DASH-1 through RULE-DASH-8). Defines per-craft metrics captured at landing and project-level aggregation for the "From PRs to Production" quality narrative (AIR-764).
 - 0.4.0 (2026-04-30): Add Inspector seat type (RULE-SEAT-5/6), UnderReview lifecycle state (RULE-LIFE-9/10), adversarial review protocol §4.8 (RULE-ARVW-1 through RULE-ARVW-5), challenge finding and builder flag schemas §2.8, and five new black box entry types (AIR-265).
 - 0.3.2 (2026-04-30): Add constraint dry-run API and structured constraint failure response shape — `?dryRun=true` on `reportVector`, `ConstraintCheckResult`, `ConstraintFailure`, `ConstraintCheckFailed` black box entry, captain override with justification (RULE-VRPT-5 through RULE-VRPT-10, §4.1.1, AIR-324).
 - 0.3.1 (2026-04-28): Define integrity bar live-update strategy — triggered poll via `craft.blackbox.appended` (RULE-BBOX-5a, AIR-342).
@@ -54,6 +57,13 @@ This document is the authoritative reference for ATC's domain model, lifecycle, 
 | Adversarial Review | A structured inspection of a specific vector by an Inspector, gating vector progression before the vector may be reported as passed. |
 | Challenge Finding | A structured finding logged by an Inspector during an adversarial review (see §2.8.1). |
 | Builder Flag     | A critical issue surfaced by the builder (captain or first officer) during an active adversarial review window, without modifying the evaluated craft state (see §2.8.2). |
+| Repo-Resident Configuration | A version-controlled `.atc/` directory at the repository root that provides project-level settings: categories, checklists, and project policies. See §2.9. |
+| Config Conflict | A state where repo config (`.atc/config.yaml`) and daemon project config define different values for the same field. Detected eagerly and surfaced, never silently resolved. See §2.9.4. |
+| Config Source Indicator | A UI annotation showing which configuration layer (daemon global, repo config, daemon project config, or default) is the current source of a displayed config value. See §2.9.6. |
+| Craft Landed Metrics | A per-craft metrics snapshot computed and recorded when a craft transitions to the Landed terminal state. Captures timing, quality, and coordination data for the craft's complete lifecycle. See §2.10. |
+| Dashboard Quality Panel | A project-scoped aggregation view that summarizes craft landed metrics as trend lines and indicators, supporting the "From PRs to Production" quality narrative. See §4.8. |
+| Go-Around Rate   | The ratio of total go-around events to total landed crafts within a time window. The headline quality metric — lower is better. |
+| First-Pass Rate  | The percentage of crafts that land without any go-around. A leading quality indicator. |
 
 ## 2. Domain Model
 
@@ -67,6 +77,7 @@ A **craft** is the fundamental unit of work in ATC. Each craft represents a sing
 | -------------- | ------------------- | ---------------------------------- |
 | Callsign       | `string`            | Unique, immutable after creation.  |
 | Created At     | `Date`              | Required. Timestamp when the craft entered the Taxiing phase. |
+| Landed At      | `Date`              | Optional. Timestamp when the craft transitioned to the Landed state. Absent until landing. |
 | Branch         | `string`            | Unique, 1:1 with craft.           |
 | Cargo          | `string`            | Required. Description of the change and its scope. |
 | Category       | `CraftCategory`     | Required. Determines pilot eligibility (see 2.2.2). |
@@ -86,6 +97,7 @@ A **craft** is the fundamental unit of work in ATC. Each craft represents a sing
 - **RULE-CRAFT-4:** Every craft MUST have a category assigned at creation.
 - **RULE-CRAFT-5:** Every craft MUST have exactly one captain at all times.
 - **RULE-CRAFT-6:** Every craft MUST record a creation timestamp at the moment it enters the Taxiing phase. This timestamp is immutable.
+- **RULE-CRAFT-7:** Every craft MUST record a `landedAt` timestamp at the moment it transitions to the `Landed` state. This timestamp is set exactly once and is immutable thereafter.
 
 #### 2.1.1 Black Box
 
@@ -105,7 +117,7 @@ The **black box** is an append-only log maintained on every craft throughout its
 | Type                    | When to Record                                                            |
 | ----------------------- | ------------------------------------------------------------------------- |
 | `Decision`              | An implementation decision (algorithm, library, approach choice).         |
-| `VectorPassed`          | A vector's acceptance criteria were met (alongside ATC vector report).    |
+| `VectorPassed`          | A vector's acceptance criteria were met (alongside ATC vector report). Content MUST use the `[<vectorName>]: passed with evidence: …` prefix format (RULE-VRPT-11). |
 | `GoAround`              | A checklist failed and a go-around was initiated.                         |
 | `Conflict`              | A disagreement between pilots on approach, and how it was resolved.       |
 | `Observation`           | Any other noteworthy event, risk, or context worth preserving.            |
@@ -115,7 +127,7 @@ The **black box** is an append-only log maintained on every craft throughout its
 | `TFRLifted`             | A TFR affecting this craft has been lifted. Records duration and issuer.          |
 | `CraftCreated`          | The craft was created (flight plan opened, craft enters Taxiing).                 |
 | `Launched`              | The craft was launched from Taxiing into InFlight.                                |
-| `VectorFailed`          | A vector was reported as failed (reserved for the failing-vector protocol).       |
+| `VectorFailed`          | A vector was reported as failed (reserved for the failing-vector protocol). When emitted, content MUST use the `[<vectorName>]: failed — …` prefix format (RULE-VRPT-11). |
 | `ChecklistItem`         | A single checklist item completed. Recorded once per item, alongside `ChecklistRun`. |
 | `ClearanceRequested`    | The captain requested landing clearance from the tower.                           |
 | `TowerEnqueued`         | The craft was added to the tower landing queue.                                   |
@@ -394,6 +406,109 @@ A **spec document** is a structured YAML or JSON document submitted to ATC to au
 - **RULE-SDD-6:** If an explicit `pilots.captain` is provided, that pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
 - **RULE-SDD-7:** If explicit `pilots.firstOfficers` are provided, each listed pilot MUST hold a certification for the spec's `category`. A mismatch MUST be rejected with `PILOT_NOT_CERTIFIED`.
 
+### 2.9 Repository Configuration
+
+The `.atc/` directory provides version-controlled, repo-resident configuration that travels with the codebase. It is the canonical authoring surface for project-specific settings: craft categories, checklist templates, flight plan templates, and project-level policies.
+
+#### 2.9.1 Directory Structure
+
+```
+<repo-root>/
+└── .atc/
+    └── config.yaml           # Project configuration
+```
+
+The `.atc/` directory MUST be located in the repository root. The daemon discovers it by resolving the repository root from the project's configured working directory.
+
+#### 2.9.2 Config File Schema
+
+`.atc/config.yaml` contains project-level configuration fields. All fields are optional; omitted fields inherit from the daemon project config or built-in defaults.
+
+| Field                    | Type                                  | Description                                                              |
+| ------------------------ | ------------------------------------- | ------------------------------------------------------------------------ |
+| `categories`             | `string[]`                            | Project craft categories.                                                |
+| `checklist`              | `ChecklistItemConfig[]`               | Project checklist items (same schema as daemon project config).          |
+| `allowAutoLaunch`        | `boolean`                             | Whether SDD autoLaunch is permitted (see RULE-SDD-11).                  |
+| `pilotSelectionFoWeight` | `number`                              | FO weight for pilot auto-selection workload scoring (see §4.6.4).       |
+| `mcpServers`             | `Record<string, McpServerConfig>`     | MCP server definitions available to pilots on this project.             |
+
+The schema is a subset of the daemon project config schema (`ProjectMetadataConfig`). Fields that are daemon-internal (e.g., `name`, `remoteUrl`) are NOT valid in `.atc/config.yaml` and MUST be rejected on parse.
+
+#### 2.9.3 Config Precedence Hierarchy
+
+ATC resolves configuration through four ordered layers. Higher layers take precedence over lower layers for the same field.
+
+| Priority | Layer                  | Source                                          | Mutability            |
+| -------- | ---------------------- | ----------------------------------------------- | --------------------- |
+| 1 (highest) | Daemon global config | `~/.atc/config.json`                            | API / file edit       |
+| 2        | Repo config            | `<repo-root>/.atc/config.yaml`                  | Git commit / file edit |
+| 3        | Daemon project config  | `<profileDir>/projects/<name>/metadata.json`    | API / file edit       |
+| 4 (lowest) | Built-in defaults    | Compiled into the daemon                        | Immutable             |
+
+The effective value for any field is the value from the highest-priority layer that defines it.
+
+**Rationale:**
+
+- **Daemon global config (Layer 1)** represents operator-enforced policy across all projects. The daemon operator controls the infrastructure and must be able to enforce constraints (e.g., disabling `autoLaunch` globally). This is an intentional override and does not generate conflicts.
+- **Repo config (Layer 2)** represents the project team's committed intent. It is version-controlled, reviewable, and travels with the codebase. It takes precedence over daemon project config because committed configuration should not be silently overridden by runtime state.
+- **Daemon project config (Layer 3)** provides runtime supplements — values not committed to the repo, such as daemon-specific connection settings or temporary overrides applied through the web UI.
+- **Built-in defaults (Layer 4)** provide baseline values when no layer defines a field.
+
+#### 2.9.4 Config Conflict Detection
+
+When Layer 2 (repo config) and Layer 3 (daemon project config) both define a value for the same field and the values differ, this is a **config conflict**. Conflicts MUST be detected and surfaced — silent last-write-wins resolution is not acceptable.
+
+Config conflicts do not block daemon operation. The daemon starts normally and resolves the effective value using the precedence hierarchy. But the conflict MUST be:
+
+1. Logged as a warning at daemon startup and on every file reload that introduces a conflict.
+2. Exposed via the conflicts REST API endpoint (see §4.9.3).
+3. Visible in the web UI project settings page (see §2.9.6).
+
+Layer 1 (daemon global config) overrides by design and does not generate conflicts. An operator who sets a global value has intentionally chosen to enforce it.
+
+**Conflict Schema:**
+
+| Field                | Type                          | Description                                                     |
+| -------------------- | ----------------------------- | --------------------------------------------------------------- |
+| `field`              | `string`                      | Dot-path of the conflicting field (e.g., `"categories"`).       |
+| `repoValue`          | `unknown`                     | Value from `.atc/config.yaml`.                                  |
+| `daemonProjectValue` | `unknown`                     | Value from daemon project config.                               |
+| `resolvedValue`      | `unknown`                     | Effective value after precedence resolution.                    |
+| `resolvedFrom`       | `"repo" \| "daemon_global"`  | Which layer supplied the resolved value.                        |
+
+#### 2.9.5 File Loading and Staleness
+
+The daemon loads `.atc/config.yaml` at project registration time and watches the file for changes using the same content-hash + mtime fingerprinting strategy as other `LayeredConfigStore` instances.
+
+- On file change detection, the daemon reloads the file, recomputes the merged config, and re-evaluates conflicts.
+- On file deletion, the daemon falls back to daemon project config + defaults. Any previously detected conflicts for this project are cleared.
+- On parse or validation failure of a changed file, the daemon MUST retain the last valid config and emit an `invalid_external_edit` event on the project's config channel. The daemon MUST NOT crash or revert to defaults on a bad file edit.
+- Config changes from file reload MUST be broadcast via the `config:project:<name>` WebSocket channel with source `"file"`.
+
+#### 2.9.6 Web UI Behavior
+
+When `.atc/config.yaml` is present and defines fields for a project:
+
+- The web UI project settings page MUST display the **effective (merged) value** for each field, not the raw daemon project config value.
+- Fields whose effective value comes from `.atc/config.yaml` MUST be visually distinguished from daemon-only fields. The indicator MUST include the source layer name (e.g., "from .atc/config.yaml").
+- Fields whose effective value comes from daemon global config MUST also be distinguished with their source (e.g., "enforced by daemon global config").
+- If a user attempts to edit a field whose effective value is sourced from `.atc/config.yaml` or daemon global config, the web UI MUST display a warning explaining that the field is controlled by a higher-precedence layer and cannot be overridden from the UI. The edit MUST be rejected — the UI MUST NOT write a daemon project config value for a field that would be immediately overridden by a higher layer.
+- Fields with active config conflicts MUST display both the `.atc/` value and the daemon project config value, with a visual indicator showing the conflict and which value is in effect.
+
+#### Rules
+
+- **RULE-RCFG-1:** The `.atc/` directory MUST be located in the repository root. The daemon MUST discover it by resolving the repository root from the project's configured working directory.
+- **RULE-RCFG-2:** `.atc/config.yaml` MUST be validated against the project config schema on load. Parse failures MUST be reported as `CONFIG_PARSE_ERROR`. Schema validation failures MUST be reported as `CONFIG_VALIDATION_ERROR`. Daemon-internal fields (`name`, `remoteUrl`) MUST be rejected.
+- **RULE-RCFG-3:** Config precedence MUST follow the four-layer hierarchy defined in §2.9.3: daemon global > repo config > daemon project config > built-in defaults. The effective value for any field is the value from the highest-priority layer that defines it.
+- **RULE-RCFG-4:** When repo config (Layer 2) and daemon project config (Layer 3) define different values for the same field, a config conflict MUST be detected and surfaced. Conflicts MUST NOT be silently resolved without warning.
+- **RULE-RCFG-5:** Config conflicts MUST be logged as warnings at daemon startup and on every file reload that introduces or resolves a conflict.
+- **RULE-RCFG-6:** The daemon MUST watch `.atc/config.yaml` for external changes and reload automatically using content-hash + mtime fingerprinting. On reload, the merged config MUST be recomputed and conflicts re-evaluated.
+- **RULE-RCFG-7:** On parse or validation failure of a changed `.atc/config.yaml`, the daemon MUST retain the last valid config and emit an `invalid_external_edit` event on the `config:project:<name>` channel. The daemon MUST NOT crash or revert to defaults.
+- **RULE-RCFG-8:** The web UI MUST display effective (merged) config values, not raw daemon project config values, when `.atc/config.yaml` is present.
+- **RULE-RCFG-9:** Fields sourced from `.atc/config.yaml` or daemon global config MUST be visually distinguished in the web UI, including the source layer name.
+- **RULE-RCFG-10:** The web UI MUST NOT allow edits to fields controlled by a higher-precedence config layer (`.atc/` or daemon global). Attempting to edit such a field MUST display a warning naming the controlling layer and reject the edit.
+- **RULE-RCFG-11:** Fields with active config conflicts MUST display both values and a conflict indicator in the web UI.
+
 ## 3. Craft Lifecycle
 
 ### 3.1 States
@@ -462,6 +577,7 @@ Each time a craft passes through a vector, the pilot MUST file a vector report w
 - **RULE-VRPT-8:** Warning-severity constraints (`severity: "warning"`) MUST NOT block a report. Their results MUST be included in the `ConstraintCheckResult` returned on both real and dry-run calls so pilots are informed, but they do not gate the transition.
 - **RULE-VRPT-9:** Only the captain of the craft MAY supply constraint overrides in the report payload. A non-captain pilot (first officer, jumpseat) who supplies a `constraintOverrides` array MUST receive `403 Forbidden`. Each override MUST include a non-empty `justification`. An `error` constraint covered by a valid captain override is treated as passing for the purpose of RULE-VRPT-5.
 - **RULE-VRPT-10:** The `remediationHint` field in every `ConstraintFailure` MUST carry the ADR rationale — why the constraint exists, not merely how to satisfy it mechanically. Constraint definitions that omit a `remediationHint` MUST fail validation at constraint-creation time.
+- **RULE-VRPT-11:** The `content` field of every `VectorPassed` and `VectorFailed` black box entry MUST begin with the vector name enclosed in square brackets, followed by a colon and space: `[<vectorName>]: <description>`. This structured prefix enables machine-parseable correlation of pass and fail events by vector name (e.g., to compute `vectorFirstPassRate`) without fragile free-text parsing. Parsers MUST extract the vector name by matching the pattern `/^\[([^\]]+)\]: /`. The description that follows the prefix is free-text and carries the human-readable context (e.g., `passed with evidence: …` or `failed — <reason>`).
 
 #### 4.1.1 Constraint Failure Response Shape
 
@@ -879,6 +995,275 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 - **RULE-UXR-4:** Changes to the web package MUST maintain or improve accessibility: sufficient color contrast (WCAG AA), keyboard navigability, and screen-reader-compatible markup.
 - **RULE-UXR-5:** Destructive or irreversible actions MUST require explicit user confirmation before execution. Users MUST be able to recover from errors without losing in-progress work.
 
+### 4.9 Configuration Validation Protocol
+
+This protocol defines how ATC validates `.atc/config.yaml` at daemon startup, exposes config conflicts via the REST API, and provides a standalone CLI validation command for CI/CD use.
+
+#### 4.9.1 Daemon Startup Validation
+
+When the daemon starts and discovers a `.atc/config.yaml` for a registered project:
+
+1. **Parse** the file as YAML. On parse failure, log `CONFIG_PARSE_ERROR` with the file path and error detail. Skip repo config for this project (fall back to daemon project config + defaults).
+2. **Validate** the parsed content against the project config schema. On validation failure, log `CONFIG_VALIDATION_ERROR` with field-level details. Skip repo config for this project.
+3. **Merge** the validated repo config with daemon global config and daemon project config using the four-layer precedence hierarchy (§2.9.3).
+4. **Detect conflicts** between repo config (Layer 2) and daemon project config (Layer 3). Log each conflict as a structured warning naming both sources, the conflicting values, and the resolved effective value.
+5. **Expose conflicts** via `GET /api/v1/projects/:name/config/conflicts` (see §4.9.3).
+
+Validation failures at startup are warnings, not fatal errors. The daemon MUST start normally using daemon project config + defaults when `.atc/config.yaml` is invalid.
+
+#### 4.9.2 CLI Validation Command
+
+```bash
+atc config validate [--project <name>] [--format json|text]
+```
+
+The `atc config validate` command performs the full validation pipeline against the current `.atc/config.yaml` without requiring a running daemon. It is designed for use in CI/CD pipelines and pre-commit hooks.
+
+**Validation steps:**
+
+1. Locate `.atc/config.yaml` in the current working directory (or the project root if `--project` is given and the daemon is reachable).
+2. Parse the file as YAML.
+3. Validate against the project config schema.
+4. If the daemon is running and reachable, check for conflicts with daemon project config.
+5. Report results.
+
+**Exit codes:**
+
+| Code | Meaning                                                                         |
+| ---- | ------------------------------------------------------------------------------- |
+| 0    | Valid — no parse errors, no schema violations, no conflicts.                    |
+| 1    | Parse error — `.atc/config.yaml` is malformed YAML.                            |
+| 2    | Validation error — one or more fields fail schema validation.                   |
+| 3    | Conflict detected — repo config conflicts with daemon project config.           |
+| 4    | File not found — no `.atc/config.yaml` in the resolved directory.              |
+
+When the daemon is not reachable, conflict detection (exit code 3) is skipped and the command validates parse + schema only.
+
+**JSON output format (`--format json`):**
+
+```json
+{
+  "valid": false,
+  "filePath": ".atc/config.yaml",
+  "errors": [
+    {
+      "code": "CONFIG_VALIDATION_ERROR",
+      "field": "categories",
+      "message": "Expected array, received string"
+    }
+  ],
+  "conflicts": [
+    {
+      "field": "checklist",
+      "repoValue": [{"name": "Tests", "command": "pnpm test"}],
+      "daemonProjectValue": [{"name": "Tests", "command": "npm test"}],
+      "resolvedValue": [{"name": "Tests", "command": "pnpm test"}],
+      "resolvedFrom": "repo"
+    }
+  ]
+}
+```
+
+**Text output format (default):**
+
+```
+✗ .atc/config.yaml:categories — Expected array, received string (CONFIG_VALIDATION_ERROR)
+⚠ .atc/config.yaml:checklist conflicts with daemon project config 'checklist'. Repo config takes precedence.
+
+1 error, 1 conflict
+```
+
+#### 4.9.3 Conflicts REST API
+
+```
+GET /api/v1/projects/:name/config/conflicts
+```
+
+Returns the current list of config conflicts for a project. Returns an empty conflict list when `.atc/config.yaml` is not present or not valid.
+
+**Response schema:**
+
+| Field                | Type                | Description                                                          |
+| -------------------- | ------------------- | -------------------------------------------------------------------- |
+| `projectName`        | `string`            | The project name.                                                    |
+| `conflicts`          | `ConfigConflict[]`  | Current conflicts (see §2.9.4 for `ConfigConflict` schema).         |
+| `repoConfigPresent`  | `boolean`           | Whether `.atc/config.yaml` was found for this project.               |
+| `repoConfigValid`    | `boolean`           | Whether the file parsed and validated successfully. `false` if not present. |
+| `lastRepoConfigLoad` | `string \| null`    | ISO 8601 timestamp of the last successful load. `null` if never loaded. |
+
+**Example response:**
+
+```json
+{
+  "projectName": "my-project",
+  "conflicts": [
+    {
+      "field": "categories",
+      "repoValue": ["Backend", "Frontend", "DevOps"],
+      "daemonProjectValue": ["Backend", "Frontend"],
+      "resolvedValue": ["Backend", "Frontend", "DevOps"],
+      "resolvedFrom": "repo"
+    }
+  ],
+  "repoConfigPresent": true,
+  "repoConfigValid": true,
+  "lastRepoConfigLoad": "2026-05-04T12:00:00.000Z"
+}
+```
+
+#### 4.9.4 Error Reference
+
+| Code                       | HTTP | Description                                                                 |
+| -------------------------- | ---- | --------------------------------------------------------------------------- |
+| `CONFIG_PARSE_ERROR`       | 400  | `.atc/config.yaml` is malformed YAML.                                       |
+| `CONFIG_VALIDATION_ERROR`  | 422  | One or more fields in `.atc/config.yaml` fail schema validation.            |
+| `CONFIG_CONFLICT`          | —    | Repo config value conflicts with daemon project config value. Not an HTTP error; surfaced via the conflicts endpoint (§4.9.3) and daemon logs. |
+
+**Error message template for `CONFIG_CONFLICT`:**
+
+```
+".atc/config.yaml:{field} conflicts with daemon project config '{field}'. {resolvedFrom} takes precedence. Repo value: {repoValue}. Daemon value: {daemonProjectValue}. Effective value: {resolvedValue}."
+```
+
+Both sources MUST be named in every conflict message. The resolved effective value and the layer that supplied it MUST be included.
+
+#### Rules
+
+- **RULE-CVAL-1:** Config conflicts MUST be detected eagerly at daemon startup and on every `.atc/config.yaml` file reload — not lazily at request time.
+- **RULE-CVAL-2:** Config conflict warnings MUST name both the `.atc/config.yaml` field path and the daemon project config key that conflicts, the conflicting values from both sources, the resolved effective value, and which layer supplied it.
+- **RULE-CVAL-3:** The `atc config validate` command MUST perform parse and schema validation without requiring a running daemon. When the daemon is reachable, it MUST also check for conflicts. It MUST exit with distinct codes: 0 (valid), 1 (parse error), 2 (validation error), 3 (conflict), 4 (file not found).
+- **RULE-CVAL-4:** `atc config validate` MUST support `--format json` for machine-readable output in CI/CD pipelines. The JSON output MUST include `valid`, `filePath`, `errors`, and `conflicts` fields.
+- **RULE-CVAL-5:** `GET /api/v1/projects/:name/config/conflicts` MUST return the current conflict list, repo config presence and validity status, and the last successful load timestamp.
+
+
+### 4.9 Configuration Validation Protocol
+
+This protocol defines how the daemon validates and resolves repo-resident configuration (`.atc/`, see §2.9) and how operators and CI systems verify config correctness before deployment.
+
+#### 4.9.1 Validation on Load
+
+When a project is registered or its configuration is reloaded, the daemon MUST perform the following steps:
+
+1. **Discover `.atc/` directory.** Resolve the repository root from the project's configured working directory. Check for the existence of `.atc/config.yaml`.
+2. **Parse.** Read `.atc/config.yaml` as YAML. On parse failure, emit `CONFIG_PARSE_ERROR` and abort repo config loading for this project. The project MUST continue to operate using daemon project config + defaults.
+3. **Validate schema.** Validate the parsed document against the repo config schema (§2.9.2). Reject daemon-internal fields (`name`, `remoteUrl`). On validation failure, emit `CONFIG_VALIDATION_ERROR` and abort repo config loading.
+4. **Merge.** Compute the effective config by applying the four-layer precedence hierarchy (§2.9.3).
+5. **Detect conflicts.** Compare repo config values (Layer 2) against daemon project config values (Layer 3). For each field where both layers define a value and the values differ, record a `ConfigConflict` (§2.9.4).
+6. **Log conflicts.** Emit a `CONFIG_PRECEDENCE_OVERRIDE` warning for each conflict, naming the field path, the repo-config value, and the daemon-project-config value.
+7. **Publish.** Broadcast the merged config and any conflicts on the `config:project:<name>` WebSocket channel with source `"init"` (on first load) or `"file"` (on reload).
+
+If Step 2 or 3 fails, the daemon MUST NOT use any values from the invalid `.atc/config.yaml`. The project operates as if `.atc/` does not exist, and the error is surfaced in the conflicts API response (§4.9.3) with `status: "error"`.
+
+#### 4.9.2 CLI Validation Command
+
+The `atc config validate` command provides pre-flight config validation for CI pipelines and local development.
+
+**Usage:**
+
+```
+atc config validate [--project <name>] [--format json|text]
+```
+
+**Behavior:**
+
+1. Read the `.atc/config.yaml` from the current working directory (or the named project's repo root).
+2. Run the same parse → validate → merge → conflict-detect pipeline as §4.9.1.
+3. Report results to stdout.
+
+**Exit codes:**
+
+| Code | Meaning |
+|------|---------|
+| `0`  | Valid. No errors, no conflicts. |
+| `1`  | Validation error. Parse failures or schema violations. |
+| `2`  | Valid with conflicts. Config is loadable but has precedence conflicts with daemon project config. |
+
+**Text output format:**
+
+```
+✓ .atc/config.yaml: valid
+⚠ conflict: categories — repo defines ["feature","bugfix","hotfix"], daemon project config defines ["feature","bugfix"]. Repo value takes precedence.
+```
+
+**JSON output format (`--format json`):**
+
+```json
+{
+  "valid": true,
+  "errors": [],
+  "conflicts": [
+    {
+      "field": "categories",
+      "repoValue": ["feature", "bugfix", "hotfix"],
+      "daemonProjectValue": ["feature", "bugfix"],
+      "resolvedValue": ["feature", "bugfix", "hotfix"],
+      "resolvedFrom": "repo"
+    }
+  ]
+}
+```
+
+#### 4.9.3 Config Conflicts REST API
+
+The daemon exposes an endpoint to query the current config conflict state for a project:
+
+```
+GET /api/v1/projects/:name/config/conflicts
+```
+
+**Response (200):**
+
+| Field              | Type               | Description                                                       |
+| ------------------ | ------------------ | ----------------------------------------------------------------- |
+| `status`           | `"ok" \| "error"` | `"ok"` if `.atc/config.yaml` loaded successfully; `"error"` if parse/validation failed. |
+| `repoConfigPresent`| `boolean`          | Whether `.atc/config.yaml` was found.                             |
+| `conflicts`        | `ConfigConflict[]` | Active conflicts between repo and daemon project config layers. Empty if no `.atc/` or no conflicts. |
+| `errors`           | `ConfigError[]`    | Parse or validation errors. Empty if config is valid.             |
+
+**ConfigError schema:**
+
+| Field     | Type             | Description                                          |
+| --------- | ---------------- | ---------------------------------------------------- |
+| `code`    | `string`         | `CONFIG_PARSE_ERROR` or `CONFIG_VALIDATION_ERROR`.   |
+| `message` | `string`         | Human-readable error description.                    |
+| `field`   | `string \| null` | Field path that failed validation, if applicable.    |
+
+#### 4.9.4 Config Source Indicator API
+
+The existing project config GET endpoint MUST be extended to include source metadata when `.atc/config.yaml` is present:
+
+```
+GET /api/v1/projects/:name/config
+```
+
+The response MUST include a `sources` map alongside the config values:
+
+| Field     | Type                                  | Description                                                       |
+| --------- | ------------------------------------- | ----------------------------------------------------------------- |
+| `config`  | `ProjectMetadataConfig`               | The effective (merged) config.                                    |
+| `sources` | `Record<string, ConfigSourceInfo>`    | Per-field source metadata. Only present when `.atc/` is loaded.   |
+
+**ConfigSourceInfo schema:**
+
+| Field          | Type                                                          | Description                                              |
+| -------------- | ------------------------------------------------------------- | -------------------------------------------------------- |
+| `layer`        | `"daemon_global" \| "repo" \| "daemon_project" \| "default"` | Which layer supplied the effective value.                |
+| `hasConflict`  | `boolean`                                                     | Whether this field has a conflict between layers.        |
+
+#### 4.9.5 Error Reference
+
+| Code                         | HTTP | Description                                                                              |
+|------------------------------|------|------------------------------------------------------------------------------------------|
+| `CONFIG_PARSE_ERROR`         | 422  | `.atc/config.yaml` is malformed YAML.                                                    |
+| `CONFIG_VALIDATION_ERROR`    | 422  | `.atc/config.yaml` contains invalid field values or daemon-internal fields.              |
+| `CONFIG_PRECEDENCE_OVERRIDE` | —    | Warning (log-only). A repo config value is overridden by daemon project config for the same field. |
+
+#### Rules
+
+- **RULE-CVAL-1:** The daemon MUST validate `.atc/config.yaml` on project registration and on every file reload, following the seven-step procedure in §4.9.1. Validation failures MUST NOT crash the daemon or block project loading.
+- **RULE-CVAL-2:** The `atc config validate` command MUST exit with code `0` for valid config, `1` for validation errors, and `2` for valid config with conflicts. Output MUST support both human-readable text (default) and structured JSON (`--format json`).
+- **RULE-CVAL-3:** The `GET /api/v1/projects/:name/config/conflicts` endpoint MUST return the current conflict state including `status`, `repoConfigPresent`, `conflicts`, and `errors`. The response MUST be `200 OK` even when errors are present — the endpoint reports status, it does not fail.
+- **RULE-CVAL-4:** The `GET /api/v1/projects/:name/config` response MUST include a `sources` map with per-field `ConfigSourceInfo` when `.atc/config.yaml` is loaded. The web UI uses this map to render config source indicators (see RULE-RCFG-9).
 ## 5. Appendices
 
 ### Appendix A: Rule Index
@@ -891,6 +1276,7 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-CRAFT-4   | Craft must have a category at creation.                              | 2.1     |
 | RULE-CRAFT-5   | Craft must have exactly one captain at all times.                    | 2.1     |
 | RULE-CRAFT-6   | Craft must record an immutable creation timestamp at Taxiing.        | 2.1     |
+| RULE-CRAFT-7   | Craft must record a landedAt timestamp when transitioning to Landed. | 2.1     |
 | RULE-BBOX-1    | Black box created at Taxiing, persists for lifecycle.                | 2.1.1   |
 | RULE-BBOX-2    | Black box entries are append-only, immutable.                        | 2.1.1   |
 | RULE-BBOX-3    | All pilots (including jumpseaters) may write to black box.           | 2.1.1   |
@@ -949,6 +1335,7 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-VRPT-8    | Warning-severity constraints never block; results included in ConstraintCheckResult for pilot visibility. | 4.1 |
 | RULE-VRPT-9    | Only the captain may supply constraintOverrides; non-captain overrides return 403; justification must be non-empty. | 4.1 |
 | RULE-VRPT-10   | remediationHint must carry ADR rationale (why), not just mechanical fix (how); omitting it fails constraint creation. | 4.1.1 |
+| RULE-VRPT-11   | VectorPassed and VectorFailed content MUST begin with `[<vectorName>]: ` for machine-parseable vector name extraction. | 4.1 |
 | RULE-CHKL-1    | Template is named, ordered list with name, executor, severity, description. | 4.2  |
 | RULE-CHKL-2    | Templates bound to lifecycle events and craft categories.            | 4.2     |
 | RULE-CHKL-3    | Crafts may override bindings: add, remove, or disable.               | 4.2     |
@@ -1001,3 +1388,19 @@ Changes that are purely internal (refactors, backend logic with no user-visible 
 | RULE-UXR-3     | All user-visible states covered: success, error, loading, empty.     | 4.7.3   |
 | RULE-UXR-4     | Web changes must maintain/improve accessibility (WCAG AA).           | 4.7.3   |
 | RULE-UXR-5     | Destructive actions require confirmation; errors must be recoverable.| 4.7.3   |
+| RULE-RCFG-1    | `.atc/` directory must be in repo root; daemon discovers via working directory. | 2.9     |
+| RULE-RCFG-2    | `.atc/config.yaml` validated on load; parse/schema errors reported, daemon-internal fields rejected. | 2.9 |
+| RULE-RCFG-3    | Config precedence: daemon global > repo config > daemon project config > defaults. | 2.9.3 |
+| RULE-RCFG-4    | Repo/daemon project config conflicts must be detected and surfaced, not silently resolved. | 2.9.4 |
+| RULE-RCFG-5    | Config conflicts logged as warnings at startup and on every reload.  | 2.9.4   |
+| RULE-RCFG-6    | Daemon watches `.atc/config.yaml` for changes via content-hash + mtime fingerprinting. | 2.9.5 |
+| RULE-RCFG-7    | Invalid `.atc/` file change retains last valid config; emits `invalid_external_edit`. | 2.9.5 |
+| RULE-RCFG-8    | Web UI displays effective (merged) config, not raw daemon project config. | 2.9.6 |
+| RULE-RCFG-9    | Fields sourced from `.atc/` or daemon global must show source indicator in web UI. | 2.9.6 |
+| RULE-RCFG-10   | Web UI rejects edits to fields controlled by higher-precedence config layers. | 2.9.6 |
+| RULE-RCFG-11   | Fields with active config conflicts display both values and conflict indicator. | 2.9.6 |
+| RULE-CVAL-1    | Config conflicts detected eagerly at daemon startup and file reload, not lazily at request time. | 4.9.1 |
+| RULE-CVAL-2    | Conflict warnings name both source paths, both values, resolved value, and resolving layer. | 4.9.1 |
+| RULE-CVAL-3    | `atc config validate` CLI validates without daemon; exits 0/1/2/3/4 for valid/parse/schema/conflict/missing. | 4.9.2 |
+| RULE-CVAL-4    | `atc config validate --format json` provides machine-readable output for CI/CD. | 4.9.2 |
+| RULE-CVAL-5    | `GET /config/conflicts` returns conflict list, repo config presence/validity, and last load timestamp. | 4.9.3 |

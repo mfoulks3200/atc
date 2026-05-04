@@ -104,6 +104,19 @@ describe("vector routes", () => {
       expect(vectorEntries[0].content).toContain("Design doc approved");
     });
 
+    it("VectorPassed content uses machine-parseable prefix format (RULE-VRPT-11)", async () => {
+      await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/bravo-1/vectors/design/report`,
+        payload: { evidence: "Design doc approved" },
+      });
+      const craft = craftStore.get(PROJECT, "bravo-1")!;
+      const entry = craft.blackBox.find((e) => e.type === "VectorPassed")!;
+      const match = entry.content.match(/^\[([^\]]+)\]: /);
+      expect(match).not.toBeNull();
+      expect(match![1]).toBe("design");
+    });
+
     it("rejects out-of-order vector reports (RULE-VEC-2)", async () => {
       const res = await app.inject({
         method: "POST",
