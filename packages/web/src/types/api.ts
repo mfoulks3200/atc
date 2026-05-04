@@ -43,7 +43,8 @@ export type BlackBoxEntryType =
   | "AgentOutput"
   | "Merge"
   | "MergeStale"
-  | "MergeConflict";
+  | "MergeConflict"
+  | "KeyRotated";
 
 export interface SystemNotification {
   source: string;
@@ -72,11 +73,25 @@ export interface VectorState {
   reportedAt?: string;
 }
 
+/** Metadata present when a Black Box entry was signed with a rotated (archived) key. @see RULE-BBOX-* */
+export interface HistoricalKeyMetadata {
+  /** ISO-8601 UTC timestamp when the signing key was originally created. */
+  createdAt: string;
+  /** ISO-8601 UTC timestamp when the key was rotated and archived. */
+  rotatedAt: string;
+}
+
 export interface BlackBoxEntry {
   timestamp: string;
   author: string;
   type: BlackBoxEntryType;
   content: string;
+  signature?: string;
+  traceId?: string;
+  spanId?: string;
+  parentSpanId?: string;
+  /** Present when this entry was signed with a rotated-but-still-valid archived key. */
+  historicalKey?: HistoricalKeyMetadata;
 }
 
 export interface ControlState {
