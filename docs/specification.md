@@ -1,11 +1,12 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.5.0
+**Version:** 0.5.1
 **Status:** Draft
-**Date:** 2026-05-03
+**Date:** 2026-05-04
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
+- 0.5.1 (2026-05-04): Add `AgentResumeContext` interface to §2.9 with `pilotSessionToken` field; refine RULE-MCPAUTH-4 to specify daemon pre-fetch before `resume()` and stdio-transport MCP subprocess restart requirement (AIR-715).
 - 0.5.0 (2026-05-03): Add Pilot Session Token entity §2.9, MCP authentication protocol §4.10 (RULE-MCPAUTH-1 through RULE-MCPAUTH-8), session-token issuance endpoint, seat authority matrix, structured auth error codes, and open question resolution record (AIR-699).
 - 0.4.1 (2026-05-03): Add structured MCP tool error contract §4.9 (RULE-MCP-1 through RULE-MCP-3, AIR-692).
 - 0.4.0 (2026-04-30): Add Inspector seat type (RULE-SEAT-5/6), UnderReview lifecycle state (RULE-LIFE-9/10), adversarial review protocol §4.8 (RULE-ARVW-1 through RULE-ARVW-5), challenge finding and builder flag schemas §2.8, and five new black box entry types (AIR-265).
@@ -425,7 +426,7 @@ Returns `{ token: string, expiresAt: number }`. The daemon verifies that the pil
 - **RULE-MCPAUTH-1:** A standalone MCP server MUST require a valid Pilot Session Token on every connection. Requests without a token MUST be rejected with error code `TOKEN_MISSING`.
 - **RULE-MCPAUTH-2:** Tokens MUST be issued by the daemon and MUST encode `{ pilotId, callsign, projectName, seat, issuedAt, expiresAt }`. The daemon MUST verify the pilot is on the craft's manifest before issuing a token.
 - **RULE-MCPAUTH-3:** The standalone MCP server MUST NOT accept pilot identity from tool call arguments. All identity MUST be extracted from the validated token. Tool schemas MUST NOT include `pilotId`, `callsign`, or `seat` parameters.
-- **RULE-MCPAUTH-4:** The `AgentAdapter.resume()` path MUST re-issue the token via the issuance endpoint and re-inject the new `ATC_PILOT_TOKEN` into the agent's environment before resuming execution.
+- **RULE-MCPAUTH-4:** Before calling `AgentAdapter.resume()`, the daemon MUST pre-fetch a fresh token via the issuance endpoint and pass it as `AgentResumeContext.pilotSessionToken`. For stdio-transport adapters, the MCP server subprocess MUST be restarted with the updated `ATC_PILOT_TOKEN` value before resuming the agent. For HTTP-transport adapters, the bearer token MAY be updated dynamically without a subprocess restart.
 - **RULE-MCPAUTH-5:** Token transport MUST use the `ATC_PILOT_TOKEN` environment variable. For HTTP-transport MCP connections, the client MUST also send the token as `Authorization: Bearer <token>` on every request. For stdio-transport MCP connections, the server reads the token from the environment at process start.
 - **RULE-MCPAUTH-6:** Token signing MUST use a shared secret distributed via the `ATC_TOKEN_SECRET` environment variable. Both the daemon and the standalone MCP server MUST have access to this secret. Asymmetric signing (JWKS) is reserved for future distributed deployments and is out of scope for the initial implementation.
 - **RULE-MCPAUTH-7:** The standalone MCP server MUST enforce seat-based tool authorization structurally. When a pilot's seat type is insufficient for the requested tool (e.g., a jumpseat pilot calling a captain-only tool), the server MUST reject the request with error code `SEAT_INSUFFICIENT_AUTHORITY`. Advisory system-prompt enforcement alone is insufficient.
@@ -444,7 +445,18 @@ Returns `{ token: string, expiresAt: number }`. The daemon verifies that the pil
 
 #### Token Lifetime
 
-Tokens default to a 24-hour TTL. The `AgentAdapter` is responsible for refresh: when `resume()` is called, the adapter re-issues the token via the issuance endpoint and re-injects it into the agent environment (RULE-MCPAUTH-4). No separate refresh protocol is defined — the resume path is the refresh mechanism.
+Tokens default to a 24-hour TTL. No separate refresh protocol is defined — the resume path is the refresh mechanism. When `AgentAdapter.resume()` is called, the daemon MUST pre-fetch a fresh token via the issuance endpoint and pass it as `AgentResumeContext.pilotSessionToken`; the adapter is responsible for re-injecting it into the agent environment (RULE-MCPAUTH-4).
+
+#### AgentResumeContext
+
+The `AgentResumeContext` interface is the payload the daemon passes to `AgentAdapter.resume()`. It carries all state required to restore a paused agent, including the pre-fetched session token.
+
+| Field               | Type                   | Description                                                                                                            |
+| ------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `craft`             | `CraftState`           | Current craft state to restore the agent with.                                                                         |
+| `intercomHistory`   | `IntercomMessage[]`    | Intercom messages to replay into the resumed agent's context.                                                          |
+| `lastKnownState`    | `string`               | String representation of the agent's last known internal state.                                                        |
+| `pilotSessionToken` | `string`               | A fresh Pilot Session Token pre-fetched by the daemon immediately before calling `resume()`. The adapter MUST use this token to re-inject `ATC_PILOT_TOKEN` into the agent environment. For stdio-transport MCP, this requires restarting the MCP server subprocess with the updated token value. |
 
 ## 3. Craft Lifecycle
 
@@ -1027,7 +1039,9 @@ When ATC tools are served by a standalone MCP server process (rather than per-pi
 3. **Token validation.** On every tool call, the standalone MCP server validates the token's signature using the shared `ATC_TOKEN_SECRET`, checks `expiresAt`, and extracts the `PilotSessionClaims` (`{ pilotId, callsign, projectName, seat }`). Failed validation returns one of the structured error codes defined in §2.9.
 4. **Identity binding.** The validated claims are passed to tool handlers as context. Tool handlers use these claims for all authorization decisions. Tool schemas MUST NOT include identity parameters (RULE-MCPAUTH-3).
 5. **Seat authorization.** Before executing a tool, the server checks whether the caller's `seat` type is sufficient. Tools that require captain authority (e.g., `tower_execute_merge`, `controls_transfer`) MUST reject jumpseat and inspector callers with `SEAT_INSUFFICIENT_AUTHORITY`.
-6. **Token refresh.** When `AgentAdapter.resume()` is called, the adapter re-issues the token via the issuance endpoint and re-injects the new `ATC_PILOT_TOKEN` before resuming execution. No mid-session refresh protocol is defined; the 24-hour default TTL exceeds typical agent session lengths.
+6. **Token pre-fetch and resume.** Before calling `AgentAdapter.resume()`, the daemon MUST call the session-token issuance endpoint to obtain a fresh `PilotSessionToken` and pass it as `AgentResumeContext.pilotSessionToken`. The adapter receives the token through the context object and is responsible for re-injecting it into the MCP environment:
+   - **stdio-transport MCP:** The MCP server subprocess reads `ATC_PILOT_TOKEN` from the environment at process start and cannot receive a new token dynamically without an out-of-band channel. The adapter MUST restart the MCP server subprocess with the updated `ATC_PILOT_TOKEN` value set in the new process environment before resuming the agent.
+   - **HTTP-transport MCP:** The adapter MAY update the `Authorization: Bearer` token on the agent's MCP client dynamically without a subprocess restart.
 
 #### 4.10.2 Multi-Pilot Scenario
 
@@ -1055,7 +1069,7 @@ The following design decisions were made during spec authoring (AIR-699) and are
 | --- | --- | --- |
 | Token transport (stdio vs HTTP) | `ATC_PILOT_TOKEN` env var for all transports (RULE-MCPAUTH-5) | Env vars work universally; MCP `initialize` extra params are non-standard. |
 | Token secret distribution | Shared secret via `ATC_TOKEN_SECRET` env var (RULE-MCPAUTH-6) | Simplest for single-machine deployments; JWKS deferred to future distributed mode. |
-| Token lifetime policy | 24h default TTL, re-issued on `resume()` (RULE-MCPAUTH-4) | Avoids mid-session expiry; resume path serves as refresh mechanism. |
+| Token lifetime policy | 24h default TTL; daemon pre-fetches fresh token before `resume()` and passes via `AgentResumeContext.pilotSessionToken` (RULE-MCPAUTH-4) | Avoids mid-session expiry; resume path serves as refresh mechanism. Passing token via context keeps adapter stateless. |
 | Seat authority enforcement | Structural enforcement at MCP server (RULE-MCPAUTH-7) | Advisory system-prompt is insufficient per structural-enforcement principle. |
 
 #### Rules
@@ -1063,7 +1077,7 @@ The following design decisions were made during spec authoring (AIR-699) and are
 - **RULE-MCPAUTH-1:** A standalone MCP server MUST require a valid Pilot Session Token on every connection (§2.9).
 - **RULE-MCPAUTH-2:** Tokens MUST be issued by the daemon and encode `{ pilotId, callsign, projectName, seat, issuedAt, expiresAt }` (§2.9).
 - **RULE-MCPAUTH-3:** The standalone MCP server MUST NOT accept pilot identity from tool call arguments (§2.9).
-- **RULE-MCPAUTH-4:** `AgentAdapter.resume()` MUST re-issue the token and re-inject it into the agent environment (§2.9).
+- **RULE-MCPAUTH-4:** The daemon MUST pre-fetch a fresh token via the issuance endpoint before calling `AgentAdapter.resume()`, passing it as `AgentResumeContext.pilotSessionToken` (§2.9). For stdio-transport adapters, the MCP server subprocess MUST be restarted with the new token value.
 - **RULE-MCPAUTH-5:** Token transport MUST use `ATC_PILOT_TOKEN` env var; HTTP clients MUST also send `Authorization: Bearer` (§2.9).
 - **RULE-MCPAUTH-6:** Token signing MUST use a shared secret via `ATC_TOKEN_SECRET` env var (§2.9).
 - **RULE-MCPAUTH-7:** The MCP server MUST enforce seat-based authorization structurally; `SEAT_INSUFFICIENT_AUTHORITY` for unauthorized calls (§2.9).
@@ -1197,7 +1211,7 @@ The following design decisions were made during spec authoring (AIR-699) and are
 | RULE-MCPAUTH-1 | Standalone MCP server MUST require a valid PST on every connection.   | 2.9     |
 | RULE-MCPAUTH-2 | Tokens MUST be daemon-issued, encoding pilotId, callsign, projectName, seat, issuedAt, expiresAt. | 2.9 |
 | RULE-MCPAUTH-3 | Standalone MCP server MUST NOT accept pilot identity from tool arguments. | 2.9  |
-| RULE-MCPAUTH-4 | `AgentAdapter.resume()` MUST re-issue token and re-inject into agent env. | 2.9  |
+| RULE-MCPAUTH-4 | Daemon MUST pre-fetch token before `resume()`; pass via `AgentResumeContext.pilotSessionToken`; stdio adapters MUST restart MCP subprocess. | 2.9  |
 | RULE-MCPAUTH-5 | Token transport via `ATC_PILOT_TOKEN` env var; HTTP also sends Bearer header. | 2.9 |
 | RULE-MCPAUTH-6 | Token signing via shared secret in `ATC_TOKEN_SECRET` env var.       | 2.9     |
 | RULE-MCPAUTH-7 | MCP server MUST enforce seat-based authorization structurally.       | 2.9     |
