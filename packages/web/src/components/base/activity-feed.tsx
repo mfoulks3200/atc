@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWsManager } from "@/hooks/ws-context";
 import type { BlackBoxEntry, BlackBoxEntryType, WsEvent } from "@/types/api";
+import { HistoricalKeyIndicator } from "./historical-key-indicator.js";
 
 interface EntryStyle {
   label: string;
@@ -30,6 +31,7 @@ const ENTRY_STYLES: Record<BlackBoxEntryType, EntryStyle> = {
   TFRIssued: { label: "TFR", color: "var(--accent-yellow)", kind: "tfr" },
   TFRLifted: { label: "TFR LIFT", color: "var(--text-muted)", kind: "tfr" },
   AgentOutput: { label: "OUT", color: "var(--text-dim)", kind: "output" },
+  KeyRotated: { label: "KEY ROTATED", color: "var(--accent-yellow)", kind: "lifecycle" },
 };
 
 const FALLBACK_STYLE: EntryStyle = {
@@ -47,6 +49,119 @@ function entryKey(e: BlackBoxEntry, i: number): string {
   return `${e.timestamp}-${e.type}-${e.author}-${i}`;
 }
 
+// All defined BlackBoxEntry keys in display order (trace context last).
+const ENTRY_FIELD_ORDER: (keyof BlackBoxEntry)[] = [
+  "timestamp",
+  "type",
+  "author",
+  "content",
+  "signature",
+  "traceId",
+  "spanId",
+  "parentSpanId",
+];
+
+interface SignatureCellProps {
+  value: string;
+}
+
+function SignatureCell({ value }: SignatureCellProps) {
+  const [copied, setCopied] = useState(false);
+  const preview = value.length > 20 ? `${value.slice(0, 20)}…` : value;
+
+  function copy() {
+    void navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="font-mono">{preview}</span>
+      <button
+        type="button"
+        onClick={copy}
+        className="rounded px-1.5 py-px text-[9px] uppercase tracking-wider transition-colors"
+        style={{
+          color: copied ? "var(--accent-green)" : "var(--text-dim)",
+          backgroundColor: copied
+            ? "color-mix(in srgb, var(--accent-green) 12%, transparent)"
+            : "color-mix(in srgb, var(--text-dim) 12%, transparent)",
+          border: `1px solid ${copied ? "color-mix(in srgb, var(--accent-green) 30%, transparent)" : "color-mix(in srgb, var(--text-dim) 30%, transparent)"}`,
+        }}
+        aria-label="Copy full signature"
+      >
+        {copied ? "copied" : "copy"}
+      </button>
+    </span>
+  );
+}
+
+interface EntryInspectorProps {
+  entry: BlackBoxEntry;
+  regionRef: React.RefObject<HTMLDivElement | null>;
+  expanded: boolean;
+}
+
+function EntryInspector({ entry, regionRef, expanded }: EntryInspectorProps) {
+  return (
+    <div
+      style={{
+        maxHeight: expanded ? "600px" : "0",
+        overflow: "hidden",
+        transition: "max-height 0.22s ease",
+      }}
+      aria-hidden={!expanded}
+    >
+      {expanded && (
+        <div
+          ref={regionRef}
+          role="region"
+          tabIndex={0}
+          aria-label={`Details for ${entry.type} entry`}
+          className="mx-2 mb-1 mt-0.5 rounded border p-2 outline-none focus-visible:ring-1"
+          style={{
+            borderColor: "var(--border)",
+            backgroundColor: "var(--bg-base)",
+            // @ts-expect-error CSS custom property
+            "--tw-ring-color": "var(--accent-blue)",
+          }}
+        >
+          <table className="w-full border-collapse">
+            <tbody>
+              {ENTRY_FIELD_ORDER.map((key) => {
+                const value = entry[key];
+                if (value === undefined || value === null) return null;
+                return (
+                  <tr key={key}>
+                    <td
+                      className="w-28 shrink-0 py-0.5 pr-3 align-top font-mono text-[10px]"
+                      style={{ color: "var(--text-dim)" }}
+                    >
+                      {key}
+                    </td>
+                    <td
+                      className="break-all py-0.5 align-top font-mono text-[10px]"
+                      style={{ color: "var(--text-secondary)" }}
+                    >
+                      {key === "signature" ? (
+                        <SignatureCell value={String(value)} />
+                      ) : (
+                        String(value)
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface ActivityFeedProps {
   callsign: string;
   initial: BlackBoxEntry[];
@@ -60,6 +175,8 @@ interface ActivityFeedProps {
  * Supports a follow-tail toggle: when enabled the scroll container pins to
  * the latest entry. If the user scrolls up, tail is paused automatically and
  * a "jump to latest" affordance appears.
+ *
+ * Each entry row is clickable to expand a full key-value inspector panel.
  */
 export function ActivityFeed({ callsign, initial }: ActivityFeedProps) {
   const wsManager = useWsManager();
@@ -205,58 +322,129 @@ interface ActivityEntryProps {
 function ActivityEntry({ entry }: ActivityEntryProps) {
   const style = ENTRY_STYLES[entry.type] ?? FALLBACK_STYLE;
   const isOutput = style.kind === "output";
+  const [expanded, setExpanded] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const regionRef = useRef<HTMLDivElement>(null);
+
+  const toggle = useCallback(() => {
+    setExpanded((prev) => {
+      const next = !prev;
+      if (next) {
+        setTimeout(() => regionRef.current?.focus(), 30);
+      } else {
+        triggerRef.current?.focus();
+      }
+      return next;
+    });
+  }, []);
 
   if (isOutput) {
     return (
-      <li
-        className="flex gap-2 border-l py-0.5 pl-2 pr-1 font-mono text-[10.5px] leading-snug"
-        style={{
-          borderColor: "color-mix(in srgb, var(--text-dim) 30%, transparent)",
-          color: "var(--text-muted)",
-        }}
-      >
-        <span className="shrink-0 tabular-nums" style={{ color: "var(--text-dim)" }}>
-          {formatTime(entry.timestamp)}
-        </span>
-        <span className="shrink-0" style={{ color: "var(--text-dim)" }}>
-          {entry.author}
-        </span>
-        <span className="whitespace-pre-wrap break-words">{entry.content}</span>
+      <li>
+        <div className="flex items-start border-l" style={{ borderColor: "color-mix(in srgb, var(--text-dim) 30%, transparent)" }}>
+          <button
+            ref={triggerRef}
+            type="button"
+            onClick={toggle}
+            aria-expanded={expanded}
+            className="flex min-w-0 flex-1 gap-2 py-0.5 pl-2 pr-1 text-left font-mono text-[10.5px] leading-snug transition-colors"
+            style={{
+              color: "var(--text-muted)",
+              backgroundColor: expanded
+                ? "color-mix(in srgb, var(--bg-elevated) 40%, transparent)"
+                : "transparent",
+            }}
+          >
+            <span className="shrink-0 tabular-nums" style={{ color: "var(--text-dim)" }}>
+              {formatTime(entry.timestamp)}
+            </span>
+            <span className="shrink-0" style={{ color: "var(--text-dim)" }}>
+              {entry.author}
+            </span>
+            <span className="whitespace-pre-wrap break-words">{entry.content}</span>
+            <span
+              className="ml-auto shrink-0 self-start pl-2 text-[8px] opacity-40"
+              style={{ color: "var(--text-dim)" }}
+              aria-hidden="true"
+            >
+              {expanded ? "▲" : "▼"}
+            </span>
+          </button>
+          {entry.historicalKey && (
+            <span className="shrink-0 self-center pr-1">
+              <HistoricalKeyIndicator
+                author={entry.author}
+                keyCreatedAt={entry.historicalKey.createdAt}
+                keyRotatedAt={entry.historicalKey.rotatedAt}
+              />
+            </span>
+          )}
+        </div>
+        <EntryInspector entry={entry} regionRef={regionRef} expanded={expanded} />
       </li>
     );
   }
 
   return (
-    <li
-      className="flex items-start gap-2 rounded-sm py-1 pl-2 pr-1 text-[11px] leading-snug"
-      style={{
-        backgroundColor: "color-mix(in srgb, var(--bg-elevated) 60%, transparent)",
-      }}
-    >
-      <span
-        className="shrink-0 tabular-nums pt-px"
-        style={{ color: "var(--text-dim)" }}
-      >
-        {formatTime(entry.timestamp)}
-      </span>
-      <span
-        className="shrink-0 rounded-sm px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider"
+    <li>
+      <div
+        className="flex items-start rounded-sm"
         style={{
-          color: style.color,
-          backgroundColor: `color-mix(in srgb, ${style.color} 15%, transparent)`,
+          backgroundColor: expanded
+            ? "color-mix(in srgb, var(--bg-elevated) 90%, transparent)"
+            : "color-mix(in srgb, var(--bg-elevated) 60%, transparent)",
         }}
       >
-        {style.label}
-      </span>
-      <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
-        {entry.author}
-      </span>
-      <span
-        className="min-w-0 flex-1 whitespace-pre-wrap break-words"
-        style={{ color: "var(--text-secondary)" }}
-      >
-        {entry.content}
-      </span>
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={toggle}
+          aria-expanded={expanded}
+          className="flex min-w-0 flex-1 items-start gap-2 py-1 pl-2 pr-1 text-left text-[11px] leading-snug transition-colors"
+        >
+          <span
+            className="shrink-0 tabular-nums pt-px"
+            style={{ color: "var(--text-dim)" }}
+          >
+            {formatTime(entry.timestamp)}
+          </span>
+          <span
+            className="shrink-0 rounded-sm px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider"
+            style={{
+              color: style.color,
+              backgroundColor: `color-mix(in srgb, ${style.color} 15%, transparent)`,
+            }}
+          >
+            {style.label}
+          </span>
+          <span className="shrink-0" style={{ color: "var(--text-muted)" }}>
+            {entry.author}
+          </span>
+          <span
+            className="min-w-0 flex-1 whitespace-pre-wrap break-words"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            {entry.content}
+          </span>
+          <span
+            className="shrink-0 self-start pl-1 pt-px text-[8px] opacity-40"
+            style={{ color: "var(--text-dim)" }}
+            aria-hidden="true"
+          >
+            {expanded ? "▲" : "▼"}
+          </span>
+        </button>
+        {entry.historicalKey && (
+          <span className="shrink-0 self-center pr-1">
+            <HistoricalKeyIndicator
+              author={entry.author}
+              keyCreatedAt={entry.historicalKey.createdAt}
+              keyRotatedAt={entry.historicalKey.rotatedAt}
+            />
+          </span>
+        )}
+      </div>
+      <EntryInspector entry={entry} regionRef={regionRef} expanded={expanded} />
     </li>
   );
 }
