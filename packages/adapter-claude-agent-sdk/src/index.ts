@@ -14,6 +14,10 @@ export {
   type QueryFn,
 } from "./adapter.js";
 export { buildSystemPrompt, deriveSeat } from "./prompt-builder.js";
+export { createIntercomMcpServer, type IntercomToolContext } from "./intercom-tool.js";
+export { createControlsMcpServer, type ControlsToolContext } from "./controls-tool.js";
+export { createTowerMcpServer, type TowerToolContext } from "./tower-tool.js";
+export { createVectorMcpServer, type VectorToolContext } from "./vector-tool.js";
 export {
   createControlsCanUseTool,
   decideForFileModification,
