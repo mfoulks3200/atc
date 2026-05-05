@@ -487,13 +487,31 @@ The daemon loads `.atc/config.yaml` at project registration time and watches the
 
 #### 2.9.6 Web UI Behavior
 
-When `.atc/config.yaml` is present and defines fields for a project:
+**When `.atc/config.yaml` is present and valid:**
 
 - The web UI project settings page MUST display the **effective (merged) value** for each field, not the raw daemon project config value.
 - Fields whose effective value comes from `.atc/config.yaml` MUST be visually distinguished from daemon-only fields. The indicator MUST include the source layer name (e.g., "from .atc/config.yaml").
 - Fields whose effective value comes from daemon global config MUST also be distinguished with their source (e.g., "enforced by daemon global config").
 - If a user attempts to edit a field whose effective value is sourced from `.atc/config.yaml` or daemon global config, the web UI MUST display a warning explaining that the field is controlled by a higher-precedence layer and cannot be overridden from the UI. The edit MUST be rejected — the UI MUST NOT write a daemon project config value for a field that would be immediately overridden by a higher layer.
 - Fields with active config conflicts MUST display both the `.atc/` value and the daemon project config value, with a visual indicator showing the conflict and which value is in effect.
+
+**Edit-rejection warning message templates (RULE-RCFG-10):**
+
+The warning message displayed when a user attempts to edit a locked field MUST branch by controlling layer:
+
+- `.atc/` layer: "This field is set in `.atc/config.yaml` and cannot be edited from the UI. To change it, commit a new value to `.atc/config.yaml`."
+- Daemon global layer: "This field is enforced by daemon global config and cannot be overridden from the UI. Contact your daemon operator to change it."
+
+**When `.atc/config.yaml` is present but invalid** (parse or schema failure after a file edit):
+
+- The project settings page MUST display a persistent banner: "Repo config (.atc/config.yaml) has errors and is not loaded. Showing last valid configuration."
+- The banner is triggered by the `invalid_external_edit` event on the `config:project:<name>` WebSocket channel.
+- The banner MUST clear when a valid file is subsequently reloaded.
+
+**When `.atc/config.yaml` is absent:**
+
+- The UI renders without source indicators or conflict indicators — this is the same behavior as before repo config was introduced.
+- Implementors MUST NOT add empty-state banners or placeholder indicators when the file is absent. The absence of the file is a normal state, not an error.
 
 #### Rules
 
@@ -1210,12 +1228,16 @@ The `atc config validate` command performs the full validation pipeline against 
 | 0    | Valid — no parse errors, no schema violations, no conflicts.                    |
 | 1    | Parse error — `.atc/config.yaml` is malformed YAML.                            |
 | 2    | Validation error — one or more fields fail schema validation.                   |
-| 3    | Conflict detected — repo config conflicts with daemon project config.           |
+| 3    | Conflict detected — repo config conflicts with daemon project config. Non-fatal for CI/CD: the config is valid and will load, but a human should resolve the ambiguity. |
 | 4    | File not found — no `.atc/config.yaml` in the resolved directory.              |
 
 When the daemon is not reachable, conflict detection (exit code 3) is skipped and the command validates parse + schema only.
 
+When both parse/schema errors (codes 1 or 2) and conflicts (code 3) exist, the command MUST exit with the lowest (highest-severity) code. For example, a file with a parse error AND a conflict exits 1, not 3.
+
 **JSON output format (`--format json`):**
+
+Each entry in `errors` includes an optional `fixHint` field with a short human-readable suggestion for how to resolve the error:
 
 ```json
 {
@@ -1225,7 +1247,8 @@ When the daemon is not reachable, conflict detection (exit code 3) is skipped an
     {
       "code": "CONFIG_VALIDATION_ERROR",
       "field": "categories",
-      "message": "Expected array, received string"
+      "message": "Expected array, received string",
+      "fixHint": "Change 'categories' to a list of category name strings, e.g. [\"Backend\", \"Frontend\"]."
     }
   ],
   "conflicts": [
@@ -1242,12 +1265,26 @@ When the daemon is not reachable, conflict detection (exit code 3) is skipped an
 
 **Text output format (default):**
 
+Success case:
+
+```
+✓ .atc/config.yaml is valid
+```
+
+Error and conflict case:
+
 ```
 ✗ .atc/config.yaml:categories — Expected array, received string (CONFIG_VALIDATION_ERROR)
+  Fix: Change 'categories' to a list of category name strings, e.g. ["Backend", "Frontend"].
+
+✗ .atc/config.yaml — Malformed YAML near line 4 (CONFIG_PARSE_ERROR)
+
 ⚠ .atc/config.yaml:checklist conflicts with daemon project config 'checklist'. Repo config takes precedence.
 
 1 error, 1 conflict
 ```
+
+(The `Fix:` line is omitted when `fixHint` is not available for an error.)
 
 #### 4.9.3 Conflicts REST API
 
@@ -1319,11 +1356,22 @@ When `.atc/config.yaml` is not present, the `sources` field MAY be omitted entir
 | `CONFIG_VALIDATION_ERROR`  | 422  | One or more fields in `.atc/config.yaml` fail schema validation.            |
 | `CONFIG_CONFLICT`          | —    | Repo config value conflicts with daemon project config value. Not an HTTP error; surfaced via the conflicts endpoint (§4.9.3) and daemon logs. |
 
+**`resolvedFrom` display-name mapping:**
+
+The `resolvedFrom` field in conflict objects uses internal enum values. When surfacing conflicts in user-visible messages, logs, or UI, implementations MUST translate these values to their human-readable display names:
+
+| `resolvedFrom` enum value | Human-readable display name              |
+| ------------------------- | ---------------------------------------- |
+| `"repo"`                  | `"Repo config (.atc/config.yaml)"`       |
+| `"daemon_global"`         | `"Daemon global config"`                 |
+
 **Error message template for `CONFIG_CONFLICT`:**
 
 ```
-".atc/config.yaml:{field} conflicts with daemon project config '{field}'. {resolvedFrom} takes precedence. Repo value: {repoValue}. Daemon value: {daemonProjectValue}. Effective value: {resolvedValue}."
+".atc/config.yaml:{field} conflicts with daemon project config '{field}'. {resolvedFromDisplayName} takes precedence. Repo value: {repoValue}. Daemon value: {daemonProjectValue}. Effective value: {resolvedValue}."
 ```
+
+Where `{resolvedFromDisplayName}` is the human-readable display name from the table above (e.g., `"Repo config (.atc/config.yaml)"` or `"Daemon global config"`), not the raw enum value.
 
 Both sources MUST be named in every conflict message. The resolved effective value and the layer that supplied it MUST be included.
 
