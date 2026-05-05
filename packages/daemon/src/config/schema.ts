@@ -51,6 +51,7 @@ export const MCP_SERVER_CONFIG_SCHEMA = z.object({
  * `<profileDir>/projects/<name>/metadata.json`.
  *
  * @see RULE-CRAFT-1
+ * @see RULE-RCFG-1
  */
 export const PROJECT_METADATA_SCHEMA = z
   .object({
@@ -59,6 +60,13 @@ export const PROJECT_METADATA_SCHEMA = z
     categories: z.array(z.string()),
     checklist: z.array(CHECKLIST_ITEM_CONFIG_SCHEMA),
     mcpServers: z.record(MCP_SERVER_CONFIG_SCHEMA),
+    /**
+     * Absolute path to the developer's local checkout of the repository.
+     * When present, the daemon derives the repo config path as
+     * `<workingDirectory>/.atc/config.yaml` (RULE-RCFG-1).
+     * When absent, repo config watching is skipped.
+     */
+    workingDirectory: z.string().optional(),
   })
   .passthrough();
 

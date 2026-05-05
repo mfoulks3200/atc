@@ -147,4 +147,31 @@ describe("PROJECT_METADATA_SCHEMA", () => {
     }) as Record<string, unknown>;
     expect(parsed["customField"]).toBe("retained");
   });
+
+  it("accepts optional workingDirectory as an absolute path string (RULE-RCFG-1)", () => {
+    const result = PROJECT_METADATA_SCHEMA.safeParse({
+      ...PROJECT_METADATA_DEFAULTS,
+      workingDirectory: "/home/user/myrepo",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>)["workingDirectory"]).toBe("/home/user/myrepo");
+    }
+  });
+
+  it("accepts metadata without workingDirectory (repo config watching skipped)", () => {
+    const result = PROJECT_METADATA_SCHEMA.safeParse(PROJECT_METADATA_DEFAULTS);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>)["workingDirectory"]).toBeUndefined();
+    }
+  });
+
+  it("rejects a non-string workingDirectory (RULE-RCFG-1)", () => {
+    const result = PROJECT_METADATA_SCHEMA.safeParse({
+      ...PROJECT_METADATA_DEFAULTS,
+      workingDirectory: 42,
+    });
+    expect(result.success).toBe(false);
+  });
 });

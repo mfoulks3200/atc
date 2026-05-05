@@ -56,6 +56,41 @@ describe("project routes", () => {
       expect(body.categories).toEqual(["backend"]);
     });
 
+    it("accepts optional workingDirectory field and persists it (RULE-RCFG-1)", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/projects",
+        payload: {
+          name: "with-workdir",
+          remoteUrl: sourceRepo,
+          categories: [],
+          checklist: [],
+          workingDirectory: "/home/user/myrepo",
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<{ workingDirectory?: string }>();
+      expect(body.workingDirectory).toBe("/home/user/myrepo");
+    });
+
+    it("creates project without workingDirectory (repo config watching skipped, no error)", async () => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/v1/projects",
+        payload: {
+          name: "no-workdir",
+          remoteUrl: sourceRepo,
+          categories: [],
+          checklist: [],
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<{ workingDirectory?: string }>();
+      expect(body.workingDirectory).toBeUndefined();
+    });
+
     it("accepts optional mcpServers field", async () => {
       const response = await app.inject({
         method: "POST",

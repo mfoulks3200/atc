@@ -418,7 +418,7 @@ The `.atc/` directory provides version-controlled, repo-resident configuration t
     └── config.yaml           # Project configuration
 ```
 
-The `.atc/` directory MUST be located in the repository root. The daemon discovers it by resolving the repository root from the project's configured working directory.
+The `.atc/` directory MUST be located in the repository root. The daemon discovers it by resolving the repository root from the project's `workingDirectory` field — the absolute path to the developer's local checkout stored in `ProjectMetadata`. When `workingDirectory` is absent, repo config watching is skipped with no error or warning.
 
 #### 2.9.2 Config File Schema
 
@@ -478,7 +478,7 @@ Layer 1 (daemon global config) overrides by design and does not generate conflic
 
 #### 2.9.5 File Loading and Staleness
 
-The daemon loads `.atc/config.yaml` at project registration time and watches the file for changes using the same content-hash + mtime fingerprinting strategy as other `LayeredConfigStore` instances.
+The daemon loads `.atc/config.yaml` at project registration time and watches the file for changes using the same content-hash + mtime fingerprinting strategy as other `LayeredConfigStore` instances. The path is derived as `<workingDirectory>/.atc/config.yaml` from the project's `workingDirectory` field. When `workingDirectory` is absent, this step is skipped entirely.
 
 - On file change detection, the daemon reloads the file, recomputes the merged config, and re-evaluates conflicts.
 - On file deletion, the daemon falls back to daemon project config + defaults. Any previously detected conflicts for this project are cleared.
@@ -515,7 +515,7 @@ The warning message displayed when a user attempts to edit a locked field MUST b
 
 #### Rules
 
-- **RULE-RCFG-1:** The `.atc/` directory MUST be located in the repository root. The daemon MUST discover it by resolving the repository root from the project's configured working directory.
+- **RULE-RCFG-1:** The `.atc/` directory MUST be located in the repository root. The daemon MUST discover it by resolving the repository root from the `workingDirectory` field in `ProjectMetadata` — the absolute path to the developer's local checkout. `POST /api/v1/projects` MUST accept an optional `workingDirectory` field (absolute path string). When `workingDirectory` is absent, repo config discovery and watching MUST be skipped with no error or warning.
 - **RULE-RCFG-2:** `.atc/config.yaml` MUST be validated against the project config schema on load. Parse failures MUST be reported as `CONFIG_PARSE_ERROR`. Schema validation failures MUST be reported as `CONFIG_VALIDATION_ERROR`. Daemon-internal fields (`name`, `remoteUrl`) MUST be rejected.
 - **RULE-RCFG-3:** Config precedence MUST follow the four-layer hierarchy defined in §2.9.3: daemon global > repo config > daemon project config > built-in defaults. The effective value for any field is the value from the highest-priority layer that defines it.
 - **RULE-RCFG-4:** When repo config (Layer 2) and daemon project config (Layer 3) define different values for the same field, a config conflict MUST be detected and surfaced. Conflicts MUST NOT be silently resolved without warning.

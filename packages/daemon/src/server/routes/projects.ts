@@ -32,6 +32,12 @@ interface CreateProjectBody {
   categories: string[];
   checklist: Array<{ name: string; command: string; timeout?: number }>;
   mcpServers?: Record<string, { command: string; args: string[]; env?: Record<string, string> }>;
+  /**
+   * Absolute path to the developer's local checkout. When present, the daemon
+   * derives the repo config path as `<workingDirectory>/.atc/config.yaml`.
+   * @see RULE-RCFG-1
+   */
+  workingDirectory?: string;
 }
 
 interface PatchProjectBody {
@@ -78,7 +84,7 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
    * the bare repo from the provided remoteUrl (clone failure is non-fatal).
    */
   app.post<{ Body: CreateProjectBody }>("/api/v1/projects", async (request, reply) => {
-    const { name, remoteUrl, categories, checklist, mcpServers } = request.body;
+    const { name, remoteUrl, categories, checklist, mcpServers, workingDirectory } = request.body;
 
     const projectDir = join(app.profileDir, "projects", name);
     const craftsDir = join(projectDir, "crafts");
@@ -107,6 +113,7 @@ export async function projectRoutes(app: FastifyInstance): Promise<void> {
       categories,
       checklist,
       mcpServers: mcpServers ?? {},
+      ...(workingDirectory !== undefined ? { workingDirectory } : {}),
     };
 
     await store.replace(metadata);
