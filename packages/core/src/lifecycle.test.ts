@@ -239,6 +239,27 @@ describe("transitionCraft", () => {
     expect(updated.status).toBe(CraftStatus.Landed);
   });
 
+  it("sets landedAt when transitioning to Landed (RULE-CRAFT-7)", () => {
+    const before = new Date();
+    const craft = makeCraft({ status: CraftStatus.ClearedToLand });
+    const updated = transitionCraft(craft, CraftStatus.Landed, {
+      branchUpToDate: true,
+      mergeExecuted: true,
+    });
+    const after = new Date();
+
+    expect(updated.landedAt).toBeInstanceOf(Date);
+    expect(updated.landedAt!.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect(updated.landedAt!.getTime()).toBeLessThanOrEqual(after.getTime());
+  });
+
+  it("does not set landedAt for non-Landed transitions", () => {
+    const craft = makeCraft({ status: CraftStatus.Taxiing });
+    const updated = transitionCraft(craft, CraftStatus.InFlight);
+
+    expect(updated.landedAt).toBeUndefined();
+  });
+
   it("throws LifecycleError for ClearedToLand -> Landed without context (RULE-LIFE-6)", () => {
     const craft = makeCraft({ status: CraftStatus.ClearedToLand });
 

@@ -82,6 +82,8 @@ export interface IntercomMessage {
 export interface CraftState {
   callsign: string;
   createdAt: string;
+  /** ISO-8601 timestamp when the craft landed. Absent until landing. */
+  landedAt?: string;
   branch: string;
   cargo: string;
   category: string;

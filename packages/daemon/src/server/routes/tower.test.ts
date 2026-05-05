@@ -270,6 +270,8 @@ describe("tower merge route", () => {
 
     const craft = craftStore.get(PROJECT, CALLSIGN)!;
     expect(craft.status).toBe(CraftStatus.Landed);
+    expect(craft.landedAt).toBeDefined();
+    expect(new Date(craft.landedAt!).getTime()).toBeGreaterThan(0);
     const types = craft.blackBox.map((e) => e.type);
     expect(types).toContain("Merge");
     expect(types).toContain("TowerDequeued");
@@ -302,6 +304,7 @@ describe("tower merge route", () => {
 
     const craft = craftStore.get(PROJECT, CALLSIGN)!;
     expect(craft.status).toBe(CraftStatus.GoAround);
+    expect(craft.landedAt).toBeUndefined();
     const types = craft.blackBox.map((e) => e.type);
     expect(types).toContain("MergeStale");
     expect(types).toContain("TowerDequeued");

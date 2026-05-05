@@ -96,7 +96,11 @@ export function transitionCraft(craft: Craft, to: CraftStatus, context?: Transit
   // Check preconditions for specific transitions
   checkPreconditions(craft, to, context);
 
-  return { ...craft, status: to };
+  const updated: Craft = { ...craft, status: to };
+  if (to === CraftStatus.Landed) {
+    return { ...updated, landedAt: new Date() };
+  }
+  return updated;
 }
 
 /**

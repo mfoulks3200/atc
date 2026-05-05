@@ -205,6 +205,7 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
       if (outcome.kind === "landed") {
         // RULE-TMRG-2 success path.
         craft.status = CraftStatus.Landed;
+        craft.landedAt = new Date().toISOString();
         appendBlackBoxEntry(
           app,
           name,

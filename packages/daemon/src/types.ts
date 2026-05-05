@@ -34,6 +34,14 @@ export interface ProjectMetadata {
   checklist: ChecklistItemConfig[];
   /** Named MCP server configurations available to agents on this project. */
   mcpServers: Record<string, McpServerConfig>;
+  /**
+   * Absolute path to the developer's local checkout of the repository.
+   * When present, the daemon derives the repo config path as
+   * `<workingDirectory>/.atc/config.yaml` (RULE-RCFG-1).
+   * When absent, repo config watching is skipped.
+   * @see RULE-RCFG-1
+   */
+  workingDirectory?: string;
 }
 
 /**
@@ -176,6 +184,8 @@ export interface CraftState {
   callsign: string;
   /** ISO-8601 timestamp when the craft was created (flight plan opened). */
   createdAt: string;
+  /** ISO-8601 timestamp when the craft transitioned to the Landed state. Absent until landing. @see RULE-CRAFT-7 */
+  landedAt?: string;
   /** Git branch name this craft is tied to. */
   branch: string;
   /** Human-readable description of the work (the "cargo"). */

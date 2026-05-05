@@ -110,6 +110,8 @@ export interface Craft {
   readonly callsign: string;
   /** Timestamp when the craft entered the Taxiing phase. @see RULE-CRAFT-6 */
   readonly createdAt: Date;
+  /** Timestamp when the craft transitioned to the Landed state. Undefined until landing. @see RULE-CRAFT-7 */
+  readonly landedAt?: Date;
   /** Associated git branch (1:1). @see RULE-CRAFT-2 */
   readonly branch: string;
   /** Description of the change and its scope. @see RULE-CRAFT-3 */
