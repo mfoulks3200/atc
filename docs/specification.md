@@ -1,11 +1,12 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.5.1
+**Version:** 0.5.2
 **Status:** Draft
-**Date:** 2026-05-04
+**Date:** 2026-05-07
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
+- 0.5.2 (2026-05-07): Commit to JWT HS256 as the sole token format in §2.9; add JWT claim mapping table; update RULE-MCPAUTH-2 and §4.10 validation steps to reference JWT HS256 explicitly; add token-format row to §4.10.4 decision record (AIR-711).
 - 0.5.1 (2026-05-04): Add `AgentResumeContext` interface to §2.9 with `pilotSessionToken` field; refine RULE-MCPAUTH-4 to specify daemon pre-fetch before `resume()` and stdio-transport MCP subprocess restart requirement (AIR-715).
 - 0.5.0 (2026-05-03): Add Pilot Session Token entity §2.9, MCP authentication protocol §4.10 (RULE-MCPAUTH-1 through RULE-MCPAUTH-8), session-token issuance endpoint, seat authority matrix, structured auth error codes, and open question resolution record (AIR-699).
 - 0.4.1 (2026-05-03): Add structured MCP tool error contract §4.9 (RULE-MCP-1 through RULE-MCP-3, AIR-692).
@@ -413,7 +414,22 @@ A **Pilot Session Token** (PST) is a signed credential that binds a pilot's iden
 | issuedAt    | `number`           | Required. Unix timestamp of token issuance.                                 |
 | expiresAt   | `number`           | Required. Unix timestamp after which the token is invalid.                  |
 
-Tokens are signed with HMAC-SHA256 (or JWT with symmetric signing) using a daemon-local secret shared with the standalone MCP server via the `ATC_TOKEN_SECRET` environment variable. The MCP server validates tokens locally — it never calls back to the daemon for verification.
+Tokens MUST be issued as **JWT HS256** (JSON Web Token signed with HMAC-SHA256, per RFC 7519) using a daemon-local secret distributed via the `ATC_TOKEN_SECRET` environment variable. Implementations MUST use the `jose` library for both signing and verification. The MCP server validates tokens locally — it never calls back to the daemon for verification.
+
+##### JWT Claim Mapping
+
+The `PilotSessionClaims` fields map to JWT claims as follows:
+
+| Logical field | JWT claim     | Type        | Notes                                                  |
+| ------------- | ------------- | ----------- | ------------------------------------------------------ |
+| `issuedAt`    | `iat`         | NumericDate | Registered claim (RFC 7519 §4.1.6). Informational.    |
+| `expiresAt`   | `exp`         | NumericDate | Registered claim (RFC 7519 §4.1.4). Library-enforced. |
+| `pilotId`     | `pilotId`     | `string`    | Private claim.                                         |
+| `callsign`    | `callsign`    | `string`    | Private claim.                                         |
+| `projectName` | `projectName` | `string`    | Private claim.                                         |
+| `seat`        | `seat`        | `string`    | Private claim. One of the `SeatType` enum values.      |
+
+`PilotSessionClaims` — the validated payload object — contains `{ pilotId, callsign, projectName, seat }`. The `exp` claim is validated automatically by the JWT library; `iat` is recorded but does not require re-checking after library verification.
 
 #### Issuance Endpoint
 
@@ -424,7 +440,7 @@ Returns `{ token: string, expiresAt: number }`. The daemon verifies that the pil
 #### Rules
 
 - **RULE-MCPAUTH-1:** A standalone MCP server MUST require a valid Pilot Session Token on every connection. Requests without a token MUST be rejected with error code `TOKEN_MISSING`.
-- **RULE-MCPAUTH-2:** Tokens MUST be issued by the daemon and MUST encode `{ pilotId, callsign, projectName, seat, issuedAt, expiresAt }`. The daemon MUST verify the pilot is on the craft's manifest before issuing a token.
+- **RULE-MCPAUTH-2:** Tokens MUST be issued by the daemon as JWT HS256. The payload MUST include private claims `{ pilotId, callsign, projectName, seat }` and registered claims `iat` / `exp` (see §2.9 JWT Claim Mapping). The daemon MUST verify the pilot is on the craft's manifest before issuing a token.
 - **RULE-MCPAUTH-3:** The standalone MCP server MUST NOT accept pilot identity from tool call arguments. All identity MUST be extracted from the validated token. Tool schemas MUST NOT include `pilotId`, `callsign`, or `seat` parameters.
 - **RULE-MCPAUTH-4:** Before calling `AgentAdapter.resume()`, the daemon MUST pre-fetch a fresh token via the issuance endpoint and pass it as `AgentResumeContext.pilotSessionToken`. For stdio-transport adapters, the MCP server subprocess MUST be restarted with the updated `ATC_PILOT_TOKEN` value before resuming the agent. For HTTP-transport adapters, the bearer token MAY be updated dynamically without a subprocess restart.
 - **RULE-MCPAUTH-5:** Token transport MUST use the `ATC_PILOT_TOKEN` environment variable. For HTTP-transport MCP connections, the client MUST also send the token as `Authorization: Bearer <token>` on every request. For stdio-transport MCP connections, the server reads the token from the environment at process start.
@@ -1034,9 +1050,9 @@ When ATC tools are served by a standalone MCP server process (rather than per-pi
 
 #### 4.10.1 Authentication Flow
 
-1. **Token issuance.** At agent launch, the daemon calls `POST /api/v1/projects/:name/crafts/:callsign/pilots/:pilotId/session-token`. The daemon verifies the pilot is on the craft's manifest and returns a signed token encoding `{ pilotId, callsign, projectName, seat, issuedAt, expiresAt }`.
+1. **Token issuance.** At agent launch, the daemon calls `POST /api/v1/projects/:name/crafts/:callsign/pilots/:pilotId/session-token`. The daemon verifies the pilot is on the craft's manifest and returns a JWT HS256 token encoding private claims `{ pilotId, callsign, projectName, seat }` with registered claims `iat` and `exp`.
 2. **Token injection.** The daemon sets `ATC_PILOT_TOKEN=<token>` in the agent's environment before starting the agent process. For HTTP-transport MCP, the agent's MCP client sends `Authorization: Bearer <token>` on every request. For stdio-transport MCP, the server reads `ATC_PILOT_TOKEN` from the environment at process start.
-3. **Token validation.** On every tool call, the standalone MCP server validates the token's signature using the shared `ATC_TOKEN_SECRET`, checks `expiresAt`, and extracts the `PilotSessionClaims` (`{ pilotId, callsign, projectName, seat }`). Failed validation returns one of the structured error codes defined in §2.9.
+3. **Token validation.** On every tool call, the standalone MCP server verifies the JWT HS256 signature using the shared `ATC_TOKEN_SECRET` (via `jose`), relies on the library to enforce the `exp` claim, and extracts `PilotSessionClaims` (`{ pilotId, callsign, projectName, seat }`) from the verified payload. Failed validation returns one of the structured error codes defined in §2.9.
 4. **Identity binding.** The validated claims are passed to tool handlers as context. Tool handlers use these claims for all authorization decisions. Tool schemas MUST NOT include identity parameters (RULE-MCPAUTH-3).
 5. **Seat authorization.** Before executing a tool, the server checks whether the caller's `seat` type is sufficient. Tools that require captain authority (e.g., `tower_execute_merge`, `controls_transfer`) MUST reject jumpseat and inspector callers with `SEAT_INSUFFICIENT_AUTHORITY`.
 6. **Token pre-fetch and resume.** Before calling `AgentAdapter.resume()`, the daemon MUST call the session-token issuance endpoint to obtain a fresh `PilotSessionToken` and pass it as `AgentResumeContext.pilotSessionToken`. The adapter receives the token through the context object and is responsible for re-injecting it into the MCP environment:
@@ -1067,6 +1083,7 @@ The following design decisions were made during spec authoring (AIR-699) and are
 
 | Question | Decision | Rationale |
 | --- | --- | --- |
+| Token format | JWT HS256 via `jose` (RULE-MCPAUTH-2) | Raw HMAC-over-JSON is not self-describing and requires manual `expiresAt` parsing; JWT handles `exp` natively, carries standardized validation semantics, and `jose` is production-grade. |
 | Token transport (stdio vs HTTP) | `ATC_PILOT_TOKEN` env var for all transports (RULE-MCPAUTH-5) | Env vars work universally; MCP `initialize` extra params are non-standard. |
 | Token secret distribution | Shared secret via `ATC_TOKEN_SECRET` env var (RULE-MCPAUTH-6) | Simplest for single-machine deployments; JWKS deferred to future distributed mode. |
 | Token lifetime policy | 24h default TTL; daemon pre-fetches fresh token before `resume()` and passes via `AgentResumeContext.pilotSessionToken` (RULE-MCPAUTH-4) | Avoids mid-session expiry; resume path serves as refresh mechanism. Passing token via context keeps adapter stateless. |
@@ -1075,7 +1092,7 @@ The following design decisions were made during spec authoring (AIR-699) and are
 #### Rules
 
 - **RULE-MCPAUTH-1:** A standalone MCP server MUST require a valid Pilot Session Token on every connection (§2.9).
-- **RULE-MCPAUTH-2:** Tokens MUST be issued by the daemon and encode `{ pilotId, callsign, projectName, seat, issuedAt, expiresAt }` (§2.9).
+- **RULE-MCPAUTH-2:** Tokens MUST be JWT HS256, daemon-issued, encoding private claims `{ pilotId, callsign, projectName, seat }` and registered claims `iat` / `exp` (§2.9).
 - **RULE-MCPAUTH-3:** The standalone MCP server MUST NOT accept pilot identity from tool call arguments (§2.9).
 - **RULE-MCPAUTH-4:** The daemon MUST pre-fetch a fresh token via the issuance endpoint before calling `AgentAdapter.resume()`, passing it as `AgentResumeContext.pilotSessionToken` (§2.9). For stdio-transport adapters, the MCP server subprocess MUST be restarted with the new token value.
 - **RULE-MCPAUTH-5:** Token transport MUST use `ATC_PILOT_TOKEN` env var; HTTP clients MUST also send `Authorization: Bearer` (§2.9).
@@ -1209,7 +1226,7 @@ The following design decisions were made during spec authoring (AIR-699) and are
 | RULE-MCP-2     | All MCP tool errors MUST use format `{ruleId}: {description}. {fixHint}.` | 4.9.1 |
 | RULE-MCP-3     | When daemon response includes `ruleId` field, MCP tool MUST use it.  | 4.9.2   |
 | RULE-MCPAUTH-1 | Standalone MCP server MUST require a valid PST on every connection.   | 2.9     |
-| RULE-MCPAUTH-2 | Tokens MUST be daemon-issued, encoding pilotId, callsign, projectName, seat, issuedAt, expiresAt. | 2.9 |
+| RULE-MCPAUTH-2 | Tokens MUST be JWT HS256, daemon-issued; private claims: pilotId, callsign, projectName, seat; registered: iat, exp. | 2.9 |
 | RULE-MCPAUTH-3 | Standalone MCP server MUST NOT accept pilot identity from tool arguments. | 2.9  |
 | RULE-MCPAUTH-4 | Daemon MUST pre-fetch token before `resume()`; pass via `AgentResumeContext.pilotSessionToken`; stdio adapters MUST restart MCP subprocess. | 2.9  |
 | RULE-MCPAUTH-5 | Token transport via `ATC_PILOT_TOKEN` env var; HTTP also sends Bearer header. | 2.9 |
