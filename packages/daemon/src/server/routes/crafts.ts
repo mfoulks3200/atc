@@ -235,6 +235,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
           });
         }
 
+        // eslint-disable-next-line no-restricted-syntax -- TODO: migrate to transitionCraft()
         craft.status = CraftStatus.InFlight;
         appendBlackBoxEntry(
           app,
@@ -393,6 +394,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
 
         // Transition to LandingChecklist before running
         const entryStatus = craft.status;
+        // eslint-disable-next-line no-restricted-syntax -- TODO: migrate to transitionCraft()
         craft.status = CraftStatus.LandingChecklist;
         appendBlackBoxEntry(
           app,
@@ -443,6 +445,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
 
         // RULE-LCHK-3: failure -> GoAround, success -> ClearedToLand
         const prevStatus = craft.status;
+        // eslint-disable-next-line no-restricted-syntax -- TODO: migrate to transitionCraft()
         craft.status = result.passed ? CraftStatus.ClearedToLand : CraftStatus.GoAround;
 
         if (!result.passed) {
@@ -539,6 +542,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         );
 
         // Transition 7: GoAround → Emergency
+        // eslint-disable-next-line no-restricted-syntax -- TODO: migrate to transitionCraft()
         craft.status = CraftStatus.Emergency;
         appendBlackBoxEntry(
           app,
@@ -550,6 +554,7 @@ export async function craftRoutes(app: FastifyInstance): Promise<void> {
         );
 
         // RULE-EMER-3 / Transition 9: Emergency → ReturnToOrigin.
+        // eslint-disable-next-line no-restricted-syntax -- TODO: migrate to transitionCraft()
         craft.status = CraftStatus.ReturnToOrigin;
         appendBlackBoxEntry(
           app,

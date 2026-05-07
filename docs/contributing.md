@@ -207,6 +207,28 @@ Changelog categories: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`.
 pnpm run build
 ```
 
+## Domain Rules
+
+ESLint enforces structural invariants beyond standard style checks. These rules prevent correctness bugs that are difficult to catch in review.
+
+### No direct `.status` assignment (RULE-LIFE-2)
+
+Direct property assignment to `.status` is banned outside `packages/core/src/lifecycle.ts`. All craft lifecycle transitions must go through `transitionCraft()`, which validates the transition table, checks preconditions (captain assigned, vectors passed, checklist run, etc.), and returns a new object without mutating state.
+
+```typescript
+// ✗ BAD — bypasses lifecycle validation
+craft.status = CraftStatus.InFlight;
+
+// ✓ GOOD — validated transition
+const updated = transitionCraft(craft, CraftStatus.InFlight);
+```
+
+The rule is configured in `eslint.config.mjs` via `no-restricted-syntax` with the AST selector `AssignmentExpression[left.property.name='status']`. It applies to all `packages/**/*.ts` files except `packages/core/src/lifecycle.ts` (the state machine) and test files (`**/*.test.ts`).
+
+Existing violations in daemon route handlers are suppressed with `eslint-disable-next-line` comments marked `TODO: migrate to transitionCraft()`.
+
+**Background:** AIR-472 introduced a bug where `craft.status = CraftStatus.GoAround` was used directly, bypassing RULE-LIFE-3/4/5 validation. This rule prevents that class of bug from landing again.
+
 ## Quick Reference
 
 | Step | Command | Must Pass |

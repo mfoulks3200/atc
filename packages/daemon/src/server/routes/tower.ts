@@ -206,6 +206,7 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
 
       if (outcome.kind === "landed") {
         // RULE-TMRG-2 success path.
+        // eslint-disable-next-line no-restricted-syntax -- TODO: migrate to transitionCraft()
         craft.status = CraftStatus.Landed;
         appendBlackBoxEntry(
           app,
@@ -230,6 +231,7 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
         });
       } else if (outcome.kind === "stale") {
         // RULE-TMRG-2: branch not up to date — return to GoAround.
+        // eslint-disable-next-line no-restricted-syntax -- TODO: migrate to transitionCraft()
         craft.status = CraftStatus.GoAround;
         appendBlackBoxEntry(
           app,
@@ -251,6 +253,7 @@ export async function towerRoutes(app: FastifyInstance): Promise<void> {
         publishCraftEvent(app, name, craft, "craft.goaround", { reason: "stale" });
       } else {
         // RULE-TMRG-3: merge conflict — return to GoAround.
+        // eslint-disable-next-line no-restricted-syntax -- TODO: migrate to transitionCraft()
         craft.status = CraftStatus.GoAround;
         appendBlackBoxEntry(
           app,
