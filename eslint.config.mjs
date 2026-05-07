@@ -19,4 +19,18 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ["packages/**/*.ts"],
+    ignores: ["packages/core/src/lifecycle.ts", "**/*.test.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "AssignmentExpression[left.property.name='status']",
+          message:
+            "Route lifecycle transitions through `transitionCraft()` — direct .status assignment bypasses validation (RULE-LIFE-2). See docs/contributing.md.",
+        },
+      ],
+    },
+  },
 );

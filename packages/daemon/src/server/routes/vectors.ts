@@ -130,6 +130,7 @@ export async function vectorRoutes(app: FastifyInstance): Promise<void> {
             ? vector.reviewerPilotId
             : craft.captain;
 
+        // eslint-disable-next-line no-restricted-syntax -- vector status, not craft lifecycle
         vector.status = "Passed";
         vector.evidence = evidence;
         vector.reportedAt = new Date().toISOString();

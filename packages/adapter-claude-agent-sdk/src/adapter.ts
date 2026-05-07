@@ -558,6 +558,7 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
    */
   private _setStatus(session: AgentSession, status: AgentStatus): void {
     if (session.status === status) return;
+    // eslint-disable-next-line no-restricted-syntax -- agent session status, not craft lifecycle
     session.status = status;
     for (const listener of session.statusListeners) {
       listener(status);

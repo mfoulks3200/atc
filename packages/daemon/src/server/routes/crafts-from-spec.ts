@@ -363,6 +363,7 @@ export async function craftsFromSpecRoutes(app: FastifyInstance): Promise<void> 
 
     // Step 11: Evaluate autoLaunch (RULE-SDD-11 through RULE-SDD-14)
     if (autoLaunchRequested && suppressionReason === null) {
+      // eslint-disable-next-line no-restricted-syntax -- TODO: migrate to transitionCraft()
       craft.status = CraftStatus.InFlight;
       appendBlackBoxEntry(
         app,
@@ -572,6 +573,7 @@ export async function processSpec(
   app.craftStore.set(projectName, craft);
 
   if (autoLaunchRequested && suppressionReason === null) {
+    // eslint-disable-next-line no-restricted-syntax -- TODO: migrate to transitionCraft()
     craft.status = CraftStatus.InFlight;
     appendBlackBoxEntry(
       app,
