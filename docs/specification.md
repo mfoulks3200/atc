@@ -1,11 +1,12 @@
 # ATC (Air Traffic Control) — Formal Specification
 
-**Version:** 0.5.2
+**Version:** 0.5.3
 **Status:** Draft
 **Date:** 2026-05-07
 **Brief:** [`docs/overview.md`](overview.md)
 
 **Changelog:**
+- 0.5.3 (2026-05-07): Add `env?: Record<string, string>` field to `AgentLaunchOptions` and `AgentResumeContext`; update §4.10.1 step 2 to name `AgentLaunchOptions.env` as the token injection mechanism; update §4.10.1 step 6 and `AgentResumeContext` table to document `env` field for resume-time token refresh (AIR-717).
 - 0.5.2 (2026-05-07): Commit to JWT HS256 as the sole token format in §2.9; add JWT claim mapping table; update RULE-MCPAUTH-2 and §4.10 validation steps to reference JWT HS256 explicitly; add token-format row to §4.10.4 decision record (AIR-711).
 - 0.5.1 (2026-05-04): Add `AgentResumeContext` interface to §2.9 with `pilotSessionToken` field; refine RULE-MCPAUTH-4 to specify daemon pre-fetch before `resume()` and stdio-transport MCP subprocess restart requirement (AIR-715).
 - 0.5.0 (2026-05-03): Add Pilot Session Token entity §2.9, MCP authentication protocol §4.10 (RULE-MCPAUTH-1 through RULE-MCPAUTH-8), session-token issuance endpoint, seat authority matrix, structured auth error codes, and open question resolution record (AIR-699).
@@ -473,6 +474,7 @@ The `AgentResumeContext` interface is the payload the daemon passes to `AgentAda
 | `intercomHistory`   | `IntercomMessage[]`    | Intercom messages to replay into the resumed agent's context.                                                          |
 | `lastKnownState`    | `string`               | String representation of the agent's last known internal state.                                                        |
 | `pilotSessionToken` | `string`               | A fresh Pilot Session Token pre-fetched by the daemon immediately before calling `resume()`. The adapter MUST use this token to re-inject `ATC_PILOT_TOKEN` into the agent environment. For stdio-transport MCP, this requires restarting the MCP server subprocess with the updated token value. |
+| `env`               | `Record<string, string> \| undefined` | Optional environment variable overrides to inject into the agent subprocess on resume. The daemon populates `env['ATC_PILOT_TOKEN']` with the freshly issued token. The adapter merges these entries into the session environment for use during MCP subprocess restart (RULE-MCPAUTH-4). |
 
 ## 3. Craft Lifecycle
 
@@ -1051,12 +1053,12 @@ When ATC tools are served by a standalone MCP server process (rather than per-pi
 #### 4.10.1 Authentication Flow
 
 1. **Token issuance.** At agent launch, the daemon calls `POST /api/v1/projects/:name/crafts/:callsign/pilots/:pilotId/session-token`. The daemon verifies the pilot is on the craft's manifest and returns a JWT HS256 token encoding private claims `{ pilotId, callsign, projectName, seat }` with registered claims `iat` and `exp`.
-2. **Token injection.** The daemon sets `ATC_PILOT_TOKEN=<token>` in the agent's environment before starting the agent process. For HTTP-transport MCP, the agent's MCP client sends `Authorization: Bearer <token>` on every request. For stdio-transport MCP, the server reads `ATC_PILOT_TOKEN` from the environment at process start.
+2. **Token injection.** The daemon populates `AgentLaunchOptions.env['ATC_PILOT_TOKEN']` with the issued token and passes it to `AgentAdapter.launch()`. The adapter forwards this `env` map into the Claude Code subprocess environment so that `ATC_PILOT_TOKEN` is set at process start. For HTTP-transport MCP, the agent's MCP client also sends `Authorization: Bearer <token>` on every request. For stdio-transport MCP, the server reads `ATC_PILOT_TOKEN` from the environment at process start.
 3. **Token validation.** On every tool call, the standalone MCP server verifies the JWT HS256 signature using the shared `ATC_TOKEN_SECRET` (via `jose`), relies on the library to enforce the `exp` claim, and extracts `PilotSessionClaims` (`{ pilotId, callsign, projectName, seat }`) from the verified payload. Failed validation returns one of the structured error codes defined in §2.9.
 4. **Identity binding.** The validated claims are passed to tool handlers as context. Tool handlers use these claims for all authorization decisions. Tool schemas MUST NOT include identity parameters (RULE-MCPAUTH-3).
 5. **Seat authorization.** Before executing a tool, the server checks whether the caller's `seat` type is sufficient. Tools that require captain authority (e.g., `tower_execute_merge`, `controls_transfer`) MUST reject jumpseat and inspector callers with `SEAT_INSUFFICIENT_AUTHORITY`.
-6. **Token pre-fetch and resume.** Before calling `AgentAdapter.resume()`, the daemon MUST call the session-token issuance endpoint to obtain a fresh `PilotSessionToken` and pass it as `AgentResumeContext.pilotSessionToken`. The adapter receives the token through the context object and is responsible for re-injecting it into the MCP environment:
-   - **stdio-transport MCP:** The MCP server subprocess reads `ATC_PILOT_TOKEN` from the environment at process start and cannot receive a new token dynamically without an out-of-band channel. The adapter MUST restart the MCP server subprocess with the updated `ATC_PILOT_TOKEN` value set in the new process environment before resuming the agent.
+6. **Token pre-fetch and resume.** Before calling `AgentAdapter.resume()`, the daemon MUST call the session-token issuance endpoint to obtain a fresh `PilotSessionToken`, pass the raw token string as `AgentResumeContext.pilotSessionToken`, and also set `AgentResumeContext.env['ATC_PILOT_TOKEN']` to the same token value. The adapter receives the token through both fields and is responsible for re-injecting it into the MCP environment:
+   - **stdio-transport MCP:** The MCP server subprocess reads `ATC_PILOT_TOKEN` from the environment at process start and cannot receive a new token dynamically without an out-of-band channel. The adapter MUST restart the MCP server subprocess with the updated `ATC_PILOT_TOKEN` value set in the new process environment (sourced from `AgentResumeContext.env`) before resuming the agent.
    - **HTTP-transport MCP:** The adapter MAY update the `Authorization: Bearer` token on the agent's MCP client dynamically without a subprocess restart.
 
 #### 4.10.2 Multi-Pilot Scenario

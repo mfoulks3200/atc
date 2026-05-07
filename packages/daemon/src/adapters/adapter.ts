@@ -80,6 +80,13 @@ export interface AgentLaunchOptions {
   adapterConfig: Record<string, unknown>;
   /** Named MCP server configurations to make available to the agent. */
   mcpServers: Record<string, McpServerConfig>;
+  /**
+   * Additional environment variables to inject into the agent subprocess.
+   * The daemon populates `env['ATC_PILOT_TOKEN']` before calling {@link AgentAdapter.launch}.
+   *
+   * @see RULE-MCPAUTH-2
+   */
+  env?: Record<string, string>;
 }
 
 /**
@@ -94,6 +101,14 @@ export interface AgentResumeContext {
   intercomHistory: IntercomMessage[];
   /** String representation of the agent's last known internal state. */
   lastKnownState: string;
+  /**
+   * Additional environment variables to inject into the agent subprocess on resume.
+   * The daemon populates `env['ATC_PILOT_TOKEN']` with a freshly issued token before
+   * calling {@link AgentAdapter.resume}.
+   *
+   * @see RULE-MCPAUTH-4
+   */
+  env?: Record<string, string>;
 }
 
 /**

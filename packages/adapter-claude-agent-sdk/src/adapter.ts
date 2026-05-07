@@ -80,6 +80,12 @@ interface AgentSession {
   /** Pilot identifier used as `from` in outgoing intercom messages. */
   pilotId: string;
   consumer: Promise<void>;
+  /**
+   * Most-recently applied environment variables for this session.
+   * Updated on resume so that MCP subprocess restart logic can access the
+   * latest `ATC_PILOT_TOKEN` value (RULE-MCPAUTH-4).
+   */
+  env: Record<string, string>;
 }
 
 /**
@@ -315,6 +321,9 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
       canUseTool: canUseTool as unknown as Options["canUseTool"],
       // Intentionally NOT setting allowDangerouslySkipPermissions — that
       // flag would skip `canUseTool`, which is where RULE-CTRL-3 lives.
+      // RULE-MCPAUTH-2: forward caller-provided env vars (e.g. ATC_PILOT_TOKEN)
+      // into the Claude Code subprocess environment.
+      env: options.env,
     };
 
     const q = this._query({ prompt: channel.iterable, options: sdkOptions });
@@ -337,6 +346,7 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
       callsign: options.craft.callsign,
       pilotId: options.pilotId ?? options.craft.callsign,
       consumer: Promise.resolve(),
+      env: options.env ?? {},
     };
     session.consumer = this._consume(session);
 
@@ -363,11 +373,19 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
   /**
    * Resume a paused agent by replaying intercom history as new user messages.
    *
+   * If `context.env` is provided, it is merged onto the session's tracked
+   * environment. This updated env (including a fresh `ATC_PILOT_TOKEN` per
+   * RULE-MCPAUTH-4) is available for MCP subprocess restart logic.
+   *
    * @see RULE-PILOT-1
+   * @see RULE-MCPAUTH-4
    */
   async resume(handle: AgentHandle, context: AgentResumeContext): Promise<void> {
     const session = this._sessions.get(handle.agentId);
     if (session === undefined) return;
+    if (context.env !== undefined) {
+      Object.assign(session.env, context.env);
+    }
     for (const msg of context.intercomHistory) {
       session.pushInput(toSdkUserMessage(msg));
     }

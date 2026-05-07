@@ -218,6 +218,21 @@ describe("ClaudeAgentSdkAdapter", () => {
     });
   });
 
+  it("launch forwards env entries into the SDK subprocess environment (RULE-MCPAUTH-2)", async () => {
+    await launchTestAgent({ env: { ATC_PILOT_TOKEN: "tok-abc123", EXTRA: "val" } });
+    const opts = sdk.lastSession().options;
+    expect((opts?.env as Record<string, string> | undefined)?.["ATC_PILOT_TOKEN"]).toBe(
+      "tok-abc123",
+    );
+    expect((opts?.env as Record<string, string> | undefined)?.["EXTRA"]).toBe("val");
+  });
+
+  it("launch with no env leaves sdk env undefined", async () => {
+    await launchTestAgent();
+    const opts = sdk.lastSession().options;
+    expect(opts?.env).toBeUndefined();
+  });
+
   it("launch forwards mcpServers, mapping them to stdio shape", async () => {
     await launchTestAgent({
       mcpServers: {
@@ -372,6 +387,25 @@ describe("ClaudeAgentSdkAdapter", () => {
     expect(statuses).toContain("running");
   });
 
+  it("resume merges context.env onto the session for ATC_PILOT_TOKEN refresh (RULE-MCPAUTH-4)", async () => {
+    const handle = await launchTestAgent({ env: { ATC_PILOT_TOKEN: "old-token" } });
+    await adapter.pause(handle);
+
+    await adapter.resume(handle, {
+      craft: baseLaunchOptions().craft,
+      intercomHistory: [],
+      lastKnownState: "",
+      env: { ATC_PILOT_TOKEN: "new-token" },
+    });
+
+    // The session's tracked env should now hold the refreshed token.
+    // Access via the adapter's internal sessions map for verification.
+    const session = (adapter as unknown as { _sessions: Map<string, { env: Record<string, string> }> })._sessions.get(
+      "agent-1",
+    );
+    expect(session?.env["ATC_PILOT_TOKEN"]).toBe("new-token");
+  });
+
   it("terminate closes the SDK query and reports terminated via isAlive", async () => {
     const handle = await launchTestAgent();
     expect(await adapter.isAlive(handle)).toBe(true);
@@ -379,6 +413,19 @@ describe("ClaudeAgentSdkAdapter", () => {
     await adapter.terminate(handle);
     expect(sdk.lastSession().closed).toBe(true);
     expect(await adapter.isAlive(handle)).toBe(false);
+  });
+
+  it("terminate swallows errors thrown by query.close()", async () => {
+    const throwingSdk = createFakeSdk();
+    const throwingAdapter = new ClaudeAgentSdkAdapter({
+      query: ({ prompt, options }) => {
+        const q = throwingSdk.query({ prompt, options });
+        return { ...q, close: () => { throw new Error("close failed"); } } as typeof q;
+      },
+    });
+    const handle = await throwingAdapter.launch(baseLaunchOptions());
+    await expect(throwingAdapter.terminate(handle)).resolves.toBeUndefined();
+    expect(await throwingAdapter.isAlive(handle)).toBe(false);
   });
 
   it("callbacks registered against an unknown handle are dropped", async () => {
