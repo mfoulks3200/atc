@@ -234,4 +234,153 @@ describe("controls routes", () => {
       expect(entry!.content).toContain("fo-1:src/web");
     });
   });
+
+  // -------------------------------------------------------------------------
+  // POST /controls/verify — RULE-CTRL-3
+  // -------------------------------------------------------------------------
+
+  describe("POST /api/v1/projects/:name/crafts/:callsign/controls/verify", () => {
+    describe("exclusive mode", () => {
+      it("allows the exclusive holder to modify any file (RULE-CTRL-3)", async () => {
+        const res = await app.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/controls/verify`,
+          payload: { pilotId: "captain-1", filePath: "src/api/handler.ts" },
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json<{ allowed: boolean }>().allowed).toBe(true);
+      });
+
+      it("denies a non-holder pilot when controls are exclusive (RULE-CTRL-3)", async () => {
+        const res = await app.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/controls/verify`,
+          payload: { pilotId: "fo-1", filePath: "src/api/handler.ts" },
+        });
+        expect(res.statusCode).toBe(403);
+        const body = res.json<{ allowed: boolean; ruleId: string; message: string }>();
+        expect(body.allowed).toBe(false);
+        expect(body.ruleId).toBe("RULE-CTRL-3");
+        expect(body.message).toContain("exclusive controls are held by");
+      });
+
+      it("allows the exclusive holder bash-level access (no filePath)", async () => {
+        const res = await app.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/controls/verify`,
+          payload: { pilotId: "captain-1" },
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json<{ allowed: boolean }>().allowed).toBe(true);
+      });
+
+      it("denies bash-level access to a pilot with no controls (RULE-CTRL-3)", async () => {
+        const res = await app.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/controls/verify`,
+          payload: { pilotId: "jump-1" },
+        });
+        expect(res.statusCode).toBe(403);
+        const body = res.json<{ allowed: boolean; ruleId: string }>();
+        expect(body.allowed).toBe(false);
+        expect(body.ruleId).toBe("RULE-CTRL-3");
+      });
+    });
+
+    describe("shared mode", () => {
+      beforeEach(async () => {
+        // Switch to shared mode: captain owns src/api, fo-1 owns src/web
+        await app.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/controls/share`,
+          payload: {
+            areas: [
+              { pilotId: "captain-1", area: "src/api" },
+              { pilotId: "fo-1", area: "src/web" },
+            ],
+          },
+        });
+      });
+
+      it("allows a pilot to modify a file within their area (RULE-CTRL-3)", async () => {
+        const res = await app.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/controls/verify`,
+          payload: { pilotId: "fo-1", filePath: "src/web/index.ts" },
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json<{ allowed: boolean }>().allowed).toBe(true);
+      });
+
+      it("denies a pilot when file is outside their shared area (RULE-CTRL-3)", async () => {
+        const res = await app.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/controls/verify`,
+          payload: { pilotId: "fo-1", filePath: "src/api/handler.ts" },
+        });
+        expect(res.statusCode).toBe(403);
+        const body = res.json<{ allowed: boolean; ruleId: string; message: string }>();
+        expect(body.allowed).toBe(false);
+        expect(body.ruleId).toBe("RULE-CTRL-3");
+        expect(body.message).toContain("src/web");
+      });
+
+      it("denies a pilot with no shared area at all (RULE-CTRL-3)", async () => {
+        const res = await app.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/controls/verify`,
+          payload: { pilotId: "fo-2", filePath: "src/api/handler.ts" },
+        });
+        expect(res.statusCode).toBe(403);
+        expect(res.json<{ allowed: boolean }>().allowed).toBe(false);
+      });
+
+      it("allows bash-level access when pilot has a shared area (RULE-CTRL-3)", async () => {
+        const res = await app.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/controls/verify`,
+          payload: { pilotId: "captain-1" },
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json<{ allowed: boolean }>().allowed).toBe(true);
+      });
+
+      it("denies bash-level access when pilot has no shared area (RULE-CTRL-3)", async () => {
+        const res = await app.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/controls/verify`,
+          payload: { pilotId: "fo-2" },
+        });
+        expect(res.statusCode).toBe(403);
+        expect(res.json<{ allowed: boolean }>().allowed).toBe(false);
+      });
+
+      it("matches area as prefix — src/api matches src/api/sub/file.ts", async () => {
+        const res = await app.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/controls/verify`,
+          payload: { pilotId: "captain-1", filePath: "src/api/sub/file.ts" },
+        });
+        expect(res.statusCode).toBe(200);
+      });
+
+      it("does not match area as substring — src/api does not match src/api-v2/file.ts", async () => {
+        const res = await app.inject({
+          method: "POST",
+          url: `/api/v1/projects/${PROJECT}/crafts/alpha-1/controls/verify`,
+          payload: { pilotId: "captain-1", filePath: "src/api-v2/file.ts" },
+        });
+        expect(res.statusCode).toBe(403);
+      });
+    });
+
+    it("returns 404 for unknown craft", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/v1/projects/${PROJECT}/crafts/ghost/controls/verify`,
+        payload: { pilotId: "captain-1" },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+  });
 });
