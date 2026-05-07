@@ -4,7 +4,7 @@ Distilled findings from Hacker News and AI industry research, maintained for ref
 
 **Freshness policy:** Prune entries older than 6 months that are no longer in active discussion, or sooner if a technology has clearly been superseded. Refresh on each AIR-149 heartbeat.
 
-**Last updated:** 2026-04-29
+**Last updated:** 2026-05-04
 
 ---
 
@@ -186,14 +186,89 @@ Community tension is real: some developers argue the agent-first model "sacrific
 
 ---
 
+### 14. OpenAI Symphony: Task-Board-Driven Orchestration Goes Open Source
+
+**NEW — May 2026. This is the most significant new development since the last update — a direct parallel to ATC's problem space.**
+
+OpenAI [open-sourced Symphony](https://openai.com/index/open-source-codex-orchestration-symphony/) on April 28, 2026 — an orchestration spec that turns a project management board (Linear) into a control plane for coding agents. Core model: every open task gets an agent, agents run continuously, and humans review the results. If an agent crashes or stalls, Symphony restarts it. 15,000+ GitHub stars in the first week.
+
+**Key claims:** Internal OpenAI teams saw a 500% increase in landed PRs during the first three weeks. The system is built around a `WORKFLOW.md` file that defines agent behavior per repo, making orchestration logic version-controlled and portable.
+
+**v1.1.0 update:** Symphony now supports the Kata CLI (based on pi-coding-agent) as an alternative agent runtime, which opens the door to running Claude Code, Gemini, and other models inside the same orchestration framework. OpenAI treats Symphony as a reference implementation, not a maintained product.
+
+**Skepticism check:** The 500% PR claim is from internal teams already optimized for the tool — generalizability is unproven. The "every task gets an agent" model is flat: no pilot roles, no lifecycle states, no vector milestones, no merge queue coordination. Symphony solves agent dispatch, not agent coordination. It does not address the merge conflict rates documented in the AgenticFlict study (Trend #3).
+
+**ATC implication (critical):** Symphony validates the problem space ATC occupies — the industry agrees that task-board-to-agent orchestration is needed. The differentiation is clear: Symphony is a dispatcher (task → agent → PR); ATC is a coordinator (craft lifecycle, pilot roles, flight plans, Tower merge queue, Black Box audit). ATC should position against Symphony's flat model by emphasizing the coordination layer that Symphony lacks. A steering committee brainstorm on competitive positioning is warranted.
+
+---
+
+### 15. Agent Security Is Now a First-Class Design Concern
+
+Agent-tool security shifted from theoretical to empirical in Q1–Q2 2026:
+
+- **MCP vulnerability (April 2026):** A design flaw in Anthropic's Model Context Protocol enables RCE via the STDIO interface, affecting 200,000+ servers. Cursor, VS Code, Windsurf, Claude Code, and Gemini-CLI are all vulnerable. Windsurf (CVE-2026-30615) required zero user interaction for exploitation.
+- **Credential targeting:** A [VentureBeat report](https://venturebeat.com/security/six-exploits-broke-ai-coding-agents-iam-never-saw-them) documents that every attacker across six disclosed exploits against Claude Code, Copilot, and Codex went for the credential, not the model.
+- **IDEsaster disclosure:** 30+ vulnerabilities across AI-powered IDEs combining prompt injection with legitimate features for data exfiltration and RCE.
+- **Supply chain:** The Shai-Hulud attack (npm ecosystem, September 2025) compromised 500+ packages and 487 organizations; trojanized MCP packages (SmartLoader/Oura) have appeared in public MCP registries.
+
+**Skepticism check:** Some of these are genuine design flaws; others are standard supply-chain risks dressed up in "AI agent" framing. The MCP STDIO issue is real infrastructure risk. The IDE vulnerabilities are an extension of the perennial "don't execute untrusted code" principle. The 92%-of-AI-code-is-vulnerable headline from one report deserves scrutiny — the sample methodology matters.
+
+**ATC implication:** ATC's pilot certification model (RULE-PILOT-2), controls permissions matrix (RULE-CTRL-2), and Black Box audit trail are directly validated as security primitives, not just governance features. The credential-targeting pattern argues for the Captain-as-gatekeeper model — the human holding captain seat is the last line of defense when agent tooling is compromised. ATC should ensure that no automated path can bypass captain authorization for merge (RULE-TOWER-1).
+
+---
+
+### 16. The Vibe Coding Backlash and Quality Reckoning
+
+The honeymoon with AI-generated code is over. Developer trust in AI code accuracy dropped from 43% (2024) to 33% (2026), and overall favorability toward AI tools fell from 77% (2023) to 60%.
+
+**Quantified quality gaps:**
+- CodeRabbit analysis of 470 OSS PRs: AI co-authored code contains 1.7× more major issues than human-written code
+- AI-generated code shows 75% more misconfigurations and 2.74× higher security vulnerabilities
+- Open-source backlash: Daniel Stenberg shut down cURL's bug bounty after AI submissions hit 20%; Mitchell Hashimoto banned AI code from Ghostty; Steve Ruiz closed all external PRs to tldraw
+
+**HN consensus (late 2025 → mid 2026):** Vibe coding is a "Tier-2 tool" that requires coding knowledge to wield effectively. The bottleneck is no longer code generation speed — it's verification. "Autonomy is overrated as marketing; orchestration is underrated as engineering practice."
+
+**Skepticism check:** The quality findings are real but the comparison baseline matters — are we comparing AI code to average human code, or to senior-engineer code? The 92%-vulnerability headline from one forensics firm deserves independent replication. The open-source maintainer backlash is genuine but concentrated in high-profile projects that attracted spam.
+
+**ATC implication:** This is the strongest validation yet for ATC's checklist-before-landing model (RULE-LCHK-3) and the vector milestone pattern. The industry is independently converging on the conclusion that deterministic quality gates around AI output are mandatory. ATC's Flight Plan (ordered vectors with acceptance criteria) is the answer to "how do you decompose a task so each piece can be verified before the next begins." The PR-size findings from AgenticFlict (Trend #3) and the quality findings here both argue for smaller, scoped increments — exactly what vectors enforce.
+
+---
+
+## Updated Existing Trends (May 2026)
+
+### Update to Trend #1 (Multi-Agent Coding)
+
+The "Ask HN: Are you using an agent orchestrator?" thread (February 2026) and subsequent discussions have produced practitioner consensus:
+
+- **Serial beats parallel for most cases.** 2–3 agents with human oversight outperform larger swarms. Concurrency creates race conditions where agents overwrite context.
+- **Documentation > orchestration.** Architecture decision records and module boundaries let single agents produce coherent code; fancy multi-agent systems don't fix poor context.
+- **Orc** (Show HN, March 2026) — a pure-bash multi-agent orchestrator using git worktrees, tmux, and three state files — demonstrates how minimal the infrastructure needs to be. State is "three files."
+
+**ATC implication update:** ATC should resist the "more agents = more throughput" assumption. The practitioner evidence says the coordination overhead dominates for most teams. ATC's value is in making 2–5 agents coherent, not in scaling to swarms.
+
+### Update to Trend #7 (Agent Memory and Context Handover)
+
+Context management is now recognized as the primary constraint in AI-assisted coding (HN frontpage, April 2026). Working solutions:
+
+- **Session segmentation** — separate sessions by purpose rather than running continuous long threads
+- **Snapshot-and-restart** — reset attention focus periodically, reload only relevant context
+- **On-demand retrieval** — CLI-based retrieval of specific context vs. preloading everything
+- **"Context rot"** — the gradual degradation of agent output as the context window fills with noise — is now a named failure mode
+
+**ATC implication update:** The TFR holding pattern + structured wind-down (roadmap item) directly addresses context rot. When a craft enters hold, the context snapshot becomes the agent's "session restart" point. This is exactly the pattern practitioners are converging on independently.
+
+---
+
 ## Signals to Watch
 
 These items are not yet strong trends but have appeared enough to warrant monitoring:
 
 - **PR review effort prediction** — MSR 2026 research on forecasting high-effort AI-generated PRs before they land; could inform Tower clearance criteria weighting
-- **Agent identity and signing** — emerging discussion about cryptographically-signed agent commits for accountability; relates to ATC's pilot certification model
+- **Agent identity and signing** — emerging discussion about cryptographically-signed agent commits for accountability; A2A v1.0 now includes cryptographic card signing, graduating this from signal toward active trend. Relates to ATC's pilot certification model.
 - **ICLR 2026 multi-agent failure taxonomy** — [academic research](https://news.ycombinator.com/item?id=46837484) identifying five primary failure modes (latency, token costs, error cascades, brittle topologies, observability) with promising mitigations: Speculative Actions (~30% speedup via parallel API execution), KVComm (efficient inter-agent communication via KV pairs), DoVer (intervention-driven debugging flipping 28% of failures to successes). Early-stage but directly relevant to ATC's retry and go-around mechanisms.
 - **Model-tiered agent architectures** — production pattern of using fast/cheap models for triage and routing agents, with capable models for complex reasoning agents; could inform ATC's pilot certification tiers
+- **Konductor / Conductor** — HN-discussed orchestration frameworks addressing "context amnesia" through persistent project-state memory; similar concept to ATC's Black Box + buildSystemPrompt
+- **No-code agent orchestration (Mercury)** — Canvas-based human+agent team assembly; signals that orchestration is moving upmarket toward non-developer users
 
 ---
 
