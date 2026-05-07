@@ -32,6 +32,10 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import { query as defaultQuery } from "@anthropic-ai/claude-agent-sdk";
 import { buildSystemPrompt, deriveSeat } from "./prompt-builder.js";
+import { createIntercomMcpServer } from "./intercom-tool.js";
+import { createControlsMcpServer } from "./controls-tool.js";
+import { createTowerMcpServer } from "./tower-tool.js";
+import { createVectorMcpServer } from "./vector-tool.js";
 import { createControlsCanUseTool } from "./controls-enforcer.js";
 
 /**
@@ -317,6 +321,16 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
       this._daemonUrl,
     );
 
+    // Vector reporting: the agent calls `vector_report` to mark a milestone
+    // as passed with evidence, advancing the flight plan. This is preferred
+    // over raw curl so reports are structured and attributable.
+    const vectorServer = createVectorMcpServer({
+      daemonUrl: "http://localhost:7700",
+      projectName: options.projectName,
+      callsign: options.craft.callsign,
+      pilotId: pilotIdForPrompt,
+    });
+
     // Runtime enforcer for RULE-CTRL-3. Inspects every tool call and denies
     // file modifications (Edit, Write, MultiEdit, NotebookEdit, Bash) when
     // the pilot does not currently hold controls for the target path.
@@ -346,7 +360,10 @@ export class ClaudeAgentSdkAdapter implements AgentAdapter {
       systemPrompt: finalSystemPrompt,
       mcpServers: {
         ...toSdkMcpServers(options.mcpServers),
-        atc: atcMcpServer,
+        "atc-intercom": intercomServer,
+        "atc-controls": controlsServer,
+        "atc-tower": towerServer,
+        "atc-vectors": vectorServer,
       },
       // acceptEdits auto-accepts file edit operations without interactive
       // prompts (no human is at the keyboard). RULE-CTRL-3 is still enforced

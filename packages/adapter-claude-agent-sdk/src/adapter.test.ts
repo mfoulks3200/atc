@@ -282,6 +282,15 @@ describe("ClaudeAgentSdkAdapter", () => {
     expect(mcp?.atc).toMatchObject({ type: "http", url: `${TEST_DAEMON_URL}/api/v1/mcp` });
   });
 
+  it("launch registers the built-in ATC MCP servers including atc-vectors", async () => {
+    await launchTestAgent();
+    const mcp = sdk.lastSession().options?.mcpServers as Record<string, unknown> | undefined;
+    expect(mcp?.["atc-intercom"]).toBeDefined();
+    expect(mcp?.["atc-controls"]).toBeDefined();
+    expect(mcp?.["atc-tower"]).toBeDefined();
+    expect(mcp?.["atc-vectors"]).toBeDefined();
+  });
+
   it("onMessage receives assistant text blocks wrapped as intercom messages", async () => {
     const handle = await launchTestAgent();
     const received: IntercomMessage[] = [];
