@@ -302,7 +302,7 @@ The **tower** is a centralized agent responsible for merge coordination.
 
 - **RULE-TOWER-1:** There MUST be exactly one tower per repository.
 - **RULE-TOWER-2:** The tower MUST verify all vectors in a craft's flight plan have been reported as passed before granting landing clearance.
-- **RULE-TOWER-3:** The tower MUST verify the craft's branch is up to date with main before executing a merge.
+- **RULE-TOWER-3:** The tower MUST verify the craft's branch is up to date with main before executing a merge. *(Enforced in `@airtrafficcontrol/tower` via `Tower.executeMerge` and in `@airtrafficcontrol/daemon` via `git/merge.ts`.)*
 
 ### 2.4 Vector
 
@@ -757,8 +757,8 @@ When a craft passes its landing checklist, the pilot requests landing clearance 
 #### Rules
 
 - **RULE-TMRG-1:** The tower MUST verify all vector reports before granting landing clearance.
-- **RULE-TMRG-2:** The tower MUST verify the branch is up to date with main before executing a merge.
-- **RULE-TMRG-3:** If a merge conflict arises, the tower MAY send the craft on a go-around to rebase/resolve before re-entering the queue.
+- **RULE-TMRG-2:** The tower MUST verify the branch is up to date with main before executing a merge. *(Enforced in `@airtrafficcontrol/tower` via `Tower.executeMerge`; branches failing the check are returned as `MergeStale` go-arounds by the daemon merge route.)*
+- **RULE-TMRG-3:** If a merge conflict arises, the tower MAY send the craft on a go-around to rebase/resolve before re-entering the queue. *(Enforced in `@airtrafficcontrol/tower` via `Tower.executeMerge`; conflicts are returned as `MergeConflict` go-arounds by the daemon merge route.)*
 - **RULE-TMRG-4:** Merges MUST be sequenced to avoid conflicts. Default ordering is first-come, first-served.
 
 ### 4.5 TFR Protocol
