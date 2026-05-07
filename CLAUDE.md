@@ -104,7 +104,6 @@ Rule IDs follow the format `RULE-{PREFIX}-{N}` (e.g., `RULE-CRAFT-1`, `RULE-CTRL
 
 The spec (`docs/specification.md`) covers the domain model and protocols but has not been updated to reflect the full codebase. Key gaps:
 
-- **Merge execution is unimplemented.** Tower merge protocol steps 4-6 (verify branch up to date, execute merge, mark landed) have no code anywhere. RULE-TOWER-3, RULE-TMRG-2, RULE-TMRG-3 are not enforced.
 - **Rule enforcement is split** between `@airtrafficcontrol/core` (library-level) and `@airtrafficcontrol/daemon` (HTTP route handlers). Some transition preconditions (RULE-LIFE-3, RULE-LCHK-3, RULE-EMER-1, RULE-VEC-2) are only enforced in daemon routes, not in core.
 - **`transitionCraft()` skips most preconditions.** Only RULE-LIFE-4 (all vectors passed) and RULE-LIFE-7 (EmergencyDeclaration in bbox) are checked. RULE-LIFE-3, RULE-LIFE-5, RULE-LIFE-6 are not enforced at the core level.
 - **`shareControls()` doesn't validate seat type.** A jumpseat pilot ID can be passed in shared areas, violating RULE-CTRL-2.
